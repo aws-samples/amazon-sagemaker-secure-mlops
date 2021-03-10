@@ -1,0 +1,20 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create security controls for Data Science environments
+
+Parameters:
+  StackSetName:
+    Type: String 
+    Description: A name to be used across all nested stacks 
+
+  SecurityControlExecutionRoleArn:
+    Type: String 
+    Description: Execution role ARN for security controls
+
+Conditions:
+  FalseCondition: !Equals [ 'true', 'false' ]
+
+Resources:
+  NullResource:
+    Type: 'Custom::NullResource'
+    Condition: FalseCondition

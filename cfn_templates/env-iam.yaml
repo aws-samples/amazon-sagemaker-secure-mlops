@@ -1,0 +1,429 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create environment-specific IAM Roles for SageMaker Data Science Environment Personas
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  CreateVPCFlowLogsRole:
+    Description: Select YES if you want to create an IAM Role for VPC Flow Logs to write the logs into a CloudWatch log group
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+  
+Conditions:
+  VPCFlowLogsRoleCondition: !Equals [!Ref CreateVPCFlowLogsRole, 'YES']
+
+Outputs:
+  DSTeamAdministratorRoleName:
+    Description: The name of the DataScienceTeamAdministrator role
+    Value: !Ref DataScienceTeamAdministratorRole
+
+  DataScientistRoleName:
+    Description: The name of the Data Scientist role
+    Value: !Ref DataScientistRole
+
+  DSTeamAdministratorRoleArn:
+    Description: The ARN of the DataScienceTeamAdministrator role
+    Value: !GetAtt DataScienceTeamAdministratorRole.Arn
+    
+  DataScientistRoleArn:
+    Description: The ARN of the Data Scientist role
+    Value: !GetAtt DataScientistRole.Arn
+
+  AssumeTeamAdminRole:
+    Description: URL for assuming the role of a environment admin
+    Value: !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceTeamAdministratorRole}&displayName=${DataScienceTeamAdministratorRole}'
+
+  AssumeDataScientistRole:
+    Description: URL for assuming the role of a environment user
+    Value: !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRole}&displayName=${DataScientistRole}'
+  
+  SageMakerExecutionRoleName:
+    Description: The name of the SageMaker execution role
+    Value: !Ref SageMakerExecutionRole
+
+  SageMakerExecutionRoleArn:
+    Description: The ARN of the SageMaker execution role
+    Value: !GetAtt SageMakerExecutionRole.Arn
+
+  SCProjectLaunchRoleName:
+    Description: The name of the ServiceCatalog product launch role
+    Value: !Ref SCProjectLaunchRole
+
+  SCProjectLaunchRoleArn:
+    Description: The ARN of the ServiceCatalog product launch role
+    Value: !GetAtt SCProjectLaunchRole.Arn
+  
+  VPCFlowLogsRoleName:
+    Description: The name of the VPC Flow Logs role (used to deliver the VPC flog logs into CloudWatch group)
+    Value: !If [ VPCFlowLogsRoleCondition, !Ref VPCFlowLogsRole, !Ref "AWS::NoValue" ]
+      
+  VPCFlowLogsRoleArn:
+    Description: The ARN of the VPC Flow Logs role
+    Value: !If [ VPCFlowLogsRoleCondition, !GetAtt VPCFlowLogsRole.Arn, !Ref "AWS::NoValue" ]
+
+Resources:
+  DataScienceTeamAdministratorRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              Action:
+                - 'sts:AssumeRole'
+        RoleName: !Sub "${EnvName}-${EnvType}-ds-team-admin-role"
+        Policies:
+          - PolicyName: SageMakerAccessInlinePolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: VisualEditor0
+                  Effect: Allow
+                  Action:
+                    - 'sagemaker:*'
+                  Resource: '*'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
+          - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
+          - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+          - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+          - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSSMFullAccess'
+          - 'arn:aws:iam::aws:policy/AWSCodeCommitFullAccess'
+        Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  DataScientistRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: !Sub "${EnvName}-${EnvType}-ds-user-role"
+      Policies:
+        - PolicyName: SageMakerAccessInlinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - 'sagemaker:CreateModel'
+                  - 'sagemaker:DescribeTrainingJob'
+                  - 'sagemaker:DescribeLabelingJob'
+                  - 'sagemaker:DescribeModelPackage'
+                  - 'sagemaker:ListTransformJobs'
+                  - 'sagemaker:Search'
+                  - 'sagemaker:ListTrainingJobs'
+                  - 'sagemaker:ListProcessingJobs'
+                  - 'sagemaker:DescribeAlgorithm'
+                  - 'sagemaker:UpdateEndpointWeightsAndCapacities'
+                  - 'sagemaker:UpdateCodeRepository'
+                  - 'sagemaker:DescribeTransformJob'
+                  - 'sagemaker:ListSubscribedWorkteams'
+                  - 'sagemaker:ListLabelingJobsForWorkteam'
+                  - 'sagemaker:CreateEndpoint'
+                  - 'sagemaker:ListAlgorithms'
+                  - 'sagemaker:CreateModelPackage'
+                  - 'sagemaker:ListNotebookInstanceLifecycleConfigs'
+                  - 'sagemaker:DeleteModel'
+                  - 'sagemaker:DescribeSubscribedWorkteam'
+                  - 'sagemaker:ListCompilationJobs'
+                  - 'sagemaker:DescribeHyperParameterTuningJob'
+                  - 'sagemaker:ListEndpointConfigs'
+                  - 'sagemaker:CreateEndpointConfig'
+                  - 'sagemaker:ListTrainingJobsForHyperParameterTuningJob'
+                  - 'sagemaker:DescribeEndpointConfig'
+                  - 'sagemaker:StopNotebookInstance'
+                  - 'sagemaker:RenderUiTemplate'
+                  - 'sagemaker:StopTransformJob'
+                  - 'sagemaker:ListWorkteams'
+                  - 'sagemaker:DescribeNotebookInstance'
+                  - 'sagemaker:CreateAlgorithm'
+                  - 'sagemaker:CreateTrainingJob'
+                  - 'sagemaker:DescribeNotebookInstanceLifecycleConfig'
+                  - 'sagemaker:StopHyperParameterTuningJob'
+                  - 'sagemaker:DeleteCodeRepository'
+                  - 'sagemaker:DeleteEndpoint'
+                  - 'sagemaker:DescribeEndpoint'
+                  - 'sagemaker:CreateTransformJob'
+                  - 'sagemaker:ListNotebookInstances'
+                  - 'sagemaker:InvokeEndpoint'
+                  - 'sagemaker:ListTags'
+                  - 'sagemaker:CreateCodeRepository'
+                  - 'sagemaker:DescribeModel'
+                  - 'sagemaker:StopTrainingJob'
+                  - 'sagemaker:ListHyperParameterTuningJobs'
+                  - 'sagemaker:ListModelPackages'
+                  - 'sagemaker:DescribeWorkteam'
+                  - 'sagemaker:UpdateEndpoint'
+                  - 'sagemaker:ListLabelingJobs'
+                  - 'sagemaker:DescribeCompilationJob'
+                  - 'sagemaker:GetSearchSuggestions'
+                  - 'sagemaker:CreatePresignedNotebookInstanceUrl'
+                  - 'sagemaker:StartNotebookInstance'
+                  - 'sagemaker:ListModels'
+                  - 'sagemaker:DescribeCodeRepository'
+                  - 'sagemaker:ListEndpoints'
+                  - 'sagemaker:ListCodeRepositories'
+                  - 'codecommit:BatchGetRepositories'
+                  - 'codecommit:GitPull'
+                  - 'codecommit:GitPush'
+                  - 'codecommit:CreateBranch'
+                  - 'codecommit:DeleteBranch'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:ListBranches'
+                  - 'codecommit:CreatePullRequest'
+                  - 'codecommit:CreatePullRequestApproval'
+                  - 'codecommit:GetPullRequest'
+                  - 'codecommit:CreateCommit'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetCommitHistory'
+                  - 'codecommit:GetDifferences'
+                  - 'codecommit:GetReferences'
+                  - 'codecommit:CreateRepository'
+                  - 'codecommit:GetRepository'
+                  - 'codecommit:ListRepositories'
+                Resource: '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AWSServiceCatalogEndUserFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AWSLambdaReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodeCommitReadOnly'
+        - 'arn:aws:iam::aws:policy/job-function/DataScientist'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  SageMakerExecutionRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - sagemaker.amazonaws.com
+              Action:
+                - 'sts:AssumeRole'
+        Path: /service-role/
+        RoleName: !Sub ${EnvName}-${EnvType}-sagemaker-execution-role
+        ManagedPolicyArns:
+          - !Ref SageMakerExecuctionPolicy
+          - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        Tags:
+          - Key: EnvironmentName
+            Value: !Ref EnvName
+          - Key: EnvironmentType
+            Value: !Ref EnvType
+
+  SageMakerExecuctionPolicy:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      ManagedPolicyName: !Sub "${EnvName}-${EnvType}-sagemaker-execution-policy"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - 
+            Action:
+              - 'ssm:GetParameters'
+              - 'ssm:GetParameter'
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${EnvName}-${EnvType}*'
+            Effect: Allow
+          - 
+            Action:
+              - 'sagemaker:CreateNotebookInstance'
+              - 'sagemaker:CreateHyperParameterTuningJob'
+              - 'sagemaker:CreateProcessingJob'
+              - 'sagemaker:CreateTrainingJob'
+              - 'sagemaker:CreateModel'
+            Resource: '*'
+            Effect: Deny
+            Condition:
+              'Null':
+                'sagemaker:VpcSubnets': 'true'
+          - 
+            Action:
+              - 'codecommit:BatchGetRepositories'
+              - 'codecommit:GitPull'
+              - 'codecommit:GitPush'
+              - 'codecommit:CreateBranch'
+              - 'codecommit:DeleteBranch'
+              - 'codecommit:GetBranch'
+              - 'codecommit:ListBranches'
+              - 'codecommit:CreatePullRequest'
+              - 'codecommit:GetPullRequest'
+              - 'codecommit:CreateCommit'
+              - 'codecommit:GetCommit'
+              - 'codecommit:GetCommitHistory'
+              - 'codecommit:GetDifferences'
+              - 'codecommit:GetReferences'
+              - 'codecommit:CreateRepository'
+              - 'codecommit:GetRepository'
+              - 'codecommit:ListRepositories'
+              - 'kms:CreateGrant'
+              - 'kms:Decrypt'
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:GenerateDataKey'
+              - 'kms:ListAliases'
+            Resource: '*'
+            Effect: Allow
+          - 
+            Action:
+              - 's3:GetObject'
+              - 's3:PutObject'
+              - 's3:DeleteObject'
+            Resource:
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*/*'
+              - 'arn:aws:s3:::*sagemaker*/*'
+            Effect: Allow
+          - 
+            Action:
+              - 's3:GetBucketLocation'
+              - 's3:ListBucket'
+              - 's3:ListAllMyBuckets'
+            Resource: '*'
+            Effect: Allow
+
+  SCProjectLaunchRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: servicecatalog.amazonaws.com
+              Action: 'sts:AssumeRole'
+        RoleName: !Sub "${EnvName}-${EnvType}-sc-launch-role"
+        Policies:
+          - PolicyName: SCInlinePolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: IAMPermission
+                  Effect: Allow
+                  Action:
+                    - 'iam:AttachRolePolicy'
+                    - 'iam:CreateRole'
+                    - 'iam:DeleteRole'
+                    - 'iam:DeleteRolePolicy'
+                    - 'iam:DetachRolePolicy'
+                    - 'iam:GetRole'
+                    - 'iam:GetRolePolicy'
+                    - 'iam:ListPolicyVersions'
+                    - 'iam:PassRole'
+                    - 'iam:PutRolePolicy'
+                    - 'iam:GetPolicy'
+                    - 'iam:CreatePolicy'
+                    - 'iam:DeletePolicy'
+                    - 'iam:Tag*'
+                  Resource: '*'
+                - Sid: KMSPermission
+                  Effect: Allow
+                  Action:
+                    - 'kms:CreateAlias'
+                    - 'kms:CreateGrant'
+                    - 'kms:CreateKey'
+                    - 'kms:Decrypt'
+                    - 'kms:DeleteAlias'
+                    - 'kms:DeleteCustomKeyStore'
+                    - 'kms:DeleteImportedKeyMaterial'
+                    - 'kms:DescribeKey'
+                    - 'kms:EnableKey'
+                    - 'kms:EnableKeyRotation'
+                    - 'kms:GenerateDataKey'
+                    - 'kms:ListAliases'
+                    - 'kms:PutKeyPolicy'
+                    - 'kms:ScheduleKeyDeletion'
+                    - 'kms:TagResource'
+                    - 'kms:UpdateAlias'
+                    - 'kms:UpdateCustomKeyStore'
+                    - 'kms:UpdateKeyDescription'
+                  Resource: '*'
+                - Sid: SSMPermission
+                  Effect: Allow
+                  Action:
+                    - 'ssm:AddTagsToResource'
+                    - 'ssm:DeleteParameter'
+                    - 'ssm:DeleteParameters'
+                    - 'ssm:GetParameter'
+                    - 'ssm:GetParameters'
+                    - 'ssm:PutParameter'
+                    - 'ssm:RemoveTagsFromResource'
+                  Resource: '*'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+          - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+          - 'arn:aws:iam::aws:policy/AWSLambdaFullAccess'
+        Tags:
+          - Key: EnvironmentName
+            Value: !Ref EnvName
+          - Key: EnvironmentType
+            Value: !Ref EnvType       
+
+  VPCFlowLogsRole:
+    Type: AWS::IAM::Role
+    Condition: VPCFlowLogsRoleCondition
+    Properties:
+      Description: Rights to Publish VPC Flow Logs to CloudWatch Logs
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - vpc-flow-logs.amazonaws.com
+      Path: /
+      RoleName: !Sub "${EnvName}-${EnvType}-vpcflowlogs-role"
+      Policies:
+        - PolicyName: CloudWatchLogGroup
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/vpcflowlogs/${EnvName}-${EnvType}*' 
+      Tags:
+      - Key: EnvironmentName
+        Value: !Ref EnvName
+      - Key: EnvironmentType
+        Value: !Ref EnvType

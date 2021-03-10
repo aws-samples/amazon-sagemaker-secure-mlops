@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create a SageMaker cross-account deployment role in target account (test, prod) assumed by AmazonSageMakerServiceCatalogProductsUseRole in the dev account to deploy the endpoints
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment/team name.  Used as a suffix for environment resource names.
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: test
+  PipelineExecutionRoleArn:
+    Type: String
+    Description: CI/CD execution role in the development account (AmazonSageMakerServiceCatalogProductsUseRole)
+
+Outputs:
+  SageMakerCrossAccountDeploymentRoleName:
+    Description: The name of the SageMaker cross-account deployment role 
+    Value: !Ref SageMakerCrossAccountDeploymentRole
+
+  SageMakerCrossAccountDeploymentRoleArn:
+    Description: The ARN of the SageMaker cross-account deployment role 
+    Value: !GetAtt SageMakerCrossAccountDeploymentRole.Arn
+
+Resources:
+  SageMakerCrossAccountDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+        RoleName: !Sub "${EnvName}-${EnvType}-sagemaker-cross-account-deployment-role"
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - "sagemaker.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+            -
+              Effect: "Allow"
+              Principal:
+                AWS: !Sub ${PipelineExecutionRoleArn}
+              Action:
+                - "sts:AssumeRole"
+        Path: "/"
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        Policies:
+          -
+            PolicyName: !Sub "${EnvName}-${EnvType}-sagemaker-cross-account-deployment-policy"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "sagemaker:*Model"
+                    - "sagemaker:*EndpointConfig"
+                    - "sagemaker:*Endpoint"
+                  Resource:
+                    - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint/*"
+                    - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint-config/*"
+                    - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:model/*"
+        Tags:
+          - Key: EnvName
+            Value: !Ref EnvName
+          - Key: EnvironmentType
+            Value: !Ref EnvType

@@ -1,0 +1,1065 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template create a Multi-AZ, multi-subnet VPC infrastructure with optional managed NAT gateways in the public subnet for each AZ
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: 
+          default: Data Science Environment
+        Parameters:
+          - EnvName
+          - EnvType
+      - Label:
+          default: Availability Zone Configuration
+        Parameters:
+          - AvailabilityZones
+          - NumberOfAZs
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - CreateVPC
+          - CreateNATGateways
+          - ExistingVPCId
+          - VPCCIDR
+          - CreatePrivateSubnets
+          - PrivateSubnet1ACIDR
+          - PrivateSubnet2ACIDR
+          - PrivateSubnet3ACIDR
+          - PrivateSubnet4ACIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PublicSubnet3CIDR
+          - PublicSubnet4CIDR
+      - Label:
+          default: VPC Flow Logs Configuration
+        Parameters:
+          - CreateVPCFlowLogsToCloudWatch
+          - VPCFlowLogsRoleArn
+          - VPCFlowLogsLogFormat
+          - VPCFlowLogsLogGroupRetention
+          - VPCFlowLogsMaxAggregationInterval
+          - VPCFlowLogsTrafficType
+          - VPCFlowLogsCloudWatchKMSKey
+
+    ParameterLabels:
+          EnvName:
+            default: Name of the Data Science environment
+          EnvType:
+            default: Environment stage name (dev, test, prod)
+          AvailabilityZones:
+            default: Availability Zones
+          NumberOfAZs:
+            default: Number of Availability Zones
+          CreateVPC:
+            default: Create a new VPC
+          CreateNATGateways:
+            default: Create NAT Gateways (per AZ)
+          ExistingVPCId:
+            default: Existing VPC Id
+          VPCCIDR:
+            default: Create a new VPC with the following CIDR
+          CreatePrivateSubnets:
+            default: Create private subnets
+          PrivateSubnet1ACIDR:
+            default: Private subnet 1A CIDR
+          PrivateSubnet2ACIDR:
+            default: Private subnet 2A CIDR
+          PrivateSubnet3ACIDR:
+            default: Private subnet 3A CIDR
+          PrivateSubnet4ACIDR:
+            default: Private subnet 4A CIDR
+          PublicSubnet1CIDR:
+            default: Public subnet 1 CIDR
+          PublicSubnet2CIDR:
+            default: Public subnet 2 CIDR
+          PublicSubnet3CIDR:
+            default: Public subnet 3 CIDR
+          PublicSubnet4CIDR:
+            default: Public subnet 4 CIDR
+          CreateVPCFlowLogsToCloudWatch:
+            default: Create VPC Flow Logs (CloudWatch)
+          VPCFlowLogsRoleArn:
+            default: VPC Flow Logs Role ARN
+          VPCFlowLogsCloudWatchKMSKey:
+            default: CloudWatch Logs KMS Key for VPC flow logs
+          VPCFlowLogsLogFormat:
+            default: VPC Flow Logs - Log Format
+          VPCFlowLogsLogGroupRetention:
+            default: VPC Flow Logs - Log Group Retention
+          VPCFlowLogsMaxAggregationInterval:
+            default: VPC Flow Logs - Max Aggregation Interval
+          VPCFlowLogsTrafficType:
+            default: VPC Flow Logs - Traffic Type
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  PrivateSubnetIds:
+    Description: Ids of the private subnets to deploy SageMaker resources and VPC endpoints
+    Value: !Join
+      - ','
+      - - !If [ PrivateSubnetsCondition, !Ref PrivateSubnet1A, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+
+  PrivateRouteTableIds:
+    Description: Ids of the private route tables
+    Value: !Join
+      - ',' 
+      - - !If [ PrivateSubnetsCondition, !Ref PrivateSubnet1ARouteTable, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2ARouteTable, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3ARouteTable, !Ref AWS::NoValue ]
+        - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4ARouteTable, !Ref AWS::NoValue ]
+
+  SageMakerSecurityGroupId:
+    Description: Id of SageMaker security Group
+    Value: !GetAtt SageMakerSecurityGroup.GroupId
+  
+  VPCEndpointsSecurityGroupId:
+    Description: Id of VPC endpoints security Group
+    Value: !GetAtt VPCEndpointsSecurityGroup.GroupId
+
+  SharedServicesVPCEndpointSecurityGroupId:
+    Description: Id of shared services VPC endpoint security Group
+    Value: !GetAtt SharedServicesVPCEndpointSecurityGroup.GroupId
+
+Parameters:
+  AvailabilityZones:
+    Description: 'List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.'
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  
+  NumberOfAZs:
+    AllowedValues:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+    Default: '2'
+    Description: Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.
+    Type: String
+
+  CreateVPC:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when you want to re-use an existing VPC. If NO, the Existing VPC Id must be provided
+    Type: String
+    
+  CreateNATGateways:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when creating only private subnets. If YES, public subnets for each AZ will be created as well as an Internet Gateway
+    Type: String
+
+  ExistingVPCId:
+    Description: Enter an existing VPC Id for deployment or leave empty if "Create a new VPC" is set to YES
+    Default: ''
+    Type: String
+
+  VPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the new VPC
+    Type: String
+
+  CreatePrivateSubnets:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when you want to re-use existing subnets in the existing VPC (existing VPC Id must be provided)
+    Type: String
+
+  PrivateSubnet1ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/19
+    Description: CIDR block for private subnet 1A located in Availability Zone 1
+    Type: String
+
+  PrivateSubnet2ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.32.0/19
+    Description: CIDR block for private subnet 2A located in Availability Zone 2
+    Type: String
+
+  PrivateSubnet3ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.64.0/19
+    Description: CIDR block for private subnet 3A located in Availability Zone 3
+    Type: String
+
+  PrivateSubnet4ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.96.0/19
+    Description: CIDR block for private subnet 4A located in Availability Zone 4
+    Type: String
+
+  PublicSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.128.0/20
+    Description: CIDR block for the public DMZ subnet 1 located in Availability Zone 1
+    Type: String
+
+  PublicSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.144.0/20
+    Description: CIDR block for the public DMZ subnet 2 located in Availability Zone 2
+    Type: String
+
+  PublicSubnet3CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.160.0/20
+    Description: CIDR block for the public DMZ subnet 3 located in Availability Zone 3
+    Type: String
+
+  PublicSubnet4CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.176.0/20
+    Description: CIDR block for the public DMZ subnet 4 located in Availability Zone 4
+    Type: String
+
+  CreateVPCFlowLogsToCloudWatch:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'NO'
+    Description: Set to YES to create VPC flow logs for the VPC and publish them to CloudWatch. If NO, VPC flow logs will not be created.
+    Type: String
+
+  VPCFlowLogsRoleArn:
+    Default: ''
+    Description: VPC Flow Logs role ARN used to deliver the logs into CloudWatch log group.
+    Type: String
+
+  VPCFlowLogsCloudWatchKMSKey:
+    AllowedPattern: '^$|^arn:(aws[a-zA-Z-]*)?:kms:[a-z0-9-]+:\d{12}:key\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+    ConstraintDescription: 'Key ARN example:  arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'
+    Default: ''
+    Description:
+      (Optional) KMS Key ARN to use for encrypting the VPC flow logs data. If empty, encryption is enabled with CloudWatch Logs managing the
+      server-side encryption keys.
+    Type: String
+
+  VPCFlowLogsLogFormat:
+    AllowedPattern: '^(\$\{[a-z-]+\})$|^((\$\{[a-z-]+\} )*\$\{[a-z-]+\})$'
+    Default:
+      '${version} ${account-id} ${interface-id} ${srcaddr} ${dstaddr} ${srcport} ${dstport} ${protocol} ${packets} ${bytes} ${start} ${end} ${action}
+      ${log-status}'
+    Description:
+      The fields to include in the flow log record, in the order in which they should appear. Specify the fields using the ${field-id} format,
+      separated by spaces. Using the Default Format as the default value.
+    Type: String
+
+  VPCFlowLogsLogGroupRetention:
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+    Default: 14
+    Description: Number of days to retain the VPC Flow Logs in CloudWatch
+    Type: String
+
+  VPCFlowLogsMaxAggregationInterval:
+    AllowedValues:
+      - 60
+      - 600
+    Default: 600
+    Description:
+      The maximum interval of time during which a flow of packets is captured and aggregated into a flow log record. You can specify 60 seconds (1
+      minute) or 600 seconds (10 minutes).
+    Type: String
+
+  VPCFlowLogsTrafficType:
+    AllowedValues:
+      - ACCEPT
+      - ALL
+      - REJECT
+    Default: REJECT
+    Description: The type of traffic to log. You can log traffic that the resource accepts or rejects, or all traffic.
+    Type: String
+
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment/team name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+Rules:
+  VPC:
+    RuleCondition: !Equals [ !Ref 'CreateVPC', 'NO' ]
+    Assertions: 
+      - Assert: !Not [ !Equals [ !Ref ExistingVPCId, '' ] ]
+        AssertDescription: The existing VPC Id must be provided if Create a new VPC is set to NO
+
+  VPCFlowLogs:
+    RuleCondition: !Equals [ !Ref 'CreateVPCFlowLogsToCloudWatch', 'YES' ]
+    Assertions: 
+      - Assert: !Not [ !Equals [ !Ref VPCFlowLogsRoleArn, '' ] ]
+        AssertDescription: The VPC Flow Logs IAM role ARN must be provided if Create VPC Flow Logs set to YES
+  NAT:
+    RuleCondition: !Equals [ !Ref 'CreateNATGateways', 'YES' ]
+    Assertions:
+      - Assert: !Equals [ !Ref CreatePrivateSubnets, 'YES' ]
+        AssertDescription: To create NAT gateways you must set CreatePrivateSubnets to YES
+
+  PrivateSubnets:
+    RuleCondition: !Equals [ !Ref 'CreatePrivateSubnets', 'NO' ]
+    Assertions:
+      - Assert: !Equals [ !Ref 'CreateVPC', 'NO' ] 
+        AssertDescription: You can set Create private subnets to NO only if you use existing VPC
+
+Conditions:
+  2AZCondition: !Or
+    - !Equals [!Ref 'NumberOfAZs', '2']
+    - !Condition '3AZCondition'
+    - !Condition '4AZCondition'
+  3AZCondition: !Or
+    - !Equals [!Ref 'NumberOfAZs', '3']
+    - !Condition '4AZCondition'
+  4AZCondition: !Equals [!Ref 'NumberOfAZs', '4']
+  NewVPCCondition: !Equals [!Ref 'CreateVPC', 'YES']
+  NATGatewaysCondition: !And
+    - !Equals [!Ref 'CreateNATGateways', 'YES']
+    - !Equals [!Ref 'CreatePrivateSubnets', 'YES']
+  NATGateways&2AZCondition: !And 
+    - !Condition NATGatewaysCondition
+    - !Condition 2AZCondition
+  NATGateways&3AZCondition: !And 
+    - !Condition NATGatewaysCondition
+    - !Condition 3AZCondition
+  NATGateways&4AZCondition: !And 
+    - !Condition NATGatewaysCondition
+    - !Condition 4AZCondition
+  PrivateSubnetsCondition: !Equals [!Ref 'CreatePrivateSubnets', 'YES']
+  PrivateSubnets&2AZCondition: !And
+    - !Condition 'PrivateSubnetsCondition'
+    - !Condition '2AZCondition'
+  PrivateSubnets&3AZCondition: !And
+    - !Condition 'PrivateSubnetsCondition'
+    - !Condition '3AZCondition'
+  PrivateSubnets&4AZCondition: !And
+    - !Condition 'PrivateSubnetsCondition'
+    - !Condition '4AZCondition'
+  VPCFlowLogsCloudWatchKMSKeyCondition: !Not [!Equals [!Ref VPCFlowLogsCloudWatchKMSKey, '']]
+  VPCFlowLogsToCloudWatchCondition: !Equals [!Ref 'CreateVPCFlowLogsToCloudWatch', 'YES']
+  NVirginiaRegionCondition: !Equals [!Ref 'AWS::Region', us-east-1]
+
+Resources:
+  DHCPOptions:
+    Type: AWS::EC2::DHCPOptions
+    Condition: NewVPCCondition
+    Properties:
+      DomainName: !If [NVirginiaRegionCondition, ec2.internal, !Sub '${AWS::Region}.compute.internal']
+      DomainNameServers:
+        - AmazonProvidedDNS
+      Tags:
+        - Key: Name
+          Value: !Sub dhcp-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Condition: NewVPCCondition
+    Properties:
+      CidrBlock: !Ref 'VPCCIDR'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub vpc-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  VPCDHCPOptionsAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Condition: NewVPCCondition
+    Properties:
+      VpcId: !Ref 'VPC'
+      DhcpOptionsId: !Ref 'DHCPOptions'
+
+  # Internet Gateway
+  InternetGateway:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub igw-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  VPCGatewayAttachment:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      InternetGatewayId: !Ref 'InternetGateway'
+
+  # Private subnets
+  PrivateSubnet1A:
+    Type: AWS::EC2::Subnet
+    Condition: PrivateSubnetsCondition
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PrivateSubnet1ACIDR'
+      AvailabilityZone: !Select ['0', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub private-sn-1a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+        - Key: DSWorkloadType
+          Value: private
+
+  PrivateSubnet2A:
+    Type: AWS::EC2::Subnet
+    Condition: PrivateSubnets&2AZCondition
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PrivateSubnet2ACIDR'
+      AvailabilityZone: !Select ['1', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub private-sn-2a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+        - Key: DSWorkloadType
+          Value: private
+
+  PrivateSubnet3A:
+    Type: AWS::EC2::Subnet
+    Condition: PrivateSubnets&3AZCondition
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PrivateSubnet3ACIDR'
+      AvailabilityZone: !Select ['2', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub private-sn-3a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+        - Key: DSWorkloadType
+          Value: private
+
+  PrivateSubnet4A:
+    Type: AWS::EC2::Subnet
+    Condition: PrivateSubnets&4AZCondition
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PrivateSubnet4ACIDR'
+      AvailabilityZone: !Select ['3', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub private-sn-4a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+        - Key: DSWorkloadType
+          Value: private
+
+  # SSM parameters
+  VPCIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-vpc-id"
+      Type: String
+      Value: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Description: !Sub "${EnvName}-${EnvType} VPC ID"
+
+  PrivateSubnet1AIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: PrivateSubnetsCondition
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-sn-1a-id"
+      Type: String
+      Value: !Ref PrivateSubnet1A
+      Description: Private Subnet 1A ID
+  
+  PrivateSubnet2AIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: PrivateSubnets&2AZCondition
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-sn-2a-id"
+      Type: String
+      Value: !Ref PrivateSubnet2A
+      Description: Private Subnet 2A ID
+  
+  PrivateSubnet3AIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: PrivateSubnets&3AZCondition
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-sn-3a-id"
+      Type: String
+      Value: !Ref PrivateSubnet3A
+      Description: Private Subnet 3A ID
+  
+  PrivateSubnet4AIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: PrivateSubnets&4AZCondition
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-sn-4a-id"
+      Type: String
+      Value: !Ref PrivateSubnet4A
+      Description: Private Subnet 4A ID
+
+  SageMakerSecurityGroupIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-sagemaker-sg-id"
+      Type: String
+      Value: !GetAtt SageMakerSecurityGroup.GroupId
+      Description: SageMaker Security Group ID
+
+  # Public subnets
+  PublicSubnet1:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PublicSubnet1CIDR'
+      AvailabilityZone: !Select ['0', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub public-sn-1-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PublicSubnet2:
+    Condition: NATGateways&2AZCondition
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PublicSubnet2CIDR'
+      AvailabilityZone: !Select ['1', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub public-sn-2-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PublicSubnet3:
+    Condition: NATGateways&3AZCondition
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PublicSubnet3CIDR'
+      AvailabilityZone: !Select ['2', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub public-sn-3-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PublicSubnet4:
+    Condition: NATGateways&4AZCondition
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      CidrBlock: !Ref 'PublicSubnet4CIDR'
+      AvailabilityZone: !Select ['3', !Ref 'AvailabilityZones']
+      Tags:
+        - Key: Name
+          Value: !Sub public-sn-4-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Private subnet route tables
+  PrivateSubnet1ARouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: PrivateSubnetsCondition
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub private-rtb-1a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PrivateSubnet1ARoute:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'PrivateSubnet1ARouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NATGateway1'
+
+  PrivateSubnet1ARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: PrivateSubnetsCondition
+    Properties:
+      SubnetId: !Ref 'PrivateSubnet1A'
+      RouteTableId: !Ref 'PrivateSubnet1ARouteTable'
+
+  PrivateSubnet2ARouteTable:
+    Condition: PrivateSubnets&2AZCondition
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub private-rtb-2a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PrivateSubnet2ARoute:
+    Condition: NATGateways&2AZCondition
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'PrivateSubnet2ARouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NATGateway2'
+
+  PrivateSubnet2ARouteTableAssociation:
+    Condition: PrivateSubnets&2AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PrivateSubnet2A'
+      RouteTableId: !Ref 'PrivateSubnet2ARouteTable'
+
+  PrivateSubnet3ARouteTable:
+    Condition: PrivateSubnets&3AZCondition
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub private-rtb-3a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PrivateSubnet3ARoute:
+    Condition: NATGateways&3AZCondition
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'PrivateSubnet3ARouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NATGateway3'
+
+  PrivateSubnet3ARouteTableAssociation:    
+    Condition: PrivateSubnets&3AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PrivateSubnet3A'
+      RouteTableId: !Ref 'PrivateSubnet3ARouteTable'
+
+  PrivateSubnet4ARouteTable:
+    Condition: PrivateSubnets&4AZCondition
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub private-rtb-4a-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PrivateSubnet4ARoute:
+    Condition: NATGateways&4AZCondition
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'PrivateSubnet4ARouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      NatGatewayId: !Ref 'NATGateway4'
+
+  PrivateSubnet4ARouteTableAssociation:
+    Condition: PrivateSubnets&4AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PrivateSubnet4A'
+      RouteTableId: !Ref 'PrivateSubnet4ARouteTable'
+
+  # Public subnet route tables
+  PublicSubnetRouteTable:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub public-rtb-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  PublicSubnetRoute:
+    Condition: NATGatewaysCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref 'PublicSubnetRouteTable'
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref 'InternetGateway'
+
+  PublicSubnet1RouteTableAssociation:
+    Condition: NATGatewaysCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnet1'
+      RouteTableId: !Ref 'PublicSubnetRouteTable'
+
+  PublicSubnet2RouteTableAssociation:
+    Condition: NATGateways&2AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnet2'
+      RouteTableId: !Ref 'PublicSubnetRouteTable'
+
+  PublicSubnet3RouteTableAssociation:
+    Condition: NATGateways&3AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnet3'
+      RouteTableId: !Ref 'PublicSubnetRouteTable'
+
+  PublicSubnet4RouteTableAssociation:
+    Condition: NATGateways&4AZCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref 'PublicSubnet4'
+      RouteTableId: !Ref 'PublicSubnetRouteTable'
+
+  # Elastic IP for NAT attachments
+  NAT1EIP:
+    Condition: NATGatewaysCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub nat-eip-1-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NAT2EIP:
+    Condition: NATGateways&2AZCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub nat-eip-2-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NAT3EIP:
+    Condition: NATGateways&3AZCondition
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub nat-eip-3-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NAT4EIP:
+    Condition: NATGateways&4AZCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub nat-eip-4-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # NAT Gateways
+  NATGateway1:
+    Condition: NATGatewaysCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NAT1EIP.AllocationId'
+      SubnetId: !Ref 'PublicSubnet1'
+      Tags:
+        - Key: Name
+          Value: !Sub nat-gtw-1-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NATGateway2:
+    Condition: NATGateways&2AZCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NAT2EIP.AllocationId'
+      SubnetId: !Ref 'PublicSubnet2'
+      Tags:
+        - Key: Name
+          Value: !Sub nat-gtw-2-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NATGateway3:
+    Condition: NATGateways&3AZCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NAT3EIP.AllocationId'
+      SubnetId: !Ref 'PublicSubnet3'
+      Tags:
+        - Key: Name
+          Value: !Sub nat-gtw-3-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  NATGateway4:
+    Condition: NATGateways&4AZCondition
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt 'NAT4EIP.AllocationId'
+      SubnetId: !Ref 'PublicSubnet4'
+      Tags:
+        - Key: Name
+          Value: !Sub nat-gtw-4-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  VPCFlowLogsLogGroup:
+    Condition: VPCFlowLogsToCloudWatchCondition
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/vpcflowlogs/${EnvName}-${EnvType}-vpc-flow-logs'
+      RetentionInDays: !Ref VPCFlowLogsLogGroupRetention
+      KmsKeyId: !If
+        - VPCFlowLogsCloudWatchKMSKeyCondition
+        - !Ref VPCFlowLogsCloudWatchKMSKey
+        - !Ref AWS::NoValue
+
+  VPCFlowLogsToCloudWatch:
+    Condition: VPCFlowLogsToCloudWatchCondition
+    Type: AWS::EC2::FlowLog
+    Properties:
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Ref VPCFlowLogsLogGroup
+      DeliverLogsPermissionArn: !Ref VPCFlowLogsRoleArn
+      LogFormat: !Ref VPCFlowLogsLogFormat
+      MaxAggregationInterval: !Ref VPCFlowLogsMaxAggregationInterval
+      ResourceId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      ResourceType: VPC
+      TrafficType: !Ref VPCFlowLogsTrafficType
+      Tags:
+        - Key: Name
+          Value: VPC Flow Logs CloudWatch
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Security groups
+  VPCEndpointsSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow HTTPS/TLS for VPC Endpoints
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !GetAtt SageMakerSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub sg-vpce-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Set CIDR-based ingress rules allowing traffic from all the private subnets into the VPCE SG
+  # Can be changed to a single rule allowing traffic from the VPC CIDR block
+  VPCEndpointsSecurityGroupTLSIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnetsCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet1ACIDR
+      Description: Allow on port 443 from Private Subnet 1A
+      FromPort: 443
+      IpProtocol: tcp
+      ToPort: 443
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupNFSIngress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnetsCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet1ACIDR
+      Description: Allow on port 2049 from Private Subnet 1A
+      FromPort: 2049
+      IpProtocol: tcp
+      ToPort: 2049
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupTLSIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&2AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet2ACIDR
+      Description: Allow on port 443 from Private Subnet 2A
+      FromPort: 443
+      IpProtocol: tcp
+      ToPort: 443
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupNFSIngress2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&2AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet2ACIDR
+      Description: Allow on port 2049 from Private Subnet 2A
+      FromPort: 2049
+      IpProtocol: tcp
+      ToPort: 2049
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupTLSIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&3AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet3ACIDR
+      Description: Allow on port 443 from Private Subnet 3A
+      FromPort: 443
+      IpProtocol: tcp
+      ToPort: 443
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupNFSIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&3AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet3ACIDR
+      Description: Allow on port 2049 from Private Subnet 3A
+      FromPort: 2049
+      IpProtocol: tcp
+      ToPort: 2049
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupTLSIngress4:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&4AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet4ACIDR
+      Description: Allow on port 443 from Private Subnet 4A
+      FromPort: 443
+      IpProtocol: tcp
+      ToPort: 443
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  VPCEndpointsSecurityGroupNFSIngress4:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: PrivateSubnets&4AZCondition
+    Properties:
+      CidrIp: !Ref PrivateSubnet4ACIDR
+      Description: Allow on port 2049 from Private Subnet 4A
+      FromPort: 2049
+      IpProtocol: tcp
+      ToPort: 2049
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
+  SageMakerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: 'Security Group for SageMaker Studio and all SageMaker workloads'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      Tags:
+        - Key: Name
+          Value: !Sub sg-sagemaker-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Self-referencing the security group to enable communication between intances within the same SG
+  SageMakerSecurityGroupSelfIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: '-1'
+      SourceSecurityGroupId: !Ref SageMakerSecurityGroup
+      GroupId: !Ref SageMakerSecurityGroup
+      
+  SharedServicesVPCEndpointSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow HTTP ingress for shared services VPC Endpoint
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !GetAtt SageMakerSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub sg-shared-services-vpce-${EnvName}-${EnvType}
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+  

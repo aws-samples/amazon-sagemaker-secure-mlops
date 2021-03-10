@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create a SageMaker Studio domain, applications and a default user profile
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label: 
+          default: Data Science Environment
+        Parameters:
+          - EnvName
+          - EnvType
+      - Label:
+          default: Amazon SageMaker Studio
+        Parameters: 
+          - DomainName
+          - UserProfileName
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VPCId
+          - SageMakerStudioSubnetIds
+          - SageMakerSecurityGroupIds
+      - Label:
+          default: Permission
+        Parameters:
+          - SageMakerExecutionRoleArn
+          - SetupLambdaExecutionRoleArn
+
+    ParameterLabels:
+      EnvName:
+        default: Environment name
+      EnvType:
+        default: Environment stage name (dev, test, prod)
+      DomainName:
+        default: Domain name
+      UserProfileName:
+        default: User profile name
+      VPCId:
+        default: VPC
+      SageMakerStudioSubnetIds:
+        default: Subnet(s)
+      SageMakerSecurityGroupIds:
+        default: Security group(s)
+      NetworkAccessType:
+        default: Network access for SageMaker Studio
+      SageMakerExecutionRoleArn:
+        default: Execution role
+      SetupLambdaExecutionRoleArn:
+        default: Execution role for setup Lambda function
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  DomainName:
+    Type: String
+    Description: SageMaker Studion domain name. Leave empty to auto generate.
+    Default: ''
+
+  UserProfileName:
+    Type: String
+    Description: The user profile name for the SageMaker Studio. Leave empty to auto generate.
+    Default: ''
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: Choose a VPC for SageMaker Studio and SageMaker workloads
+
+  SageMakerStudioSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Choose subnets
+
+  SageMakerSecurityGroupIds:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Choose security groups for SageMaker Studio and SageMaker workloads
+
+  NetworkAccessType:
+    Type: String
+    AllowedValues:
+      - 'PublicInternetOnly'
+      - 'VpcOnly'
+    Description: Choose how SageMaker Studio accesses resources over the Network
+    Default: 'VpcOnly'
+
+  SageMakerExecutionRoleArn:
+    Type: String
+    Description: The ARN of the SageMaker execution role
+  
+  SetupLambdaExecutionRoleArn:
+    Type: String
+    Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup
+
+
+Conditions:
+  FalseCondition: !Equals [ 'true', 'false' ]
+
+Resources:
+  NullResource:
+    Type: 'Custom::NullResource'
+    Condition: FalseCondition

@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create the KMS keys for end-to-end data encryption
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  DSTeamAdministratorRoleArn:
+    Type: String
+    Description: The ARN of the environment-related DataScienceTeamAdministrator role
+  
+  DataScientistRoleArn:
+    Type: String
+    Description: The ARN of the Data Scientist role
+
+  VPCEndpointS3Id:
+    Description: Id of the S3 VPC endpoint
+    Type: String
+
+Outputs:
+    S3BucketKMSKeyArn:
+      Description: KMS Key ARN for the data and model buckets
+      Value: !GetAtt S3BucketKMSKey.Arn
+
+    S3BucketKMSKeyId:
+      Description: KMS Key Id for the data and model buckets
+      Value: !Ref S3BucketKMSKey
+
+    SagemakerEBSKMSKeyArn:
+      Description: KMS Key ARN for the SageMaker Notebooks EBS volumes
+      Value: !GetAtt SagemakerEBSKMSKey.Arn
+  
+    SagemakerEBSKMSKeyId:
+      Description: KMS Key Id for the SageMaker Notebooks EBS volumes
+      Value: !Ref SagemakerEBSKMSKey
+
+Resources:
+  SagemakerEBSKMSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: Generated KMS Key for sagemaker Notebook's EBS encryption
+      EnableKeyRotation: true
+      Enabled: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: KmsKey-EbsKmsSagemakerKey
+        Statement:
+          - Action:
+              - 'kms:DeleteAlias'
+              - 'kms:DescribeKey'
+              - 'kms:EnableKey'
+              - 'kms:GetKeyPolicy'
+              - 'kms:UpdateAlias'
+              - 'kms:CreateAlias'
+              - 'kms:GetKeyPolicy'
+              - 'kms:CreateGrant'
+              - 'kms:DisableKey'
+              - 'kms:Revoke*'
+              - 'kms:Disable*'
+              - 'kms:CancelKeyDeletion'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:PutKeyPolicy'
+              - 'kms:RevokeGrant'
+              - 'kms:TagResource'
+              - 'kms:UnTagResource'
+              - 'kms:EnableKeyRotation'
+              - 'kms:ListResourceTags'
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Resource:
+              - '*'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  SagemakerEBSKMSKeyAlias:
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: !Sub "alias/${EnvName}-${EnvType}-kms-ebs"
+      TargetKeyId: !Ref SagemakerEBSKMSKey
+
+  SagemakerEBSKMSKeyArnSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-kms-ebs-key-arn"
+      Type: String
+      Value: !GetAtt 
+        - SagemakerEBSKMSKey
+        - Arn
+      Description: EBS KMS key to encrypt SageMaker workload instance volume
+
+  S3BucketKMSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: KMS key for S3 buckets for the Data Science environment
+      KeyPolicy:
+        Id: key-policy-1
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow access for Key Administrators
+            Effect: Allow
+            Principal:
+              AWS: !Ref DSTeamAdministratorRoleArn
+            Action:
+              - 'kms:Create*'
+              - 'kms:Describe*'
+              - 'kms:Enable*'
+              - 'kms:List*'
+              - 'kms:Put*'
+              - 'kms:Update*'
+              - 'kms:Revoke*'
+              - 'kms:Disable*'
+              - 'kms:Get*'
+              - 'kms:Delete*'
+              - 'kms:TagResource'
+              - 'kms:UntagResource'
+              - 'kms:ScheduleKeyDeletion'
+              - 'kms:CancelKeyDeletion'
+            Resource: '*'
+          - Sid: Allow access for Key Users
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt'
+              - 'kms:GenerateDataKey'
+              - 'kms:DescribeKey'
+            Resource: '*'
+            Condition:
+              StringNotEquals:
+                'aws:sourceVpce': !Ref VPCEndpointS3Id
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  S3BucketKMSKeyAlias:
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: !Sub "alias/${EnvName}-${EnvType}-kms-s3"
+      TargetKeyId: !Ref S3BucketKMSKey
+
+  S3BucketKMSKeyArnSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-kms-s3-key-arn"
+      Type: String
+      Value: !GetAtt 
+        - S3BucketKMSKey
+        - Arn
+      Description: Environment S3 buckets KMS key

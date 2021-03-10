@@ -1,0 +1,203 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  This template provisions an end-to-end secure Data Science environment with MLOps project template.
+  It deploys:
+     - a VPC with three private and public subnets
+     - three NAT gateways: one in each availability zone
+     - route tables
+     - security groups
+     - VPC endpoints
+     - IAM roles and KMS keys
+     - Amazon S3 buckets for SageMaker data and models
+     - SageMaker Studio domain and default user profile
+     - AWS Service Catalog portfolios and products
+  **WARNING** This template creates AWS resources. You will be billed for the AWS
+  resources used if you create a stack from this template.
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label: 
+          default: Data Science environment
+        Parameters:
+          - EnvName
+          - EnvType
+      - Label:
+          default: Deployment Options
+        Parameters:
+          - CreateSharedServices
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VPCCIDR
+          - PrivateSubnet1ACIDR
+          - PrivateSubnet2ACIDR
+          - PrivateSubnet3ACIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PublicSubnet3CIDR
+
+    ParameterLabels:
+      EnvName:
+        default: Environment name
+      EnvType:
+        default: Environment type
+      CreateSharedServices:
+        default: Create Shared Services (PyPI mirror)
+      VPCCIDR:
+        default: VPC CIDR block
+      PrivateSubnet1ACIDR:
+        default: Private subnet 1A CIDR
+      PrivateSubnet2ACIDR:
+        default: Private subnet 2A CIDR
+      PrivateSubnet3ACIDR:
+        default: Private subnet 3A CIDR
+      PublicSubnet1CIDR:
+        default: Public subnet 1 CIDR
+      PublicSubnet2CIDR:
+        default: Public subnet 2 CIDR
+      PublicSubnet3CIDR:
+        default: Public subnet 3 CIDR
+
+Outputs:
+  AssumeDSAdministratorRole:
+    Description: URL for assuming the role of a cross-environment data science admin
+    Value: !GetAtt DataScienceCore.Outputs.AssumeDSAdministratorRole
+
+  AssumeTeamAdminRole:
+    Description: URL for assuming the role of a environment admin
+    Value: !GetAtt DataScienceEnvironment.Outputs.AssumeTeamAdminRole
+
+  AssumeDataScientistRole:
+    Description: URL for assuming the role of a environment user
+    Value: !GetAtt DataScienceEnvironment.Outputs.AssumeDataScientistRole
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  CreateSharedServices:
+    Type: String
+    Default: 'NO'
+    AllowedValues:
+        - 'YES'
+        - 'NO'
+    Description: Set to YES if you do want to provision the shared services VPC network and PyPi mirror repository
+
+  VPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the new VPC
+    Type: String
+
+  PrivateSubnet1ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/19
+    Description: CIDR block for private subnet 1A located in Availability Zone 1
+    Type: String
+
+  PrivateSubnet2ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.32.0/19
+    Description: CIDR block for private subnet 2A located in Availability Zone 2
+    Type: String
+
+  PrivateSubnet3ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.64.0/19
+    Description: CIDR block for private subnet 3A located in Availability Zone 3
+    Type: String
+
+  PublicSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.128.0/20
+    Description: CIDR block for the public DMZ subnet 1 located in Availability Zone 1
+    Type: String
+
+  PublicSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.144.0/20
+    Description: CIDR block for the public DMZ subnet 2 located in Availability Zone 2
+    Type: String
+
+  PublicSubnet3CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.160.0/20
+    Description: CIDR block for the public DMZ subnet 3 located in Availability Zone 3
+    Type: String
+
+Rules:  
+  CIDR:
+    Assertions:
+      - Assert: !And
+          - !Not [ !Equals [ !Ref VPCCIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PrivateSubnet1ACIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PrivateSubnet2ACIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PrivateSubnet3ACIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PublicSubnet1CIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PublicSubnet2CIDR, '' ] ]
+          - !Not [ !Equals [ !Ref PublicSubnet3CIDR, '' ] ]
+        AssertDescription: You must provide all CIDR blocks for VPC, three private and three public subnets
+
+Conditions:
+  SharedServicesCondition: !Equals [ !Ref CreateSharedServices, 'YES' ]
+
+Resources:
+  # Core and shared services
+  DataScienceCore:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        StackSetName: !Sub 'ds-quickstart-${AWS::Region}'
+        CreateSharedServices: !Ref CreateSharedServices
+      TemplateURL: core-main.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Data Science environment
+  DataScienceEnvironment:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 'DataScienceCore'
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        UseSharedServicesPyPiMirror: !If [ SharedServicesCondition, 'YES', 'NO' ]
+        AvailabilityZones: !Join
+          - ','
+          - - !Sub '${AWS::Region}a'
+            - !Sub '${AWS::Region}b'
+            - !Sub '${AWS::Region}c'
+        NumberOfAZs: '3'
+        VPCCIDR: !Ref VPCCIDR
+        PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
+        PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
+        PrivateSubnet3ACIDR: !Ref PrivateSubnet3ACIDR
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        PublicSubnet3CIDR: !Ref PublicSubnet3CIDR 
+      TemplateURL: env-main.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+

@@ -1,0 +1,29 @@
+{
+    "Path": "/",
+    "RoleName": "AccountPowerUser",
+    "Arn": "arn:aws:iam::ACCOUNT_ID:role/AccountPowerUser",
+    "CreateDate": "2021-02-22T15:40:15+00:00",
+    "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": "arn:aws:iam::ACCOUNT_ID:root"
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    },
+    "InstanceProfileList": [],
+    "RolePolicyList": [
+    ],
+    "AttachedManagedPolicies": [
+        {
+            "PolicyName": "PowerUserAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/PowerUserAccess"
+        }
+    ],
+    "Tags": [],
+    "RoleLastUsed": {}
+}

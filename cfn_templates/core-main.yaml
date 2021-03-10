@@ -1,0 +1,175 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create the base infrastructure for SageMaker secure deployment: IAM roles and EC2 VPC network resources
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label: 
+          default: Stack name
+        Parameters:
+          - StackSetName
+      - Label:
+          default: Deployment options
+        Parameters:
+          - CreateIAMRoles
+          - CreateSharedServices
+          - CreateSCPortfolio
+      - Label:
+          default: IAM Roles (only needed if created outside of this stack)
+        Parameters:
+          - DSAdmininstratorRole
+          - DSAdministratorRoleArn
+          - SecurityControlExecutionRoleArn
+          - SCLaunchRoleArn
+    ParameterLabels:
+      StackSetName:
+        default: Cross-stack name
+      CreateIAMRoles:
+        default: Create IAM roles
+      CreateSharedServices:
+        default: Create shared services resources
+      CreateSCPortfolio:
+        default: Make a SageMaker Studio environment available as an AWS Service Catalog product
+      DSAdmininstratorRole:
+        default: Data Science Administrator role name
+      DSAdministratorRoleArn:
+        default: Data Science Administrator role ARN
+      SCLaunchRoleArn:
+        default: Service Catalog launch role ARN
+      SecurityControlExecutionRoleArn:
+        default: Security Control execution role ARN
+
+Outputs:
+  AssumeDSAdministratorRole:
+    Description: URL for assuming the role of a cross-environment data science admin
+    Value: !If
+      - IAMRolesCondition
+      - !GetAtt IAMSharedRoles.Outputs.AssumeDSAdministratorRole
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSAdmininstratorRole}&displayName=${DSAdmininstratorRole}'
+
+Parameters:
+  StackSetName:
+    Type: String 
+    Description: A name to be used across all nested stacks 
+
+  CreateIAMRoles:
+    Type: String
+    Default: 'YES'
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Description: Set to NO if you do not want to provision IAM roles (you must have already these roles provisioned up-front)
+
+  DSAdmininstratorRole:
+    Type: String 
+    Default: ''
+    Description: Data Science Administrator role name if it is created outside of this stack. Must be provided if Create IAM Roles = NO
+
+  DSAdministratorRoleArn:
+    Type: String 
+    Default: ''
+    Description: Data Science Administrator role ARN if it is created outside of this stack. Must be provided if Create IAM Roles = NO
+
+  SCLaunchRoleArn:
+    Type: String
+    Default: ''
+    Description: Service Catalog Launch role ARN if it is create outside of this stack. Must be provided if Create IAM Roles = NO
+
+  SecurityControlExecutionRoleArn:
+    Default: ''
+    Type: String 
+    Description: Execution role ARN for security controls if it is create outside of this stack. Must be provided if Create IAM Roles = NO 
+
+  CreateSharedServices:
+    Type: String
+    Default: 'NO'
+    AllowedValues:
+        - 'YES'
+        - 'NO'
+    Description: Set to YES if you do want to provision the shared services VPC network and PyPi mirror repository
+
+  CreateSCPortfolio:
+    Type: String
+    Default: 'YES'
+    AllowedValues:
+        - 'YES'
+        - 'NO'
+    Description: Set to YES if you want to make a SageMaker Studio environment available as a Service Catalog product
+
+Conditions:
+  IAMRolesCondition: !Equals [ !Ref CreateIAMRoles, 'YES' ]
+  SharedServicesCondition: !Equals [ !Ref CreateSharedServices, 'YES' ]
+  SCPortfolioCondition: !Equals [ !Ref CreateSCPortfolio, 'YES' ]
+
+Rules:
+  IAMRoles:
+    RuleCondition: !Equals [ !Ref CreateIAMRoles, 'NO' ]
+    Assertions:
+      - Assert: !And
+          - !Not [ !Equals [ !Ref DSAdmininstratorRole, '' ] ]
+          - !Not [ !Equals [ !Ref DSAdministratorRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SCLaunchRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SecurityControlExecutionRoleArn, '' ] ]
+        AssertDescription: ARNs must be provided for all IAM roles if Create IAM Roles = NO
+
+Resources:
+
+  # Shared IAM roles for personas and services
+  IAMSharedRoles:
+    Type: AWS::CloudFormation::Stack
+    Condition: IAMRolesCondition
+    Properties:
+      Parameters:
+        StackSetName: !Ref StackSetName
+      TemplateURL: core-iam-shared-roles.yaml
+
+  # SageMaker Project templates launch and use roles
+  IAMSCSageMakerProjectRoles:
+    Type: AWS::CloudFormation::Stack
+    Condition: IAMRolesCondition
+    Properties:
+      TemplateURL: core-iam-sc-sm-projects-roles.yaml
+
+  # Shared services VPC and related network resources
+  SharedServicesNetwork:
+    Type: AWS::CloudFormation::Stack
+    Condition: SharedServicesCondition
+    Properties:
+      Parameters:
+        StackSetName: !Ref StackSetName
+      TemplateURL: core-shared-services-network.yaml
+
+  # Private PyPi mirror
+  SharedServicePyPIMirror:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: SharedServicesNetwork
+    Condition: SharedServicesCondition
+    Properties:
+      Parameters:
+        StackSetName: !Ref StackSetName
+      TemplateURL: core-shared-services-ecs.yaml
+
+  # Service Catalog with a Data Science product  
+  SharedServiceCatalogPortfolio:
+    Type: AWS::CloudFormation::Stack
+    Condition: SCPortfolioCondition
+    Properties:
+      Parameters:
+        StackSetName: !Ref StackSetName
+        SCPortfolioPrincipalRoleArn: 
+          !If [ IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.DSAdministratorRoleArn, !Ref DSAdministratorRoleArn ]
+        SCProductLaunchRoleArn: 
+          !If [ IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.SCLaunchRoleArn, !Ref SCLaunchRoleArn ]
+      TemplateURL: core-sc-shared-portfolio.yaml
+
+  # Security controls for the Data Science environment
+  DSSecurityControls:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        StackSetName: !Ref StackSetName
+        SecurityControlExecutionRoleArn: 
+          !If [IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.SageMakerDetectiveControlExecutionRoleArn, !Ref SecurityControlExecutionRoleArn ]
+      TemplateURL: core-security-controls.yaml
+

@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create the shared portfolio of Data Science environments in AWS Service Catalog
+
+Parameters:
+  StackSetName:
+    Type: String 
+    Description: A name to be used across all nested stacks 
+
+  SCPortfolioPrincipalRoleArn:
+    Type: String 
+    Description: Data Science Administrator role ARN
+
+  SCProductLaunchRoleArn:
+    Type: String 
+    Description: Service Catalog Launch role ARN
+
+Resources:
+
+  DataScienceEnvironmentPortfolio:
+    Type: 'AWS::ServiceCatalog::Portfolio'
+    Properties:
+      ProviderName: 'Data Science Administration Team'
+      Description: 'This portfolio is a collection of products designed to support managing data science environments'
+      DisplayName: 'Products for managing data science environments'
+
+  DataScienceEnvironmentProduct:
+    Type: 'AWS::ServiceCatalog::CloudFormationProduct'
+    Properties:
+      Name: !Sub '${StackSetName} Data Science Environment'
+      Description: 'A secure SageMaker Studio environment with VPC, S3 bucket, and service catalog portfolio to support data science projects'
+      Owner: 'Data Science Administration Team'
+      ProvisioningArtifactParameters:
+        - Name: 'DS Environment v1'
+          Info:
+            LoadTemplateFromURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-main.yaml'
+
+  SCPortfolioProductAssociation:
+    Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
+    Properties:
+      PortfolioId: !Ref DataScienceEnvironmentPortfolio
+      ProductId: !Ref DataScienceEnvironmentProduct
+
+  DSAdminPortfolioPrincipleAssociation:
+    Type: 'AWS::ServiceCatalog::PortfolioPrincipalAssociation'
+    Properties:
+      PortfolioId: !Ref DataScienceEnvironmentPortfolio
+      PrincipalARN: !Ref SCPortfolioPrincipalRoleArn
+      PrincipalType: IAM
+
+  SCProductLaunchRoleConstraint:
+    Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
+    DependsOn: SCPortfolioProductAssociation
+    Properties:
+      Description: !Sub 'AWS Service Catalog uses ${SCProductLaunchRoleArn} to launch a data science environment product'
+      PortfolioId: !Ref DataScienceEnvironmentPortfolio
+      ProductId: !Ref DataScienceEnvironmentProduct
+      RoleArn: !Ref SCProductLaunchRoleArn

@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create Amazon S3 buckets for Data Science Environment
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  DataBucketName:
+    Description: S3 bucket name to store data
+    Type: String
+
+  ModelBucketName:
+    Description: S3 bucket name to store models
+    Type: String
+
+  VPCEndpointS3Id:
+    Description: Id of the S3 VPC endpoint
+    Type: String
+
+  S3BucketKMSKeyId:
+    Description: KMS Key Id for the data and model buckets
+    Type: String
+
+Resources:
+
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataBucketName
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !Ref S3BucketKMSKeyId
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  ModelBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ModelBucketName
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !Ref S3BucketKMSKeyId
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  DataBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref DataBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+              - 's3:PutObject'
+              - 's3:ListBucket'
+            Effect: Deny
+            Resource:
+              - !Sub "arn:aws:s3:::${DataBucket}/*"
+              - !Sub "arn:aws:s3:::${DataBucket}"
+            Principal: '*'
+            Condition:
+              StringNotEquals:
+                'aws:sourceVpce': !Ref VPCEndpointS3Id
+
+  ModelBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref ModelBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject'
+              - 's3:PutObject'
+              - 's3:ListBucket'
+            Effect: Deny
+            Resource:
+              - !Sub "arn:aws:s3:::${ModelBucket}/*"
+              - !Sub "arn:aws:s3:::${ModelBucket}"
+            Principal: '*'
+            Condition:
+              StringNotEquals:
+                'aws:sourceVpce': !Ref VPCEndpointS3Id

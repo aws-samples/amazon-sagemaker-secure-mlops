@@ -1,0 +1,235 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create shared IAM Roles for SageMaker Data Science Environment (both personas and execution roles)
+
+Parameters:
+  StackSetName:
+    Type: String 
+    Description: A name to be used across nested stacks 
+
+Outputs:
+  DSAdministratorRoleName:
+    Description: The name of the DataScienceAdministrator role
+    Value: !Ref DataScienceAdministratorRole
+
+  DSAdministratorRoleArn:
+    Description: The ARN of the DataScienceAdministrator role
+    Value: !GetAtt DataScienceAdministratorRole.Arn
+
+  AssumeDSAdministratorRole:
+    Description: URL for assuming the role of a cross-environment data science admin
+    Value: !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceAdministratorRole}&displayName=${DataScienceAdministratorRole}'
+
+  SageMakerDetectiveControlExecutionRoleName:
+    Description: The name of the SageMakerDetectiveControlExecutionRole
+    Value: !Ref SageMakerDetectiveControlExecutionRole
+
+  SageMakerDetectiveControlExecutionRoleArn:
+    Description: The ARN of the SageMakerDetectiveControlExecutionRole
+    Value: !GetAtt SageMakerDetectiveControlExecutionRole.Arn
+
+  SCLaunchRoleName:
+    Description: The name of the Service Catalog Launch role
+    Value: !Ref SCLaunchRole
+
+  SCLaunchRoleArn:
+    Description: The ARN of the Service Catalog Launch role
+    Value: !GetAtt SCLaunchRole.Arn
+
+Resources:
+  DataScienceAdministratorRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              Action:
+                - 'sts:AssumeRole'
+        RoleName: !Sub '${StackSetName}-DataScienceAdministrator'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
+          - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
+          - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+          - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+          - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSSMFullAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+
+  SageMakerDetectiveControlExecutionRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: 'sts:AssumeRole'
+        RoleName: !Sub '${StackSetName}-SageMaker-DetectiveControl-Role'
+        Policies:
+          - PolicyName: LambdaInlineForSageMaker
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: VisualEditor0
+                  Effect: Allow
+                  Action:
+                    - 'sagemaker:DeleteTags'
+                    - 'sagemaker:DeleteEndpointConfig'
+                    - 'sagemaker:ListTags'
+                    - 'sagemaker:ListTransformJobs'
+                    - 'sagemaker:StopTrainingJob'
+                    - 'sagemaker:DeleteModel'
+                    - 'sagemaker:ListTrainingJobs'
+                    - 'sagemaker:ListHyperParameterTuningJobs'
+                    - 'sagemaker:DeleteEndpoint'
+                    - 'sagemaker:ListModels'
+                    - 'sagemaker:StopTransformJob'
+                    - 'sagemaker:AddTags'
+                    - 'sagemaker:ListEndpoints'
+                  Resource: '*'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+
+  SCLaunchRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        Description: Service Catalog launch role to deploy products from SC portfolio
+        RoleName: !Sub '${StackSetName}-ServiceCatalogLaunchRole'
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: servicecatalog.amazonaws.com
+              Action: 
+                - 'sts:AssumeRole'
+        Path: /
+        Policies:
+          - PolicyName: !Sub '${StackSetName}-SCLaunchInlinePolicy'
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Sid: LambdaInvokePermission
+                  Effect: Allow
+                  Action:
+                    - 'lambda:InvokeFunction'
+                  Resource: '*'
+                - Sid: SageMakerPermission
+                  Effect: Allow
+                  Action:
+                    - sagemaker:ListDomains
+                    - sagemaker:CreateDomain
+                    - sagemaker:DescribeDomain
+                    - sagemaker:DeleteDomain
+                    - sagemaker:UpdateDomain
+                    - sagemaker:ListUserProfiles
+                    - sagemaker:CreateUserProfile
+                    - sagemaker:UpdateUserProfile
+                    - sagemaker:DeleteUserProfile
+                    - sagemaker:DescribeUserProfile
+                    - sagemaker:ListApps
+                    - sagemaker:CreateApp
+                    - sagemaker:DescribeApp
+                    - sagemaker:DeleteApp
+                    - sagemaker:UpdateApp
+                    - sagemaker:CreateNotebookInstanceLifecycleConfig
+                    - sagemaker:DeleteNotebookInstanceLifecycleConfig
+                    - sagemaker:DescribeNotebookInstanceLifecycleConfig
+                  Resource:
+                    - !Sub "arn:${AWS::Partition}:sagemaker:*:*:domain/*"
+                    - !Sub "arn:${AWS::Partition}:sagemaker:*:*:user-profile/*"
+                    - !Sub "arn:${AWS::Partition}:sagemaker:*:*:app/*"
+                - Sid: SageMakerProjectsPermission
+                  Effect: Allow
+                  Action:
+                    - servicecatalog:AcceptPortfolioShare
+                    - sagemaker:EnableSagemakerServicecatalogPortfolio
+                    - sagemaker:DisableSagemakerServicecatalogPortfolio
+                  Resource: '*'
+                - Sid: ServiceCatalogPermission
+                  Effect: Allow
+                  Action:
+                    - servicecatalog:*
+                  Resource: '*'
+                - Sid: IAMPermission
+                  Effect: Allow
+                  Action:
+                    - 'iam:AttachRolePolicy'
+                    - 'iam:CreateRole'
+                    - 'iam:DeleteRole'
+                    - 'iam:DeleteRolePolicy'
+                    - 'iam:DetachRolePolicy'
+                    - 'iam:GetRole'
+                    - 'iam:GetRolePolicy'
+                    - 'iam:ListPolicyVersions'
+                    - 'iam:PassRole'
+                    - 'iam:PutRolePolicy'
+                    - 'iam:GetPolicy'
+                    - 'iam:CreatePolicy'
+                    - 'iam:DeletePolicy'
+                    - 'iam:Tag*'
+                  Resource: '*'
+                - Sid: KMSPermission
+                  Effect: Allow
+                  Action:
+                    - 'kms:CreateAlias'
+                    - 'kms:CreateGrant'
+                    - 'kms:CreateKey'
+                    - 'kms:Decrypt'
+                    - 'kms:DeleteAlias'
+                    - 'kms:DeleteCustomKeyStore'
+                    - 'kms:DeleteImportedKeyMaterial'
+                    - 'kms:DescribeKey'
+                    - 'kms:EnableKey'
+                    - 'kms:EnableKeyRotation'
+                    - 'kms:GenerateDataKey'
+                    - 'kms:ListAliases'
+                    - 'kms:PutKeyPolicy'
+                    - 'kms:ScheduleKeyDeletion'
+                    - 'kms:TagResource'
+                    - 'kms:UpdateAlias'
+                    - 'kms:UpdateCustomKeyStore'
+                    - 'kms:UpdateKeyDescription'
+                  Resource: '*'
+                - Sid: Policy1
+                  Effect: Allow
+                  Action:
+                    - 'codecommit:CreateCommit'
+                    - 'codecommit:CreateRepository'
+                    - 'codecommit:DeleteRepository'
+                    - 'codecommit:GetRepository'
+                    - 'codecommit:ListRepositories'
+                    - 'codecommit:TagResource'
+                    - 'config:DescribeConfigurationRecorderStatus'
+                    - 'config:DescribeConfigurationRecorders'
+                    - 'ec2:DescribeAvailabilityZones'
+                    - 'ec2:CreateTags'
+                    - 'ec2:DeleteTags'
+                    - 'ec2:DescribeTags'
+                    - 'resource-groups:CreateGroup'
+                    - 'resource-groups:DeleteGroup'
+                    - 'resource-groups:Tag'
+                    - 'resource-groups:Untag'
+                    - 'ssm:AddTagsToResource'
+                    - 'ssm:DeleteParameter'
+                    - 'ssm:DeleteParameters'
+                    - 'ssm:GetParameter'
+                    - 'ssm:GetParameters'
+                    - 'ssm:PutParameter'
+                    - 'ssm:RemoveTagsFromResource'
+                  Resource: '*'
+        ManagedPolicyArns:
+          - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+          - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+          - 'arn:aws:iam::aws:policy/CloudWatchLogsFullAccess'
+          - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+
+
+
+
+
+
+

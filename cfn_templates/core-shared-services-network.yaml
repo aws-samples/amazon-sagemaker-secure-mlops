@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create the shared VPC and related network resources
+
+Parameters:
+  StackSetName:
+    Type: String 
+    Description: A name to be used across all nested stacks 
+
+Conditions:
+  FalseCondition: !Equals [ 'true', 'false' ]
+
+Resources:
+  NullResource:
+    Type: 'Custom::NullResource'
+    Condition: FalseCondition

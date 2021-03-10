@@ -1,0 +1,583 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create the Data Science environment
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label: 
+          default: Data Science Environment
+        Parameters:
+          - EnvName
+          - EnvType
+      - Label:
+          default: Deployment Options
+        Parameters:
+          - CreateEnvironmentIAMRoles
+          - CreateEnvironmentS3Buckets
+          - UseSharedServicesPyPiMirror
+      - Label:
+          default: Environment IAM Roles (only needed if created outside of this stack)
+        Parameters:
+          - DSTeamAdministratorRoleName
+          - DSTeamAdministratorRoleArn
+          - DataScientistRoleName
+          - DataScientistRoleArn
+          - SageMakerExecutionRoleArn
+          - SCProjectLaunchRoleArn
+      - Label:
+          default: Availability Zone Configuration
+        Parameters:
+          - AvailabilityZones
+          - NumberOfAZs
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - CreateVPC
+          - CreateNATGateways
+          - ExistingVPCId
+          - VPCCIDR
+          - CreatePrivateSubnets
+          - PrivateSubnet1ACIDR
+          - PrivateSubnet2ACIDR
+          - PrivateSubnet3ACIDR
+          - PrivateSubnet4ACIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PublicSubnet3CIDR
+          - PublicSubnet4CIDR
+      - Label:
+          default: VPC Flow Logs Configuration
+        Parameters:
+          - CreateVPCFlowLogsToCloudWatch
+          - CreateVPCFlowLogsRole
+          - VPCFlowLogsRoleArn
+          - VPCFlowLogsLogFormat
+          - VPCFlowLogsLogGroupRetention
+          - VPCFlowLogsMaxAggregationInterval
+          - VPCFlowLogsTrafficType
+          - VPCFlowLogsCloudWatchKMSKey
+
+    ParameterLabels:
+      EnvName:
+        default: Environment name
+      EnvType:
+        default: Environment stage name (dev, test, prod)
+      CreateEnvironmentIAMRoles:
+        default: Create environment IAM roles
+      CreateEnvironmentS3Buckets:
+        default: Create environment S3 buckets
+      UseSharedServicesPyPiMirror:
+        default: Use shared services PyPI mirror
+      DSTeamAdministratorRoleName:
+        default: Data Science Team Administrator role name
+      DSTeamAdministratorRoleArn:
+        default: Data Science Team Administrator role ARN
+      DataScientistRoleName:
+        default: Data Scientist role name
+      DataScientistRoleArn:
+        default: Data Scientist role ARN
+      SageMakerExecutionRoleArn:
+        default: SageMaker and SageMaker Notebook execution role ARN
+      SCProjectLaunchRoleArn:
+        default: Service Catalog Project Launch role ARN
+      AvailabilityZones:
+        default: Availability Zones
+      NumberOfAZs:
+        default: Number of Availability Zones
+      CreateVPC:
+        default: Create a new VPC
+      CreateNATGateways:
+        default: Create NAT Gateways (per AZ)
+      ExistingVPCId:
+        default: Existing VPC Id
+      VPCCIDR:
+        default: Create a new VPC with the following CIDR
+      CreatePrivateSubnets:
+        default: Create private subnets
+      PrivateSubnet1ACIDR:
+        default: Private subnet 1A CIDR
+      PrivateSubnet2ACIDR:
+        default: Private subnet 2A CIDR
+      PrivateSubnet3ACIDR:
+        default: Private subnet 3A CIDR
+      PrivateSubnet4ACIDR:
+        default: Private subnet 4A CIDR
+      PublicSubnet1CIDR:
+        default: Public subnet 1 CIDR
+      PublicSubnet2CIDR:
+        default: Public subnet 2 CIDR
+      PublicSubnet3CIDR:
+        default: Public subnet 3 CIDR
+      PublicSubnet4CIDR:
+        default: Public subnet 4 CIDR
+      CreateVPCFlowLogsToCloudWatch:
+        default: Create VPC Flow Logs (CloudWatch)
+      CreateVPCFlowLogsRole:
+        default: Create VPC Flow Logs execution role
+      VPCFlowLogsRoleArn:
+        default: VPC Flow Logs Role ARN
+      VPCFlowLogsLogFormat:
+        default: VPC Flow Logs - Log Format
+      VPCFlowLogsLogGroupRetention:
+        default: VPC Flow Logs - Log Group Retention
+      VPCFlowLogsMaxAggregationInterval:
+        default: VPC Flow Logs - Max Aggregation Interval
+      VPCFlowLogsTrafficType:
+        default: VPC Flow Logs - Traffic Type
+      VPCFlowLogsCloudWatchKMSKey:
+        default: CloudWatch Logs KMS Key for VPC flow logs
+
+Outputs:
+  AssumeTeamAdminRole:
+    Description: URL for assuming the role of a environment admin
+    Value: !If 
+      - IAMRolesCondition
+      - !GetAtt EnvironmentsIAMRoles.Outputs.AssumeTeamAdminRole
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSTeamAdministratorRoleName}&displayName=${DSTeamAdministratorRoleName}'
+
+  AssumeDataScientistRole:
+    Description: URL for assuming the role of a environment user
+    Value: !If 
+      - IAMRolesCondition
+      - !GetAtt EnvironmentsIAMRoles.Outputs.AssumeDataScientistRole
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRoleName}&displayName=${DataScientistRoleName}'
+  
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+  CreateEnvironmentIAMRoles:
+    Description: Select YES if you want to create an IAM Roles for Data Science environment
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateEnvironmentS3Buckets:
+    Description: Select YES if you want to create Amazon S3 buckets for models and data
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+  
+  UseSharedServicesPyPiMirror:
+    Description: Select YES if you want to use shared services PyPI mirror (must be created in the core stack)
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'NO'
+
+  DSTeamAdministratorRoleName:
+    Description: The name of the DataScienceTeamAdministrator role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  DataScientistRoleName:
+    Description: The name of the Data Scientist role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  DSTeamAdministratorRoleArn:
+    Description: The ARN of the DataScienceTeamAdministrator role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  DataScientistRoleArn:
+    Description: The ARN of the DataScientist role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  SageMakerExecutionRoleArn:
+    Description: The ARN of the SageMaker Execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  SCProjectLaunchRoleArn:
+    Description: The ARN of the Service Catalog Project launch role role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  AvailabilityZones:
+    Description: 'List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.'
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  
+  NumberOfAZs:
+    AllowedValues:
+      - '1'
+      - '2'
+      - '3'
+      - '4'
+    Default: '2'
+    Description: Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.
+    Type: String
+    
+  CreateVPC:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when you want to re-use an existing VPC. If NO, the Existing VPC Id must be provided
+    Type: String
+
+  CreateNATGateways:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when creating only private subnets. If YES, public subnets for each AZ will be created as well as an Internet Gateway
+    Type: String
+
+  ExistingVPCId:
+    Description: Enter an existing VPC Id for deployment or leave empty if "Create a new VPC" is set to YES
+    Default: ''
+    Type: String
+
+  VPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR block for the new VPC
+    Type: String
+
+  CreatePrivateSubnets:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when you want to re-use existing subnets in the existing VPC (VPC Id must be provided)
+    Type: String
+
+  PrivateSubnet1ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/19
+    Description: CIDR block for private subnet 1A located in Availability Zone 1
+    Type: String
+
+  PrivateSubnet2ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.32.0/19
+    Description: CIDR block for private subnet 2A located in Availability Zone 2
+    Type: String
+
+  PrivateSubnet3ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.64.0/19
+    Description: CIDR block for private subnet 3A located in Availability Zone 3
+    Type: String
+
+  PrivateSubnet4ACIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.96.0/19
+    Description: CIDR block for private subnet 4A located in Availability Zone 4
+    Type: String
+
+  PublicSubnet1CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.128.0/20
+    Description: CIDR block for the public DMZ subnet 1 located in Availability Zone 1
+    Type: String
+
+  PublicSubnet2CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.144.0/20
+    Description: CIDR block for the public DMZ subnet 2 located in Availability Zone 2
+    Type: String
+
+  PublicSubnet3CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.160.0/20
+    Description: CIDR block for the public DMZ subnet 3 located in Availability Zone 3
+    Type: String
+
+  PublicSubnet4CIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.176.0/20
+    Description: CIDR block for the public DMZ subnet 4 located in Availability Zone 4
+    Type: String
+
+  CreateVPCFlowLogsToCloudWatch:
+    Description: Select YES if you want to create an IAM Role for VPC Flow Logs to write the logs into a CloudWatch log group
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateVPCFlowLogsRole:
+    Description: Select YES if you want to create a VPC Flow Logs execution role
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  VPCFlowLogsRoleArn:
+    Default: ''
+    Description: VPC Flow Logs role ARN used to deliver the logs into CloudWatch log group.
+    Type: String
+
+  VPCFlowLogsLogFormat:
+    AllowedPattern: '^(\$\{[a-z-]+\})$|^((\$\{[a-z-]+\} )*\$\{[a-z-]+\})$'
+    Default:
+      '${version} ${account-id} ${interface-id} ${srcaddr} ${dstaddr} ${srcport} ${dstport} ${protocol} ${packets} ${bytes} ${start} ${end} ${action}
+      ${log-status}'
+    Description:
+      The fields to include in the flow log record, in the order in which they should appear. Specify the fields using the ${field-id} format,
+      separated by spaces. Using the Default Format as the default value.
+    Type: String
+
+  VPCFlowLogsLogGroupRetention:
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+    Default: 14
+    Description: Number of days to retain the VPC Flow Logs in CloudWatch
+    Type: String
+
+  VPCFlowLogsMaxAggregationInterval:
+    AllowedValues:
+      - 60
+      - 600
+    Default: 600
+    Description:
+      The maximum interval of time during which a flow of packets is captured and aggregated into a flow log record. You can specify 60 seconds (1
+      minute) or 600 seconds (10 minutes).
+    Type: String
+
+  VPCFlowLogsTrafficType:
+    AllowedValues:
+      - ACCEPT
+      - ALL
+      - REJECT
+    Default: REJECT
+    Description: The type of traffic to log. You can log traffic that the resource accepts or rejects, or all traffic.
+    Type: String
+
+  VPCFlowLogsCloudWatchKMSKey:
+    AllowedPattern: '^$|^arn:(aws[a-zA-Z-]*)?:kms:[a-z0-9-]+:\d{12}:key\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$'
+    ConstraintDescription: 'Key ARN example:  arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab'
+    Default: ''
+    Description:
+      (Optional) KMS Key ARN to use for encrypting the VPC flow logs data. If empty, encryption is enabled with CloudWatch Logs managing the
+      server-side encryption keys.
+    Type: String
+
+Conditions:
+  IAMRolesCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'YES' ]
+  VPCFlowLogsRoleCondition: !Equals [ !Ref CreateVPCFlowLogsRole, 'YES' ]
+  IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
+  S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
+  SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
+
+Rules:
+  IAMRoles:
+    RuleCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'NO' ]
+    Assertions:
+      - Assert: !And
+          - !Not [ !Equals [ !Ref DSTeamAdministratorRoleName, '' ] ]
+          - !Not [ !Equals [ !Ref DataScientistRoleName, '' ] ]
+          - !Not [ !Equals [ !Ref DSTeamAdministratorRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
+        AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
+
+  VPCFlowLogsRole:
+    RuleCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'NO' ]
+    Assertions:
+      - Assert: !Equals [ !Ref CreateVPCFlowLogsRole, 'NO' ] 
+        AssertDescription: Create VPC Flow Logs execution role cannot be set to YES if Create environemtn IAM Roles is set NO
+
+Resources:
+
+  # Environement IAM roles for personas and services
+  EnvironmentsIAMRoles:
+    Type: AWS::CloudFormation::Stack
+    Condition: IAMRolesCondition
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        CreateVPCFlowLogsRole: !Ref CreateVPCFlowLogsRole
+      TemplateURL: env-iam.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Environment VPC and network resources
+  EnvironmentVPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        AvailabilityZones: !Join [ ',', !Ref AvailabilityZones ]
+        NumberOfAZs: !Ref NumberOfAZs
+        CreateVPC: !Ref CreateVPC
+        CreateNATGateways: !Ref CreateNATGateways
+        ExistingVPCId: !Ref ExistingVPCId
+        VPCCIDR: !Ref VPCCIDR
+        CreatePrivateSubnets: !Ref CreatePrivateSubnets
+        PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
+        PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
+        PrivateSubnet3ACIDR: !Ref PrivateSubnet3ACIDR
+        PrivateSubnet4ACIDR: !Ref PrivateSubnet4ACIDR
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        PublicSubnet3CIDR: !Ref PublicSubnet3CIDR
+        PublicSubnet4CIDR: !Ref PublicSubnet4CIDR
+        CreateVPCFlowLogsToCloudWatch: !Ref CreateVPCFlowLogsToCloudWatch
+        VPCFlowLogsRoleArn: !If 
+          - IAMRoles&VPCFlowLogsRoleCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.VPCFlowLogsRoleArn
+          - !Ref VPCFlowLogsRoleArn
+        VPCFlowLogsCloudWatchKMSKey: !Ref VPCFlowLogsCloudWatchKMSKey
+        VPCFlowLogsLogFormat: !Ref VPCFlowLogsLogFormat
+        VPCFlowLogsLogGroupRetention: !Ref VPCFlowLogsLogGroupRetention
+        VPCFlowLogsMaxAggregationInterval: !Ref VPCFlowLogsMaxAggregationInterval
+        VPCFlowLogsTrafficType: !Ref VPCFlowLogsTrafficType
+      TemplateURL: env-vpc.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # VPC endpoints
+  EnvironmentVPCEndpoints:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
+        PrivateSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+        PrivateRouteTableIds: !GetAtt EnvironmentVPC.Outputs.PrivateRouteTableIds
+        VPCEndpointsSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.VPCEndpointsSecurityGroupId
+        SharedServicesVPCEndpointSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.SharedServicesVPCEndpointSecurityGroupId
+        PyPIMirrorEndpointServiceName: !If
+          - SharedServicesPyPiMirrorCondition
+          - !ImportValue 'ds-pypimirror-shared-service-endpoint-name'
+          - !Ref 'AWS::NoValue'
+        DataBucketName: !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+        ModelBucketName: !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+      TemplateURL: env-vpc-endpoints.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+  
+  # Environment KMS keys
+  EnvironmentKMSKeys:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        DSTeamAdministratorRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.DSTeamAdministratorRoleArn
+          - !Ref DSTeamAdministratorRoleArn
+        DataScientistRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.DataScientistRoleArn
+          - !Ref DataScientistRoleArn 
+        VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
+      TemplateURL: env-kms.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+  
+  # Environment S3 buckets
+  EnvironmentS3:
+    Type: AWS::CloudFormation::Stack
+    Condition: S3BucketsConditions
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        DataBucketName: !GetAtt EnvironmentVPCEndpoints.Outputs.DataBucketName
+        ModelBucketName: !GetAtt EnvironmentVPCEndpoints.Outputs.ModelBucketName
+        VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
+        S3BucketKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
+      TemplateURL: env-s3.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Environment Service Catalog portfolio
+  EnvironmentSCPortfolio:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+      TemplateURL: env-sc-portfolio.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # SageMaker Studio domain, user profiles and SageMaker applications
+  EnvironmentSageMakerStudio:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+      TemplateURL: env-sagemaker-studio.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Resource group
+  EnvironmentResourceGroup:
+    Type: "AWS::ResourceGroups::Group"
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType}-resource-group'
+      Description: !Sub 'AWS Resources belonging to Data Science environment ${EnvName} in its ${EnvType} stage'
+      ResourceQuery:
+        Type: "TAG_FILTERS_1_0" 
+        Query:
+          ResourceTypeFilters: 
+            - "AWS::AllSupported" 
+          TagFilters:
+            - Key: "EnvironmentName" 
+              Values: 
+                - !Sub '${EnvName}'
+            - Key: "EnvironmentType" 
+              Values: 
+                - !Sub '${EnvType}'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+

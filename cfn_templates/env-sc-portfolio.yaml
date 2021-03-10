@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Create an Service Catalog product for SageMaker and SageMaker MLOps project template
+
+Parameters:
+  EnvName:
+    Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
+
+
+Conditions:
+  FalseCondition: !Equals [ 'true', 'false' ]
+
+Resources:
+  NullResource:
+    Type: 'Custom::NullResource'
+    Condition: FalseCondition

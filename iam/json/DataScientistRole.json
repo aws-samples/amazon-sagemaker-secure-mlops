@@ -1,0 +1,147 @@
+{
+    "Path": "/",
+    "RoleName": "ds-user-role-project-test-dev",
+    "RoleId": "AROA52CGGWLHTHNVCPIKF",
+    "Arn": "arn:aws:iam::ACCOUNT_ID:role/ds-user-role-project-test-dev",
+    "CreateDate": "2021-02-25T09:46:15+00:00",
+    "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Version": "2012-10-17",
+                "Statement": {
+                  "Effect": "Allow",
+                  "Action": "sts:AssumeRoleWithSAML",
+                  "Principal": {"Federated": "arn:aws:iam::ACCOUNT-ID-WITHOUT-HYPHENS:saml-provider/PROVIDER-NAME"},
+                  "Condition": {"StringEquals": {"SAML:aud": "https://signin.aws.amazon.com/saml"}}
+                }
+              }
+        ]
+    },
+    "InstanceProfileList": [],
+    "RolePolicyList": [
+        {
+            "PolicyName": "SageMakerAccessInlinePolicy",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": [
+                            "sagemaker:CreateModel",
+                            "sagemaker:DescribeTrainingJob",
+                            "sagemaker:DescribeLabelingJob",
+                            "sagemaker:DescribeModelPackage",
+                            "sagemaker:ListTransformJobs",
+                            "sagemaker:Search",
+                            "sagemaker:ListTrainingJobs",
+                            "sagemaker:ListProcessingJobs",
+                            "sagemaker:DescribeAlgorithm",
+                            "sagemaker:UpdateEndpointWeightsAndCapacities",
+                            "sagemaker:UpdateCodeRepository",
+                            "sagemaker:DescribeTransformJob",
+                            "sagemaker:ListSubscribedWorkteams",
+                            "sagemaker:ListLabelingJobsForWorkteam",
+                            "sagemaker:CreateEndpoint",
+                            "sagemaker:ListAlgorithms",
+                            "sagemaker:CreateModelPackage",
+                            "sagemaker:ListNotebookInstanceLifecycleConfigs",
+                            "sagemaker:DeleteModel",
+                            "sagemaker:DescribeSubscribedWorkteam",
+                            "sagemaker:ListCompilationJobs",
+                            "sagemaker:DescribeHyperParameterTuningJob",
+                            "sagemaker:ListEndpointConfigs",
+                            "sagemaker:CreateEndpointConfig",
+                            "sagemaker:ListTrainingJobsForHyperParameterTuningJob",
+                            "sagemaker:DescribeEndpointConfig",
+                            "sagemaker:StopNotebookInstance",
+                            "sagemaker:RenderUiTemplate",
+                            "sagemaker:StopTransformJob",
+                            "sagemaker:ListWorkteams",
+                            "sagemaker:DescribeNotebookInstance",
+                            "sagemaker:CreateAlgorithm",
+                            "sagemaker:CreateTrainingJob",
+                            "sagemaker:DescribeNotebookInstanceLifecycleConfig",
+                            "sagemaker:StopHyperParameterTuningJob",
+                            "sagemaker:DeleteCodeRepository",
+                            "sagemaker:DeleteEndpoint",
+                            "sagemaker:DescribeEndpoint",
+                            "sagemaker:CreateTransformJob",
+                            "sagemaker:ListNotebookInstances",
+                            "sagemaker:InvokeEndpoint",
+                            "sagemaker:ListTags",
+                            "sagemaker:CreateCodeRepository",
+                            "sagemaker:DescribeModel",
+                            "sagemaker:StopTrainingJob",
+                            "sagemaker:ListHyperParameterTuningJobs",
+                            "sagemaker:ListModelPackages",
+                            "sagemaker:DescribeWorkteam",
+                            "sagemaker:UpdateEndpoint",
+                            "sagemaker:ListLabelingJobs",
+                            "sagemaker:DescribeCompilationJob",
+                            "sagemaker:GetSearchSuggestions",
+                            "sagemaker:CreatePresignedNotebookInstanceUrl",
+                            "sagemaker:StartNotebookInstance",
+                            "sagemaker:ListModels",
+                            "sagemaker:DescribeCodeRepository",
+                            "sagemaker:ListEndpoints",
+                            "sagemaker:ListCodeRepositories",
+                            "codecommit:BatchGetRepositories",
+                            "codecommit:GitPull",
+                            "codecommit:GitPush",
+                            "codecommit:CreateBranch",
+                            "codecommit:DeleteBranch",
+                            "codecommit:GetBranch",
+                            "codecommit:ListBranches",
+                            "codecommit:CreatePullRequest",
+                            "codecommit:CreatePullRequestApproval",
+                            "codecommit:GetPullRequest",
+                            "codecommit:CreateCommit",
+                            "codecommit:GetCommit",
+                            "codecommit:GetCommitHistory",
+                            "codecommit:GetDifferences",
+                            "codecommit:GetReferences",
+                            "codecommit:CreateRepository",
+                            "codecommit:GetRepository",
+                            "codecommit:ListRepositories"
+                        ],
+                        "Resource": "*",
+                        "Effect": "Allow",
+                        "Sid": "VisualEditor0"
+                    }
+                ]
+            }
+        }
+    ],
+    "AttachedManagedPolicies": [
+        {
+            "PolicyName": "AmazonS3ReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+        },
+        {
+            "PolicyName": "AWSCodeCommitReadOnly",
+            "PolicyArn": "arn:aws:iam::aws:policy/AWSCodeCommitReadOnly"
+        },
+        {
+            "PolicyName": "AWSLambdaReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AWSLambdaReadOnlyAccess"
+        },
+        {
+            "PolicyName": "AmazonSSMReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
+        },
+        {
+            "PolicyName": "AWSServiceCatalogEndUserFullAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AWSServiceCatalogEndUserFullAccess"
+        },
+        {
+            "PolicyName": "AWSCloudFormationReadOnlyAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess"
+        },
+        {
+            "PolicyName": "DataScientist",
+            "PolicyArn": "arn:aws:iam::aws:policy/job-function/DataScientist"
+        }
+    ],
+    "Tags": [],
+    "RoleLastUsed": {}
+}
