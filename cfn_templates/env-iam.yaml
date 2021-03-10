@@ -64,6 +64,10 @@ Outputs:
     Description: The ARN of the ServiceCatalog product launch role
     Value: !GetAtt SCProjectLaunchRole.Arn
   
+  SetupLambdaExecutionRoleArn:
+    Description: Lambda execution role for Data Science environment setup function
+    Value: !GetAtt SetupLambdaExecutionRole.Arn
+
   VPCFlowLogsRoleName:
     Description: The name of the VPC Flow Logs role (used to deliver the VPC flog logs into CloudWatch group)
     Value: !If [ VPCFlowLogsRoleCondition, !Ref VPCFlowLogsRole, !Ref "AWS::NoValue" ]
@@ -71,7 +75,7 @@ Outputs:
   VPCFlowLogsRoleArn:
     Description: The ARN of the VPC Flow Logs role
     Value: !If [ VPCFlowLogsRoleCondition, !GetAtt VPCFlowLogsRole.Arn, !Ref "AWS::NoValue" ]
-
+  
 Resources:
   DataScienceTeamAdministratorRole:
       Type: 'AWS::IAM::Role'
@@ -395,7 +399,7 @@ Resources:
             Value: !Ref EnvType       
 
   VPCFlowLogsRole:
-    Type: AWS::IAM::Role
+    Type: 'AWS::IAM::Role'
     Condition: VPCFlowLogsRoleCondition
     Properties:
       Description: Rights to Publish VPC Flow Logs to CloudWatch Logs
@@ -427,3 +431,76 @@ Resources:
         Value: !Ref EnvName
       - Key: EnvironmentType
         Value: !Ref EnvType
+
+  SetupLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      RoleName: !Sub '${EnvName}-${EnvType}-setup-lambda-execution-role'
+      ManagedPolicyArns:
+        - !Ref SetupLambdaExecutionPolicy
+        - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+      - Key: EnvironmentName
+        Value: !Ref EnvName
+      - Key: EnvironmentType
+        Value: !Ref EnvType
+
+  SetupLambdaExecutionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub '${EnvName}-${EnvType}-setup-lambda-execution-policy'
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: SageMakerDomainPermission
+            Effect: Allow
+            Action:
+              - sagemaker:ListDomains
+              - sagemaker:CreateDomain
+              - sagemaker:DescribeDomain
+              - sagemaker:DeleteDomain
+              - sagemaker:UpdateDomain
+              - sagemaker:ListUserProfiles
+              - sagemaker:CreateUserProfile
+              - sagemaker:UpdateUserProfile
+              - sagemaker:DeleteUserProfile
+              - sagemaker:DescribeUserProfile
+              - sagemaker:ListApps
+              - sagemaker:CreateApp
+              - sagemaker:DescribeApp
+              - sagemaker:DeleteApp
+              - sagemaker:UpdateApp
+            Resource:
+              - !Sub "arn:${AWS::Partition}:sagemaker:*:*:domain/*"
+              - !Sub "arn:${AWS::Partition}:sagemaker:*:*:user-profile/*"
+              - !Sub "arn:${AWS::Partition}:sagemaker:*:*:app/*"
+          - Sid: SageMakerProjectsPermission
+            Effect: Allow
+            Action:
+              - servicecatalog:AcceptPortfolioShare
+              - sagemaker:EnableSagemakerServicecatalogPortfolio
+              - sagemaker:DisableSagemakerServicecatalogPortfolio
+            Resource: '*'
+          - Sid: ServiceCatalogPermission
+            Effect: Allow
+            Action:
+              - servicecatalog:*
+            Resource: '*'
+          - Sid: SageMakerExecPassRole
+            Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !GetAtt SageMakerExecutionRole.Arn

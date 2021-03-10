@@ -461,6 +461,12 @@ You have a choice of different independent deployment options using the delivere
 
 The following sections give step-by-step deployment instructions for each of the options.
 
+## Special deployment options
+This special type of deployment is created for an environment, where all IAM-changing operations (role and policy creation) are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process (separation of duties).  
+
+The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack.
+You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
+
 ## Data Science Environment Quickstart
 This option deploys the end-to-end infrastructure and a Data Science Environment in one go.
 You can change only few deployment options. The majority of the options are set to their default values.
