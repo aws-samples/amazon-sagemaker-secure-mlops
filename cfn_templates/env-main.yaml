@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: |
   Create the Data Science environment
@@ -15,6 +18,7 @@ Metadata:
         Parameters:
           - CreateEnvironmentIAMRoles
           - CreateEnvironmentS3Buckets
+          - CreateSageMakerStudioDomain
           - UseSharedServicesPyPiMirror
       - Label:
           default: Environment IAM Roles (only needed if created outside of this stack)
@@ -24,6 +28,7 @@ Metadata:
           - DataScientistRoleName
           - DataScientistRoleArn
           - SageMakerExecutionRoleArn
+          - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
       - Label:
           default: Availability Zone Configuration
@@ -67,6 +72,8 @@ Metadata:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
         default: Create environment S3 buckets
+      CreateSageMakerStudioDomain:
+        default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
         default: Use shared services PyPI mirror
       DSTeamAdministratorRoleName:
@@ -79,6 +86,8 @@ Metadata:
         default: Data Scientist role ARN
       SageMakerExecutionRoleArn:
         default: SageMaker and SageMaker Notebook execution role ARN
+      SetupLambdaExecutionRoleArn:
+        default: Execution role ARN for Lambda function for setup script
       SCProjectLaunchRoleArn:
         default: Service Catalog Project Launch role ARN
       AvailabilityZones:
@@ -169,6 +178,14 @@ Parameters:
       - 'YES'
       - 'NO'
     Default: 'YES'
+
+  CreateSageMakerStudioDomain:
+    Description: Select YES if you want to create SageMaker Studio domain
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
   
   UseSharedServicesPyPiMirror:
     Description: Select YES if you want to use shared services PyPI mirror (must be created in the core stack)
@@ -200,6 +217,11 @@ Parameters:
 
   SageMakerExecutionRoleArn:
     Description: The ARN of the SageMaker Execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  SetupLambdaExecutionRoleArn:
+    Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup
     Type: String
     Default: ''
 
@@ -385,6 +407,7 @@ Conditions:
   IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
+  SageMakerStudioDomainCondition: !Equals [ !Ref CreateSageMakerStudioDomain, 'YES' ]
 
 Rules:
   IAMRoles:
@@ -397,6 +420,7 @@ Rules:
           - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
         AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
 
   VPCFlowLogsRole:
@@ -503,6 +527,10 @@ Resources:
           - !GetAtt EnvironmentsIAMRoles.Outputs.DataScientistRoleArn
           - !Ref DataScientistRoleArn 
         VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
+        SageMakerExecutionRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.SageMakerExecutionRoleArn
+          - !Ref SageMakerExecutionRoleArn
       TemplateURL: env-kms.yaml
       Tags:
         - Key: EnvironmentName
@@ -546,10 +574,24 @@ Resources:
   # SageMaker Studio domain, user profiles and SageMaker applications
   EnvironmentSageMakerStudio:
     Type: AWS::CloudFormation::Stack
+    Condition: SageMakerStudioDomainCondition
+    DependsOn: EnvironmentVPCEndpoints
     Properties:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
+        VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
+        SageMakerStudioSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+        SageMakerSecurityGroupIds: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
+        SageMakerStudioStorageKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.SageMakerStudioStorageKMSKeyId
+        SageMakerExecutionRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.SageMakerExecutionRoleArn
+          - !Ref SageMakerExecutionRoleArn 
+        SetupLambdaExecutionRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentsIAMRoles.Outputs.SetupLambdaExecutionRoleArn
+          - !Ref SetupLambdaExecutionRoleArn 
       TemplateURL: env-sagemaker-studio.yaml
       Tags:
         - Key: EnvironmentName

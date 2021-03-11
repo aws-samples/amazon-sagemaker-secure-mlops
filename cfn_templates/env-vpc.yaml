@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   This template create a Multi-AZ, multi-subnet VPC infrastructure with optional managed NAT gateways in the public subnet for each AZ
@@ -115,16 +118,18 @@ Outputs:
         - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3ARouteTable, !Ref AWS::NoValue ]
         - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4ARouteTable, !Ref AWS::NoValue ]
 
-  SageMakerSecurityGroupId:
-    Description: Id of SageMaker security Group
-    Value: !GetAtt SageMakerSecurityGroup.GroupId
+  SageMakerSecurityGroupIds:
+    Description: Id of SageMaker security group(s)
+    Value: !Join
+      - ','
+      - - !GetAtt SageMakerSecurityGroup.GroupId
   
   VPCEndpointsSecurityGroupId:
-    Description: Id of VPC endpoints security Group
+    Description: Id of VPC endpoints security group
     Value: !GetAtt VPCEndpointsSecurityGroup.GroupId
 
   SharedServicesVPCEndpointSecurityGroupId:
-    Description: Id of shared services VPC endpoint security Group
+    Description: Id of shared services VPC endpoint security group
     Value: !GetAtt SharedServicesVPCEndpointSecurityGroup.GroupId
 
 Parameters:

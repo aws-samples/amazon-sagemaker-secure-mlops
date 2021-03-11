@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: 2010-09-09
 Description: Create environment-specific IAM Roles for SageMaker Data Science Environment Personas
 
@@ -12,6 +15,14 @@ Parameters:
     Type: String
     Default: dev
 
+  CreateIAMUserRoles:
+    Description: Select YES if you want to create an IAM User roles
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
   CreateVPCFlowLogsRole:
     Description: Select YES if you want to create an IAM Role for VPC Flow Logs to write the logs into a CloudWatch log group
     Type: String
@@ -22,31 +33,50 @@ Parameters:
   
 Conditions:
   VPCFlowLogsRoleCondition: !Equals [!Ref CreateVPCFlowLogsRole, 'YES']
+  IAMUserRolesCondition: !Equals [!Ref CreateIAMUserRoles, 'YES']
 
 Outputs:
   DSTeamAdministratorRoleName:
     Description: The name of the DataScienceTeamAdministrator role
-    Value: !Ref DataScienceTeamAdministratorRole
+    Value: !If 
+      - IAMUserRolesCondition
+      - !Ref DataScienceTeamAdministratorRole
+      - ''
 
   DataScientistRoleName:
     Description: The name of the Data Scientist role
-    Value: !Ref DataScientistRole
+    Value: !If 
+      - IAMUserRolesCondition
+      - !Ref DataScientistRole
+      - ''
 
   DSTeamAdministratorRoleArn:
     Description: The ARN of the DataScienceTeamAdministrator role
-    Value: !GetAtt DataScienceTeamAdministratorRole.Arn
+    Value:  !If 
+      - IAMUserRolesCondition
+      - !GetAtt DataScienceTeamAdministratorRole.Arn
+      - ''
     
   DataScientistRoleArn:
     Description: The ARN of the Data Scientist role
-    Value: !GetAtt DataScientistRole.Arn
+    Value:  !If 
+      - IAMUserRolesCondition
+      - !GetAtt DataScientistRole.Arn
+      - ''
 
   AssumeTeamAdminRole:
     Description: URL for assuming the role of a environment admin
-    Value: !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceTeamAdministratorRole}&displayName=${DataScienceTeamAdministratorRole}'
+    Value: !If 
+      - IAMUserRolesCondition
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceTeamAdministratorRole}&displayName=${DataScienceTeamAdministratorRole}'
+      - ''
 
   AssumeDataScientistRole:
     Description: URL for assuming the role of a environment user
-    Value: !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRole}&displayName=${DataScientistRole}'
+    Value: !If 
+      - IAMUserRolesCondition
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRole}&displayName=${DataScientistRole}'
+      - ''
   
   SageMakerExecutionRoleName:
     Description: The name of the SageMaker execution role
@@ -70,50 +100,52 @@ Outputs:
 
   VPCFlowLogsRoleName:
     Description: The name of the VPC Flow Logs role (used to deliver the VPC flog logs into CloudWatch group)
-    Value: !If [ VPCFlowLogsRoleCondition, !Ref VPCFlowLogsRole, !Ref "AWS::NoValue" ]
+    Value: !If [ VPCFlowLogsRoleCondition, !Ref VPCFlowLogsRole, '' ]
       
   VPCFlowLogsRoleArn:
     Description: The ARN of the VPC Flow Logs role
-    Value: !If [ VPCFlowLogsRoleCondition, !GetAtt VPCFlowLogsRole.Arn, !Ref "AWS::NoValue" ]
+    Value: !If [ VPCFlowLogsRoleCondition, !GetAtt VPCFlowLogsRole.Arn, '' ]
   
 Resources:
   DataScienceTeamAdministratorRole:
-      Type: 'AWS::IAM::Role'
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
-              Action:
-                - 'sts:AssumeRole'
-        RoleName: !Sub "${EnvName}-${EnvType}-ds-team-admin-role"
-        Policies:
-          - PolicyName: SageMakerAccessInlinePolicy
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Sid: VisualEditor0
-                  Effect: Allow
-                  Action:
-                    - 'sagemaker:*'
-                  Resource: '*'
-        ManagedPolicyArns:
-          - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
-          - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
-          - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
-          - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
-          - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
-          - 'arn:aws:iam::aws:policy/AmazonSSMFullAccess'
-          - 'arn:aws:iam::aws:policy/AWSCodeCommitFullAccess'
-        Tags:
-        - Key: EnvironmentName
-          Value: !Ref EnvName
-        - Key: EnvironmentType
-          Value: !Ref EnvType
+    Condition: IAMUserRolesCondition
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: !Sub "${EnvName}-${EnvType}-ds-team-admin-role"
+      Policies:
+        - PolicyName: SageMakerAccessInlinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: VisualEditor0
+                Effect: Allow
+                Action:
+                  - 'sagemaker:*'
+                Resource: '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+        - 'arn:aws:iam::aws:policy/ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSSMFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodeCommitFullAccess'
+      Tags:
+      - Key: EnvironmentName
+        Value: !Ref EnvName
+      - Key: EnvironmentType
+        Value: !Ref EnvType
 
   DataScientistRole:
+    Condition: IAMUserRolesCondition
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -503,4 +535,5 @@ Resources:
             Effect: Allow
             Action:
               - iam:PassRole
+              - iam:GetRole
             Resource: !GetAtt SageMakerExecutionRole.Arn

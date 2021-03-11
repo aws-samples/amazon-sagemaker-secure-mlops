@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
   Create a SageMaker Studio domain, applications and a default user profile
@@ -22,7 +25,7 @@ Metadata:
           - VPCId
           - SageMakerStudioSubnetIds
           - SageMakerSecurityGroupIds
-          - SagemakerEFSKMSKeyId
+          - SageMakerStudioStorageKMSKeyId
       - Label:
           default: Permission
         Parameters:
@@ -46,7 +49,7 @@ Metadata:
         default: Subnet(s)
       SageMakerSecurityGroupIds:
         default: Security group(s)
-      SagemakerEFSKMSKeyId:
+      SageMakerStudioStorageKMSKeyId:
         default: Storage encryption key
       NetworkAccessType:
         default: Network access for SageMaker Studio
@@ -153,7 +156,7 @@ Parameters:
     Type: List<AWS::EC2::SecurityGroup::Id>
     Description: Choose security groups for SageMaker Studio and SageMaker workloads
 
-  SagemakerEFSKMSKeyId:
+  SageMakerStudioStorageKMSKeyId:
     Type: String
     Description: SageMaker uses an AWS managed CMK to encrypt your EFS and EBS file systems by default. To use a customer managed CMK, enter its key Id.
     Default: ''
@@ -186,7 +189,7 @@ Parameters:
 Conditions:
   GenerateDomainNameCondition: !Equals [ !Ref DomainName, '' ]
   GenerateProfileNameCondition: !Equals [ !Ref UserProfileName, '' ]
-  SageMakerEFSKMSKeyCondition: !Not [ !Equals [ !Ref SagemakerEFSKMSKeyId, ''] ]
+  SageMakerEFSKMSKeyCondition: !Not [ !Equals [ !Ref SageMakerStudioStorageKMSKeyId, ''] ]
 
 Resources:
   SageMakerStudioDomain:
@@ -201,7 +204,7 @@ Resources:
         - GenerateDomainNameCondition
         - !Sub '${EnvName}-${EnvType}-${AWS::Region}-sagemaker-domain'
         - !Ref DomainName 
-      KmsKeyId: !If [ SageMakerEFSKMSKeyCondition, !Ref SagemakerEFSKMSKeyId, !Ref 'AWS::NoValue' ]
+      KmsKeyId: !If [ SageMakerEFSKMSKeyCondition, !Ref SageMakerStudioStorageKMSKeyId, !Ref 'AWS::NoValue' ]
       SubnetIds: !Ref SageMakerStudioSubnetIds
       VpcId: !Ref VPCId
       Tags:
@@ -221,6 +224,132 @@ Resources:
       UserSettings:
         ExecutionRole: !Ref SageMakerExecutionRoleArn
         SecurityGroups: !Ref SageMakerSecurityGroupIds
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  JupyterApp:
+    Type: AWS::SageMaker::App
+    DependsOn: SageMakerUserProfile
+    Properties: 
+      AppName: default
+      AppType: JupyterServer
+      DomainId: !GetAtt SageMakerStudioDomain.DomainId
+      UserProfileName: !If
+        - GenerateProfileNameCondition
+        - !Sub '${EnvName}-${EnvType}-${AWS::Region}-user-profile'
+        - !Ref UserProfileName
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+  
+  DataScienceApp:
+    Type: AWS::SageMaker::App
+    DependsOn: SageMakerUserProfile
+    Properties: 
+      AppName: instance-event-engine-datascience-ml-t3-medium
+      AppType: KernelGateway
+      DomainId: !GetAtt SageMakerStudioDomain.DomainId
+      ResourceSpec: 
+        InstanceType:  ml.t3.medium
+        SageMakerImageArn: !FindInMap
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - datascience
+      UserProfileName: !If
+        - GenerateProfileNameCondition
+        - !Sub '${EnvName}-${EnvType}-${AWS::Region}-user-profile'
+        - !Ref UserProfileName
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  DataWranglerApp:
+    Type: AWS::SageMaker::App
+    DependsOn: SageMakerUserProfile
+    Properties: 
+      AppName: instance-event-engine-datawrangler-ml-m5-4xlarge
+      AppType: KernelGateway
+      DomainId: !GetAtt SageMakerStudioDomain.DomainId
+      ResourceSpec: 
+        InstanceType:  ml.m5.4xlarge
+        SageMakerImageArn: !FindInMap
+          - RegionMap
+          - !Ref 'AWS::Region'
+          - datawrangler
+      UserProfileName: !If
+        - GenerateProfileNameCondition
+        - !Sub '${EnvName}-${EnvType}-${AWS::Region}-user-profile'
+        - !Ref UserProfileName
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  EnableSageMakerProjects:
+    Type: Custom::ResourceForEnablingSageMakerProjects
+    Properties:
+      ServiceToken: !GetAtt EnableSageMakerProjectsLambda.Arn
+      ExecutionRole: !Ref SageMakerExecutionRoleArn
+
+  EnableSageMakerProjectsLambda:
+    Type: AWS::Lambda::Function
+    DependsOn: SageMakerStudioDomain
+    Properties:
+      FunctionName: EnableSagemakerProjects
+      Code:
+        ZipFile: |
+          # Function: EnableSagemakerProjects
+          # Purpose:  Enables Sagemaker Projects
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+          
+          client = boto3.client('sagemaker')
+          sc_client = boto3.client('servicecatalog')
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      enable_sm_projects(event['ResourceProperties']['ExecutionRole'])
+                  cfnresponse.send(event, context, response_status, {}, '')
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+            
+          def enable_sm_projects(studio_role_arn):
+              # enable Project on account level (accepts portfolio share)
+              response = client.enable_sagemaker_servicecatalog_portfolio()
+
+              # associate studio role with portfolio
+              response = sc_client.list_accepted_portfolio_shares()
+
+              portfolio_id = ''
+              for portfolio in response['PortfolioDetails']:
+                  if portfolio['ProviderName'] == 'Amazon SageMaker':
+                      portfolio_id = portfolio['Id']
+
+              response = sc_client.associate_principal_with_portfolio(
+                  PortfolioId=portfolio_id,
+                  PrincipalARN=studio_role_arn,
+                  PrincipalType='IAM'
+              )
+      Description: Enable Sagemaker Projects
+      Handler: index.lambda_handler
+      MemorySize: 512
+      Role: !Ref SetupLambdaExecutionRoleArn
+      Runtime: python3.8
+      Timeout: 60
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName

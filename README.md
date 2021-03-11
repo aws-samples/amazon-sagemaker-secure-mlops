@@ -9,6 +9,8 @@ We are going to cover the following three main topics:
 The solution recommends and supports the following development approach:
 + A separate AWS account per Data Science team and one Amazon SageMaker Studion domain per region per account
 
+[Jump to deployment](README.md#Deployment)
+
 # Amazon SageMaker features
 
 ![SageMaker Features](img/sagemaker-features.png)
@@ -462,7 +464,7 @@ You have a choice of different independent deployment options using the delivere
 The following sections give step-by-step deployment instructions for each of the options.
 
 ## Special deployment options
-This special type of deployment is created for an environment, where all IAM-changing operations (role and policy creation) are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process (separation of duties).  
+This special type of deployment is designed for an environment, where all IAM-changing operations (role and policy creation) are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process (separation of duties).  
 
 The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack.
 You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
@@ -588,18 +590,48 @@ The Data Science environment deployment will provision the following resources i
 + SageMaker Studio domain and default user profile
 
 The deployment options you can use are:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
-+ `ParameterKey=`:
++ Data Science environment
+  - `EnvName`:
+  - `EnvType`:
++ Deployment options:
+  - `CreateEnvironmentIAMRoles`:
+  - `CreateEnvironmentS3Buckets`:
+  - `CreateSageMakerStudioDomain`:
+  - `UseSharedServicesPyPiMirror`:
++ Environment IAM roles (only needed if created outside of this stack and `CreateEnvironmentIAMRoles` = NO):
+  - `DSTeamAdministratorRoleName`
+  - `DSTeamAdministratorRoleArn`
+  - `DataScientistRoleName`
+  - `DataScientistRoleArn`
+  - `SageMakerExecutionRoleArn`
+  - `SetupLambdaExecutionRoleArn`
+  - `SCProjectLaunchRoleArn`
++ Availability Zone configuration:
+  - `AvailabilityZones`
+  - `NumberOfAZs`
++ Network Configuration:
+  - `CreateVPC`
+  - `CreateNATGateways`
+  - `ExistingVPCId`
+  - `VPCCIDR`
+  - `CreatePrivateSubnets`
+  - `PrivateSubnet1ACIDR`
+  - `PrivateSubnet2ACIDR`
+  - `PrivateSubnet3ACIDR`
+  - `PrivateSubnet4ACIDR`
+  - `PublicSubnet1CIDR`
+  - `PublicSubnet2CIDR`
+  - `PublicSubnet3CIDR`
+  - `PublicSubnet4CIDR`
++ VPC Flow Logs Configuration:
+  - `CreateVPCFlowLogsToCloudWatch`
+  - `CreateVPCFlowLogsRole`
+  - `VPCFlowLogsRoleArn`
+  - `VPCFlowLogsLogFormat`
+  - `VPCFlowLogsLogGroupRetention`
+  - `VPCFlowLogsMaxAggregationInterval`
+  - `VPCFlowLogsTrafficType`
+  - `VPCFlowLogsCloudWatchKMSKey`
 
 Run command providing the deployment options for your environment. The following command uses the minimal set of the options:
 ```bash
@@ -617,8 +649,7 @@ aws cloudformation create-stack \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=$AVAILABILITY_ZONES \
-        ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=CreateNATGateways,ParameterValue="NO"
+        ParameterKey=NumberOfAZs,ParameterValue=2
 ```
 
 ## Cleanup
@@ -695,6 +726,8 @@ aws cloudformation delete-stack --stack-name sagemaker-mlops-core
 - [S5]: [Secure deployment of Amazon SageMaker resources](https://aws.amazon.com/blogs/security/secure-deployment-of-amazon-sagemaker-resources/)
 - [S6]: [Understanding Amazon SageMaker notebook instance networking configurations and advanced routing options](https://aws.amazon.com/blogs/machine-learning/understanding-amazon-sagemaker-notebook-instance-networking-configurations-and-advanced-routing-options/)
 - [S7]: [Security group rules for different use cases](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules-reference.html)
+- [S8]: [Data encryption at rest in SageMaker Studion](https://docs.aws.amazon.com/sagemaker/latest/dg/encryption-at-rest-studio.html)
+- [S9]: [Connect SageMaker Studio Notebooks to Resources in a VPC](https://docs.aws.amazon.com/sagemaker/latest/dg/studio-notebooks-and-internet-access.html)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  

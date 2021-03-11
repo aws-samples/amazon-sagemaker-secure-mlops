@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
   Create the KMS keys for end-to-end data encryption
@@ -21,6 +24,10 @@ Parameters:
     Type: String
     Description: The ARN of the Data Scientist role
 
+  SageMakerExecutionRoleArn:
+    Description: The ARN of the SageMaker Execution role
+    Type: String
+
   VPCEndpointS3Id:
     Description: Id of the S3 VPC endpoint
     Type: String
@@ -41,6 +48,14 @@ Outputs:
     SagemakerEBSKMSKeyId:
       Description: KMS Key Id for the SageMaker Notebooks EBS volumes
       Value: !Ref SagemakerEBSKMSKey
+
+    SageMakerStudioStorageKMSKeyArn:
+      Description: KMS Key Id for the SageMaker Studio EFS and EBS file systems
+      Value: !GetAtt SageMakerStudioStorageKMSKey.Arn
+
+    SageMakerStudioStorageKMSKeyId:
+      Description: KMS Key Id for the SageMaker Studio EFS and EBS file systems
+      Value: !Ref SageMakerStudioStorageKMSKey
 
 Resources:
   SagemakerEBSKMSKey:
@@ -99,6 +114,95 @@ Resources:
         - SagemakerEBSKMSKey
         - Arn
       Description: EBS KMS key to encrypt SageMaker workload instance volume
+
+  SageMakerStudioStorageKMSKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: Generated KMS Key for SageMaker Studio EFS and EBS file systems
+      EnableKeyRotation: true
+      Enabled: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: KmsKey-StorageKmsSagemakerKey
+        Statement:
+          - Action:
+              - 'kms:*'
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Resource: '*'
+          - Sid: Allow access for Key Administrators
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Ref SageMakerExecutionRoleArn
+                - !Ref DSTeamAdministratorRoleArn
+            Action:
+            - 'kms:Create*'
+            - 'kms:Describe*'
+            - 'kms:Enable*'
+            - 'kms:List*'
+            - 'kms:Put*'
+            - 'kms:Update*'
+            - 'kms:Revoke*'
+            - 'kms:Disable*'
+            - 'kms:Get*'
+            - 'kms:Delete*'
+            - 'kms:TagResource'
+            - 'kms:UntagResource'
+            - 'kms:ScheduleKeyDeletion'
+            - 'kms:CancelKeyDeletion'
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Ref SageMakerExecutionRoleArn
+                - !Ref DSTeamAdministratorRoleArn
+                - !Ref DataScientistRoleArn
+            Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            - kms:DescribeKey
+            Resource: "*"
+          - Sid: Allow attachment of persistent resources
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Ref SageMakerExecutionRoleArn
+                - !Ref DSTeamAdministratorRoleArn
+                - !Ref DataScientistRoleArn
+            Action:
+            - kms:CreateGrant
+            - kms:ListGrants
+            - kms:RevokeGrant
+            Resource: "*"
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: 'true'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  SageMakerStudioStorageKMSKeyAlias:
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: !Sub "alias/${EnvName}-${EnvType}-kms-efs"
+      TargetKeyId: !Ref SageMakerStudioStorageKMSKey
+
+  SageMakerStudioStorageKMSKeyArnSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-kms-efs-key-arn"
+      Type: String
+      Value: !GetAtt 
+        - SageMakerStudioStorageKMSKey
+        - Arn
+      Description: KMS key to encrypt SageMaker EFS and EBS file systems
 
   S3BucketKMSKey:
     Type: 'AWS::KMS::Key'
