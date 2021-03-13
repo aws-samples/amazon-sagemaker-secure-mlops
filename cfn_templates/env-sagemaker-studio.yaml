@@ -346,7 +346,7 @@ Resources:
               )
       Description: Enable Sagemaker Projects
       Handler: index.lambda_handler
-      MemorySize: 512
+      MemorySize: 128
       Role: !Ref SetupLambdaExecutionRoleArn
       Runtime: python3.8
       Timeout: 60

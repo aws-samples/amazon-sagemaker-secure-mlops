@@ -5,62 +5,81 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Create shared IAM Roles for SageMaker Data Science Environment (both personas and execution roles)
 
 Parameters:
-  StackSetName:
-    Type: String 
-    Description: A name to be used across nested stacks 
 
-  CreateIAMUserRoles:
-    Description: Select YES if you want to create an IAM User roles
+  DSAdministratorRoleName:
+    Description: The name of the DataScienceAdministrator role
     Type: String
-    AllowedValues:
-      - 'YES'
-      - 'NO'
-    Default: 'YES'
+    Default: 'DataScienceAdministrator'
+
+  SageMakerDetectiveControlExecutionRoleName:
+    Description: The name of the SageMakerDetectiveControlExecutionRole
+    Type: String
+    Default: 'DSSageMakerDetectiveControlRole'
+
+  SCLaunchRoleName:
+    Description: The name of the Service Catalog Launch role
+    Type: String
+    Default: 'DSServiceCatalogLaunchRole'
 
 Outputs:
+
   DSAdministratorRoleName:
     Description: The name of the DataScienceAdministrator role
     Value: !If 
-      - IAMUserRolesCondition
+      - DSAdministratorRoleCondition
       - !Ref DataScienceAdministratorRole
-      - ''
+      - 'DataScienceAdministrator'
 
   DSAdministratorRoleArn:
     Description: The ARN of the DataScienceAdministrator role
     Value: !If 
-      - IAMUserRolesCondition
+      - DSAdministratorRoleCondition
       - !GetAtt DataScienceAdministratorRole.Arn
-      - ''
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DataScienceAdministrator'
 
   AssumeDSAdministratorRole:
     Description: URL for assuming the role of a cross-environment data science admin
     Value: !If 
-      - IAMUserRolesCondition
+      - DSAdministratorRoleCondition
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceAdministratorRole}&displayName=${DataScienceAdministratorRole}'
-      - ''
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=DataScienceAdministrator&displayName=DataScienceAdministrator'
 
   SageMakerDetectiveControlExecutionRoleName:
     Description: The name of the SageMakerDetectiveControlExecutionRole
-    Value: !Ref SageMakerDetectiveControlExecutionRole
+    Value: !If 
+      - SageMakerDetectiveControlExecutionRoleCondition
+      - !Ref SageMakerDetectiveControlExecutionRole
+      - 'DSSageMakerDetectiveControlRole'
 
   SageMakerDetectiveControlExecutionRoleArn:
     Description: The ARN of the SageMakerDetectiveControlExecutionRole
-    Value: !GetAtt SageMakerDetectiveControlExecutionRole.Arn
+    Value: !If 
+      - SageMakerDetectiveControlExecutionRoleCondition
+      - !GetAtt SageMakerDetectiveControlExecutionRole.Arn
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DSSageMakerDetectiveControlRole'
 
   SCLaunchRoleName:
     Description: The name of the Service Catalog Launch role
-    Value: !Ref SCLaunchRole
+    Value: !If 
+      - SCLaunchRoleCondition
+      - !Ref SCLaunchRole
+      - 'DSServiceCatalogLaunchRole'
 
   SCLaunchRoleArn:
     Description: The ARN of the Service Catalog Launch role
-    Value: !GetAtt SCLaunchRole.Arn
+    Value: !If 
+      - SCLaunchRoleCondition
+      - !GetAtt SCLaunchRole.Arn
+      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DSServiceCatalogLaunchRole'
 
 Conditions:
-  IAMUserRolesCondition: !Equals [!Ref CreateIAMUserRoles, 'YES']
+  DSAdministratorRoleCondition: !Not [ !Equals [ !Ref DSAdministratorRoleName, '' ] ]
+  SageMakerDetectiveControlExecutionRoleCondition: !Not [ !Equals [ !Ref SageMakerDetectiveControlExecutionRoleName, '' ] ]
+  SCLaunchRoleCondition: !Not [ !Equals [ !Ref SCLaunchRoleName, '' ] ]
 
 Resources:
   DataScienceAdministratorRole:
-    Condition: IAMUserRolesCondition
+    Condition: DSAdministratorRoleCondition
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -71,7 +90,7 @@ Resources:
               AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action:
               - 'sts:AssumeRole'
-      RoleName: !Sub '${StackSetName}-DataScienceAdministrator'
+      RoleName: !Ref DSAdministratorRoleName
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
         - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
@@ -83,6 +102,7 @@ Resources:
 
   SageMakerDetectiveControlExecutionRole:
     Type: 'AWS::IAM::Role'
+    Condition: SageMakerDetectiveControlExecutionRoleCondition
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -91,7 +111,7 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: 'sts:AssumeRole'
-      RoleName: !Sub '${StackSetName}-SageMaker-DetectiveControl-Role'
+      RoleName: !Ref SageMakerDetectiveControlExecutionRoleName
       Policies:
         - PolicyName: LambdaInlineForSageMaker
           PolicyDocument:
@@ -119,9 +139,10 @@ Resources:
 
   SCLaunchRole:
     Type: 'AWS::IAM::Role'
+    Condition: SCLaunchRoleCondition
     Properties:
       Description: Service Catalog launch role to deploy products from SC portfolio
-      RoleName: !Sub '${StackSetName}-ServiceCatalogLaunchRole'
+      RoleName: !Ref SCLaunchRoleName
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -132,14 +153,15 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       Policies:
-        - PolicyName: !Sub '${StackSetName}-SCLaunchInlinePolicy'
+        - PolicyName: !Sub '${SCLaunchRoleName}-SCLaunchInlinePolicy'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Sid: LambdaInvokePermission
+              - Sid: LambdaPermission
                 Effect: Allow
                 Action:
                   - 'lambda:InvokeFunction'
+                  - 'lambda:GetFunction'
                 Resource: '*'
               - Sid: SageMakerPermission
                 Effect: Allow
@@ -250,6 +272,7 @@ Resources:
         - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
         - 'arn:aws:iam::aws:policy/CloudWatchLogsFullAccess'
         - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
 
 
 

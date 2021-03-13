@@ -469,6 +469,13 @@ This special type of deployment is designed for an environment, where all IAM-ch
 The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack.
 You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
 
+## Multi-region deployment considerations
+The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of the AWS account. The following limitations and considerations apply:
+
++ The shared IAM roles (`DSAdministratorRole`, `SageMakerDetectiveControlExecutionRole`, `SCLaunchRole`) are global for the AWS account (IAM is a global AWS service). The roles and all permissions for these roles are valid and apply for all regions. If you deploy a new stack in a new region, it will use the existing shared IAM roles, created by the first stack deployment on the AWS account
++ The environment IAM roles (`DSTeamAdministratorRole`, `DataScientistRole`, `SageMakerExecutionRole`, `SCProjectLaunchRole`, `SageMakerCrossAccountDeploymentRole`) are created with unique names. Each deployment of a new data science environment (via CloudFormation or via AWS Service Catalog) creates a set of unique roles
++ SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles.
+
 ## Data Science Environment Quickstart
 This option deploys the end-to-end infrastructure and a Data Science Environment in one go.
 You can change only few deployment options. The majority of the options are set to their default values.
@@ -489,7 +496,7 @@ ENV_NAME="sagemaker-mlops"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/data-science-environment-quickstart.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
@@ -535,12 +542,12 @@ STACK_NAME="sagemaker-mlops-core"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME  \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
-        ParameterKey=StackSetName,ParameterValue="mlops-core-$AWS_DEFAULT_REGION" 
+        ParameterKey=StackSetName,ParameterValue="secure-mlops" 
 ```
 
 Show the stack output:
@@ -562,6 +569,7 @@ The step 2 CloudFormation template (`env-main.yaml`) provides two deployment opt
    - security groups
    - optional NAT gateways in each AZ  
    - if you select the NAT gateway option, an internet gateway will be created and attached to the VPC
+   - routing tables and routes for private and public subnets
 
 You specify the number of AZs and CIDR blocks for VPC and each of the subnets.  
 After provisioning the network infrastructure, the solution deploys SageMaker Studio into this VPC.  
@@ -569,10 +577,10 @@ After provisioning the network infrastructure, the solution deploys SageMaker St
 + **Deploy Amazon SageMaker Studio into an existing VPC**: This option provisions SageMaker Studio in your existing AWS network infrastructure. You have several options to choose between existing or create new network resources:
   - VPC: you must provide a valid existing VPC Id
   - Subnets: you can choose between:
-    - providing existing subnet CIDR blocks - in this case no new subnets are provisioned and NAT gateway option is not available. All SageMaker resources are deployed into your existing VPC and private subnets. You use your existing NAT (if available) to access internet from the private subnets
-    - provisioning new private and optional (only if the NAT gateway option is selected) public subnets. The deployment creates new subnets with specified CIDR blocks inside your existing VPC.
+    - providing existing subnet CIDR blocks (set `CreatePrivateSubnets` to `NO`) - in this case no new subnets are provisioned and NAT gateway option **is not available**. All SageMaker resources are deployed into your existing VPC and private subnets. You use your existing NAT (if available) to access internet from the private subnets
+    - provisioning new private (set `CreatePrivateSubnets` to `NO`) and optional (only if the NAT gateway option is selected) public subnets. The deployment creates new subnets with specified CIDR blocks inside your existing VPC.
 
-You specify the number of AZs you would like to deploy the network resources into.  
+You must specify the number of AZs you would like to deploy the network resources into.  
 
 ❗ A new internet gateway will be created and attached to the VPC in "existing VPC" scenario if you select the NAT gateway option. The stack creation will fail if there is an internet gateway _already attached_ to the existing VPC and you select the NAT gateway option.
 
@@ -637,11 +645,11 @@ Run command providing the deployment options for your environment. The following
 ```bash
 STACK_NAME="sagemaker-mlops-env"
 ENV_NAME="sagemaker-mlops"
-AVAILABILITY_ZONES="eu-central-1a\\,eu-central-1b"
+AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a'\\',${AWS_DEFAULT_REGION}b
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
@@ -766,6 +774,10 @@ aws cloudformation delete-stack --stack-name sagemaker-mlops-core
 - [I6]: [AWS AI/ML FSI SageMaker Reference Architectures](https://aws.highspot.com/items/5dbcc8e3429d7b513bfdfd58?lfrm=srp.0#19)
 - [I7]: [Secure SageMaker Notebook CDK](https://code.amazon.com/packages/SecureSagemakerNotebookCDK)
 
+
+https://amazon.awsapps.com/workdocs/index.html#/folder/b0b6fc4f9f318f97efce607ae05c737122be0614b0597718f2c25a5d217e9c2a
+
+https://amazon.awsapps.com/workdocs/index.html#/folder/b8703c8450b10af9c4e8c3ba746426a9a72406572266ef534225bddc22f0dc2b
 
 # Appendix
 

@@ -30,7 +30,6 @@ Resources:
   SageMakerCrossAccountDeploymentRole:
     Type: AWS::IAM::Role
     Properties:
-        RoleName: !Sub "${EnvName}-${EnvType}-sagemaker-cross-account-deployment-role"
         AssumeRolePolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -52,7 +51,7 @@ Resources:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
         Policies:
           -
-            PolicyName: !Sub "${EnvName}-${EnvType}-sagemaker-cross-account-deployment-policy"
+            PolicyName: !Sub "${EnvName}-${EnvType}-${AWS::Region}-sagemaker-cross-account-deployment-policy"
             PolicyDocument:
               Version: "2012-10-17"
               Statement:

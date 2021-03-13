@@ -165,7 +165,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Parameters:
-        StackSetName: !Sub 'ds-quickstart-${AWS::Region}'
+        StackSetName: !Sub 'ds-quickstart'
         CreateSharedServices: !Ref CreateSharedServices
       TemplateURL: core-main.yaml
       Tags:

@@ -119,7 +119,6 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action:
               - 'sts:AssumeRole'
-      RoleName: !Sub "${EnvName}-${EnvType}-ds-team-admin-role"
       Policies:
         - PolicyName: SageMakerAccessInlinePolicy
           PolicyDocument:
@@ -156,7 +155,6 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action:
               - 'sts:AssumeRole'
-      RoleName: !Sub "${EnvName}-${EnvType}-ds-user-role"
       Policies:
         - PolicyName: SageMakerAccessInlinePolicy
           PolicyDocument:
@@ -269,9 +267,8 @@ Resources:
               Action:
                 - 'sts:AssumeRole'
         Path: /service-role/
-        RoleName: !Sub ${EnvName}-${EnvType}-sagemaker-execution-role
         ManagedPolicyArns:
-          - !Ref SageMakerExecuctionPolicy
+          - !Ref SageMakerExecutionPolicy
           - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
           - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
         Tags:
@@ -280,10 +277,9 @@ Resources:
           - Key: EnvironmentType
             Value: !Ref EnvType
 
-  SageMakerExecuctionPolicy:
+  SageMakerExecutionPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
     Properties:
-      ManagedPolicyName: !Sub "${EnvName}-${EnvType}-sagemaker-execution-policy"
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -362,7 +358,6 @@ Resources:
               Principal:
                 Service: servicecatalog.amazonaws.com
               Action: 'sts:AssumeRole'
-        RoleName: !Sub "${EnvName}-${EnvType}-sc-launch-role"
         Policies:
           - PolicyName: SCInlinePolicy
             PolicyDocument:
@@ -444,7 +439,6 @@ Resources:
               Service:
                 - vpc-flow-logs.amazonaws.com
       Path: /
-      RoleName: !Sub "${EnvName}-${EnvType}-vpcflowlogs-role"
       Policies:
         - PolicyName: CloudWatchLogGroup
           PolicyDocument:
@@ -477,7 +471,6 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       Path: /
-      RoleName: !Sub '${EnvName}-${EnvType}-setup-lambda-execution-role'
       ManagedPolicyArns:
         - !Ref SetupLambdaExecutionPolicy
         - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
@@ -492,7 +485,6 @@ Resources:
   SetupLambdaExecutionPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
-      ManagedPolicyName: !Sub '${EnvName}-${EnvType}-setup-lambda-execution-policy'
       Path: /
       PolicyDocument:
         Version: 2012-10-17

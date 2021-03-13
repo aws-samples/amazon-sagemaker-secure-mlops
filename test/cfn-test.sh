@@ -103,15 +103,17 @@ aws cloudformation deploy \
 aws cloudformation deploy \
                 --template-file build/$AWS_DEFAULT_REGION/env-sagemaker-studio.yaml \
                 --stack-name sagemaker-mlops-sagemaker-studio \
+                --role-arn \
                 --parameter-overrides \
                 EnvName=sagemaker-mlops \
                 EnvType=dev \
-                VPCId=vpc-0c09b9d75c41a8661\
-                SageMakerStudioSubnetIds=subnet-0b9a35afb800fa51c,subnet-0aaa78c2744978657 \
-                SageMakerSecurityGroupIds=sg-0ee201d5bbfe32ed6 \
-                SageMakerExecutionRoleArn=arn:aws:iam::949335012047:role/service-role/sagemaker-mlops-dev-sagemaker-execution-role \
-                SetupLambdaExecutionRoleArn=arn:aws:iam::949335012047:role/sagemaker-mlops-dev-setup-lambda-execution-role \
-                SageMakerStudioStorageKMSKeyId=38b45ed2-05a7-4d35-8246-c16252c0ed19
+                VPCId= \
+                SageMakerStudioSubnetIds= \
+                SageMakerSecurityGroupIds= \
+                SageMakerStudioStorageKMSKeyId= \
+                SageMakerExecutionRoleArn= \
+                SetupLambdaExecutionRoleArn= \
+ 
 
 # arn:aws:kms:eu-central-1:949335012047:key/49cf6b9a-08bb-452f-b50d-6b4dac42cca1 
 
@@ -126,31 +128,37 @@ STACK_NAME="sagemaker-mlops-core"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME  \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
-        ParameterKey=StackSetName,ParameterValue="mlops-core-$AWS_DEFAULT_REGION" 
+        ParameterKey=StackSetName,ParameterValue="secure-mlops" 
+
+    # Parameter block if CreateIAMRoles = NO (the IAM role ARNs must be provided)
+    ParameterKey=CreateIAMRoles,ParameterValue=NO
+    ParameterKey=DSAdmininstrator,ParameterValue=
+    ParameterKey=DSAdministratorRoleArn,ParameterValue=
+    ParameterKey=SCLaunchRoleArn,ParameterValue=
+    ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=
+
 
 # env-main.yaml
 STACK_NAME="sagemaker-mlops-env"
 ENV_NAME="sagemaker-mlops"
-AVAILABILITY_ZONES="eu-central-1a\\,eu-central-1b"
+AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a'\\',${AWS_DEFAULT_REGION}b
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
-        ParameterKey=CreateSageMakerStudioDomain,ParameterValue=NO \
         ParameterKey=AvailabilityZones,ParameterValue=$AVAILABILITY_ZONES \
-        ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=CreateNATGateways,ParameterValue="NO"
+        ParameterKey=NumberOfAZs,ParameterValue=2
  
 # data-science-environment-quickstart.yaml
 STACK_NAME="ds-quickstart"
@@ -158,10 +166,11 @@ ENV_NAME="sagemaker-mlops"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/data-science-environment-quickstart.yaml \
-    --region eu-central-1 \
+    --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev
+

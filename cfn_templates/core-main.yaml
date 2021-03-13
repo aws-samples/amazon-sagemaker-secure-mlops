@@ -3,7 +3,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: |
-  Create the base infrastructure for SageMaker secure deployment: IAM roles and EC2 VPC network resources
+  Create the base infrastructure for SageMaker secure deployment: IAM roles and shared VPC network resources
 
 Metadata:
   'AWS::CloudFormation::Interface':
@@ -50,6 +50,15 @@ Outputs:
       - IAMRolesCondition
       - !GetAtt IAMSharedRoles.Outputs.AssumeDSAdministratorRole
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSAdmininstratorRole}&displayName=${DSAdmininstratorRole}'
+    
+  SCLaunchRoleArn:
+    Description: Service Catalog Launch role ARN
+    Value: !If
+      - IAMRolesCondition
+      - !GetAtt IAMSharedRoles.Outputs.SCLaunchRoleArn
+      - !Ref SCLaunchRoleArn
+    Export:
+      Name: 'ds-service-catalog-launch-role-arn'
 
 Parameters:
   StackSetName:
@@ -118,21 +127,119 @@ Rules:
 
 Resources:
 
-  # Shared IAM roles for personas and services
-  IAMSharedRoles:
-    Type: AWS::CloudFormation::Stack
+  CheckLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
     Condition: IAMRolesCondition
     Properties:
-      Parameters:
-        StackSetName: !Ref StackSetName
-      TemplateURL: core-iam-shared-roles.yaml
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: InlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: IAMPermission
+                Effect: Allow
+                Action:
+                  - 'iam:GetRole'
+                Resource: '*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+
+  CheckIfIAMRolesExistLambda:
+    Type: AWS::Lambda::Function
+    Condition: IAMRolesCondition
+    Properties:
+      FunctionName: CheckIfIAMRolesExist
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+
+          iam = boto3.client('iam')
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r = check_roles(event['ResourceProperties']['RoleNames'])
+
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+          def check_roles(roles):
+              ret = {}
+              for r in roles:
+                  try:
+                      iam.get_role(RoleName=r)
+                      ret[r] = ""
+                  except iam.exceptions.NoSuchEntityException:
+                      ret[r] = r
+
+              return ret
+      Description: Checks if specified IAM roles exist
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt CheckLambdaExecutionRole.Arn
+      Runtime: python3.8
+      Timeout: 60
+
+  CheckIfSageMakerSCProductsRolesExist:
+    Type: Custom::CheckIfIAMRolesExist
+    Condition: IAMRolesCondition
+    Properties:
+      ServiceToken: !GetAtt CheckIfIAMRolesExistLambda.Arn
+      RoleNames:
+        - AmazonSageMakerServiceCatalogProductsLaunchRole
+        - AmazonSageMakerServiceCatalogProductsUseRole
+
+  CheckIfSharedRolesExist:
+    Type: Custom::CheckIfIAMRolesExist
+    Condition: IAMRolesCondition
+    Properties:
+      ServiceToken: !GetAtt CheckIfIAMRolesExistLambda.Arn
+      RoleNames:
+        - DataScienceAdministrator
+        - DSSageMakerDetectiveControlRole
+        - DSServiceCatalogLaunchRole
 
   # SageMaker Project templates launch and use roles
   IAMSCSageMakerProjectRoles:
     Type: AWS::CloudFormation::Stack
     Condition: IAMRolesCondition
     Properties:
+      Parameters: 
+        AmazonSageMakerServiceCatalogProductsLaunchRoleName: 
+          !GetAtt CheckIfSageMakerSCProductsRolesExist.AmazonSageMakerServiceCatalogProductsLaunchRole
+        AmazonSageMakerServiceCatalogProductsUseRoleName: 
+          !GetAtt CheckIfSageMakerSCProductsRolesExist.AmazonSageMakerServiceCatalogProductsUseRole
       TemplateURL: core-iam-sc-sm-projects-roles.yaml
+
+  # Shared IAM roles for personas and services
+  IAMSharedRoles:
+    Type: AWS::CloudFormation::Stack
+    Condition: IAMRolesCondition
+    Properties:
+      Parameters:
+        DSAdministratorRoleName: !GetAtt CheckIfSharedRolesExist.DataScienceAdministrator
+        SageMakerDetectiveControlExecutionRoleName: !GetAtt CheckIfSharedRolesExist.DSSageMakerDetectiveControlRole
+        SCLaunchRoleName: !GetAtt CheckIfSharedRolesExist.DSServiceCatalogLaunchRole
+      TemplateURL: core-iam-shared-roles.yaml
 
   # Shared services VPC and related network resources
   SharedServicesNetwork:

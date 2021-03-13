@@ -30,7 +30,7 @@ Resources:
   DataScienceEnvironmentProduct:
     Type: 'AWS::ServiceCatalog::CloudFormationProduct'
     Properties:
-      Name: !Sub '${StackSetName} Data Science Environment'
+      Name: !Sub '${StackSetName}-${AWS::Region} Data Science Environment'
       Description: 'A secure SageMaker Studio environment with VPC, S3 bucket, and service catalog portfolio to support data science projects'
       Owner: 'Data Science Administration Team'
       ProvisioningArtifactParameters:

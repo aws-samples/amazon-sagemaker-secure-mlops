@@ -4,29 +4,33 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Create SageMaker Project templates IAM Roles (AmazonSageMakerServiceCatalogProductsLaunchRole and AmazonSageMakerServiceCatalogProductsUseRole)
 
-Outputs:
+Parameters:
   AmazonSageMakerServiceCatalogProductsLaunchRoleName:
-    Description: The name of the SageMaker cross-account deployment role 
-    Value: !Ref AmazonSageMakerServiceCatalogProductsLaunchRole
-
-  AmazonSageMakerServiceCatalogProductsLaunchRoleArn:
-    Description: The ARN of the SageMaker cross-account deployment role 
-    Value: !GetAtt AmazonSageMakerServiceCatalogProductsLaunchRole.Arn
+    Description: AmazonSageMakerServiceCatalogProductsLaunchRole Name
+    Type: String
+    Default: 'AmazonSageMakerServiceCatalogProductsLaunchRole'
 
   AmazonSageMakerServiceCatalogProductsUseRoleName:
-    Description: The name of the SageMaker cross-account deployment role 
-    Value: !Ref AmazonSageMakerServiceCatalogProductsUseRole
+    Description: AmazonSageMakerServiceCatalogProductsUseRole Name
+    Type: String
+    Default: 'AmazonSageMakerServiceCatalogProductsUseRole'
 
-  AmazonSageMakerServiceCatalogProductsUseRoleArn:
-    Description: The ARN of the SageMaker cross-account deployment role 
-    Value: !GetAtt AmazonSageMakerServiceCatalogProductsUseRole.Arn
+Conditions:
+  AmazonSageMakerServiceCatalogProductsLaunchRoleCondition:
+    !Not [ !Equals [ !Ref AmazonSageMakerServiceCatalogProductsLaunchRoleName, '' ] ]
+  AmazonSageMakerServiceCatalogProductsUseRoleCondition:
+    !Not [ !Equals [ !Ref AmazonSageMakerServiceCatalogProductsUseRoleName, ''] ] 
 
 Resources:
-### Roles for Sagemaker projects
+
+  ### Roles for Sagemaker projects
   AmazonSageMakerServiceCatalogProductsLaunchRole:
     Type: "AWS::IAM::Role"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Condition: AmazonSageMakerServiceCatalogProductsLaunchRoleCondition
     Properties:
-      RoleName: AmazonSageMakerServiceCatalogProductsLaunchRole
+      RoleName: !Ref AmazonSageMakerServiceCatalogProductsLaunchRoleName
       Description: "SageMaker role created from the SageMaker AWS Management Console. This role has the permissions required to launch the Amazon SageMaker portfolio of products from AWS ServiceCatalog."
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
@@ -288,8 +292,11 @@ Resources:
 
   AmazonSageMakerServiceCatalogProductsUseRole:
     Type: "AWS::IAM::Role"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Condition: AmazonSageMakerServiceCatalogProductsUseRoleCondition
     Properties:
-      RoleName: AmazonSageMakerServiceCatalogProductsUseRole
+      RoleName: !Ref AmazonSageMakerServiceCatalogProductsUseRoleName
       Description: "SageMaker role created from the SageMaker AWS Management Console. This role has the permissions required to use the Amazon SageMaker portfolio of products from AWS ServiceCatalog."
       Path: "/service-role/"
       MaxSessionDuration: 3600 

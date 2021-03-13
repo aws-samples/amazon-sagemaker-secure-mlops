@@ -142,14 +142,14 @@ Outputs:
     Description: URL for assuming the role of a environment admin
     Value: !If 
       - IAMRolesCondition
-      - !GetAtt EnvironmentsIAMRoles.Outputs.AssumeTeamAdminRole
+      - !GetAtt EnvironmentIAMRoles.Outputs.AssumeTeamAdminRole
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSTeamAdministratorRoleName}&displayName=${DSTeamAdministratorRoleName}'
 
   AssumeDataScientistRole:
     Description: URL for assuming the role of a environment user
     Value: !If 
       - IAMRolesCondition
-      - !GetAtt EnvironmentsIAMRoles.Outputs.AssumeDataScientistRole
+      - !GetAtt EnvironmentIAMRoles.Outputs.AssumeDataScientistRole
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRoleName}&displayName=${DataScientistRoleName}'
   
 Parameters:
@@ -404,6 +404,7 @@ Parameters:
 Conditions:
   IAMRolesCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'YES' ]
   VPCFlowLogsRoleCondition: !Equals [ !Ref CreateVPCFlowLogsRole, 'YES' ]
+  ExistingVPCCondition: !Equals [!Ref 'CreateVPC', 'NO']
   IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
@@ -432,7 +433,7 @@ Rules:
 Resources:
 
   # Environement IAM roles for personas and services
-  EnvironmentsIAMRoles:
+  EnvironmentIAMRoles:
     Type: AWS::CloudFormation::Stack
     Condition: IAMRolesCondition
     Properties:
@@ -472,7 +473,7 @@ Resources:
         CreateVPCFlowLogsToCloudWatch: !Ref CreateVPCFlowLogsToCloudWatch
         VPCFlowLogsRoleArn: !If 
           - IAMRoles&VPCFlowLogsRoleCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.VPCFlowLogsRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.VPCFlowLogsRoleArn
           - !Ref VPCFlowLogsRoleArn
         VPCFlowLogsCloudWatchKMSKey: !Ref VPCFlowLogsCloudWatchKMSKey
         VPCFlowLogsLogFormat: !Ref VPCFlowLogsLogFormat
@@ -495,7 +496,10 @@ Resources:
         EnvType: !Ref EnvType
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
         PrivateSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
-        PrivateRouteTableIds: !GetAtt EnvironmentVPC.Outputs.PrivateRouteTableIds
+        PrivateRouteTableIds: !If 
+          - ExistingVPCCondition
+          - !GetAtt GetNetworkConfiguration.RouteTableIds
+          - !GetAtt EnvironmentVPC.Outputs.PrivateRouteTableIds
         VPCEndpointsSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.VPCEndpointsSecurityGroupId
         SharedServicesVPCEndpointSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.SharedServicesVPCEndpointSecurityGroupId
         PyPIMirrorEndpointServiceName: !If
@@ -520,17 +524,18 @@ Resources:
         EnvType: !Ref EnvType
         DSTeamAdministratorRoleArn: !If
           - IAMRolesCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.DSTeamAdministratorRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.DSTeamAdministratorRoleArn
           - !Ref DSTeamAdministratorRoleArn
         DataScientistRoleArn: !If
           - IAMRolesCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.DataScientistRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.DataScientistRoleArn
           - !Ref DataScientistRoleArn 
         VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
         SageMakerExecutionRoleArn: !If
           - IAMRolesCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.SageMakerExecutionRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn
           - !Ref SageMakerExecutionRoleArn
+        SCLaunchRoleArn: !ImportValue 'ds-service-catalog-launch-role-arn'
       TemplateURL: env-kms.yaml
       Tags:
         - Key: EnvironmentName
@@ -581,16 +586,19 @@ Resources:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
-        SageMakerStudioSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+        SageMakerStudioSubnetIds: !If 
+          - ExistingVPCCondition
+          - !GetAtt GetNetworkConfiguration.SubnetIds
+          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
         SageMakerSecurityGroupIds: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
         SageMakerStudioStorageKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.SageMakerStudioStorageKMSKeyId
         SageMakerExecutionRoleArn: !If
           - IAMRolesCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.SageMakerExecutionRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn
           - !Ref SageMakerExecutionRoleArn 
         SetupLambdaExecutionRoleArn: !If
           - IAMRolesCondition
-          - !GetAtt EnvironmentsIAMRoles.Outputs.SetupLambdaExecutionRoleArn
+          - !GetAtt EnvironmentIAMRoles.Outputs.SetupLambdaExecutionRoleArn
           - !Ref SetupLambdaExecutionRoleArn 
       TemplateURL: env-sagemaker-studio.yaml
       Tags:
@@ -623,3 +631,62 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
+  GetNetworkConfiguration:
+    Type: Custom::GetNetworkConfiguration
+    Condition: ExistingVPCCondition
+    Properties:
+      ServiceToken: !GetAtt GetNetworkConfigurationLambda.Arn
+      AvailabilityZones: !Ref AvailabilityZones
+      SubnetCIDRBlocks:
+        - PrivateSubnet1ACIDR
+        - PrivateSubnet2ACIDR
+        - PrivateSubnet3ACIDR
+        - PrivateSubnet4ACIDR
+      
+  GetNetworkConfigurationLambda:
+    Type: AWS::Lambda::Function
+    Condition: ExistingVPCCondition
+    DependsOn: EnvironmentVPC
+    Properties:
+      FunctionName: GetNetworkConfiguration
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["SubnetIds"] = get_subnet_ids(event['ResourceProperties']['SubnetCIDRBlocks'])
+                      r["RouteTableIds"] = get_rt_ids(event['ResourceProperties']['SubnetCIDRBlocks'])
+
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+          def get_subnet_ids(cidr_blocks):
+              return []
+
+          def get_rt_ids(cidr_blocks):
+              return []
+      Description: Get network configuration for SageMaker domain
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SetupLambdaExecutionRoleArn
+          - !Ref SetupLambdaExecutionRoleArn 
+      Runtime: python3.8
+      Timeout: 60
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType

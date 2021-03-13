@@ -27,6 +27,10 @@ Parameters:
   SageMakerExecutionRoleArn:
     Description: The ARN of the SageMaker Execution role
     Type: String
+  
+  SCLaunchRoleArn:
+    Description: Service Catalog Launch role ARN
+    Type: String
 
   VPCEndpointS3Id:
     Description: Id of the S3 VPC endpoint
@@ -160,6 +164,7 @@ Resources:
                 - !Ref SageMakerExecutionRoleArn
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
+                - !Ref SCLaunchRoleArn
             Action:
             - kms:Encrypt
             - kms:Decrypt
@@ -174,6 +179,7 @@ Resources:
                 - !Ref SageMakerExecutionRoleArn
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
+                - !Ref SCLaunchRoleArn
             Action:
             - kms:CreateGrant
             - kms:ListGrants
