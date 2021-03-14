@@ -8,7 +8,7 @@ Description: |
 Parameters:
   StackSetName:
     Type: String 
-    Description: A name to be used across all nested stacks 
+    Description: A parent stack name
 
   SCPortfolioPrincipalRoleArn:
     Type: String 

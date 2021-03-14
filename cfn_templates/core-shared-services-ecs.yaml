@@ -10,12 +10,12 @@ Outputs:
     Description: The service name of PyPI mirror to use in a VPC Endpoint 
     Value: ''
     Export:
-      Name: !Sub 'ds-pypimirror-shared-service-endpoint-name'
+      Name: 'ds-pypimirror-shared-service-endpoint-name'
 
 Parameters:
   StackSetName:
     Type: String 
-    Description: A name to be used across all nested stacks 
+    Description: A parent stack name 
 
 Conditions:
   FalseCondition: !Equals [ 'true', 'false' ]

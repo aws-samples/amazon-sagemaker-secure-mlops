@@ -8,7 +8,10 @@ Description: |
 Outputs:
   VPCEndpointS3Id:
     Description: Id of the S3 VPC endpoint
-    Value: !Ref VPCEndpointS3
+    Value: !If
+    - S3VPCEndpointCondition
+    - !Ref VPCEndpointS3
+    - !Ref ExistingS3VPCEndpointId
 
   PyPIMirrorEndpointDNS:
     Description: DNS entries for the PyPI mirror VPC endpoint 
@@ -29,6 +32,19 @@ Parameters:
   VPCId:
     Description: Id of the Data Science VPC
     Type: 'AWS::EC2::VPC::Id'
+
+  CreateS3VPCEndpoint:
+    Description: Set to NO to disable creation of an S3 VPC endpoint (and use an existing one)
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  ExistingS3VPCEndpointId:
+    Description: Id of the existing S3 VPC endpoint (must be provided if CreateS3VPCEndpoint = NO)
+    Type: String
+    Default: ''
 
   PrivateSubnetIds:
     Description: List of the subnet ids where Data Science environment deployed to
@@ -71,6 +87,14 @@ Parameters:
 
 Conditions:
   PyPIMirrorEndpointCondition: !Not [ !Equals [!Ref 'PyPIMirrorEndpointServiceName', ''] ]
+  S3VPCEndpointCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'YES']
+
+Rules:
+  S3VPCEndpoint:
+    RuleCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'NO']
+    Assertions:
+      - Assert: !Not [ !Equals [ !Ref ExistingS3VPCEndpointId, '' ] ]
+        AssertDescription: ExistingS3VPCEndpointId must be provided if CreateS3VPCEndpoint=NO
 
 Resources:
 
@@ -214,6 +238,7 @@ Resources:
   # Create S3 endpoint (gateway type) for S3 access
   VPCEndpointS3:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: S3VPCEndpointCondition
     Properties:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
       VpcEndpointType: Gateway
@@ -261,7 +286,10 @@ Resources:
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-s3-vpce-id"
       Type: String
-      Value: !Ref VPCEndpointS3
+      Value: !If
+        - S3VPCEndpointCondition
+        - !Ref VPCEndpointS3
+        - !Ref ExistingS3VPCEndpointId
       Description: S3 VPC Endpoint ID
 
 

@@ -27,7 +27,7 @@ Metadata:
           - SCLaunchRoleArn
     ParameterLabels:
       StackSetName:
-        default: Cross-stack name
+        default: Common stack set name for core infrastructure resources
       CreateIAMRoles:
         default: Create IAM roles
       CreateSharedServices:
@@ -63,7 +63,7 @@ Outputs:
 Parameters:
   StackSetName:
     Type: String 
-    Description: A name to be used across all nested stacks 
+    Description: A name to be used across core infrastructure nested stacks
 
   CreateIAMRoles:
     Type: String
@@ -208,16 +208,6 @@ Resources:
         - AmazonSageMakerServiceCatalogProductsLaunchRole
         - AmazonSageMakerServiceCatalogProductsUseRole
 
-  CheckIfSharedRolesExist:
-    Type: Custom::CheckIfIAMRolesExist
-    Condition: IAMRolesCondition
-    Properties:
-      ServiceToken: !GetAtt CheckIfIAMRolesExistLambda.Arn
-      RoleNames:
-        - DataScienceAdministrator
-        - DSSageMakerDetectiveControlRole
-        - DSServiceCatalogLaunchRole
-
   # SageMaker Project templates launch and use roles
   IAMSCSageMakerProjectRoles:
     Type: AWS::CloudFormation::Stack
@@ -236,9 +226,9 @@ Resources:
     Condition: IAMRolesCondition
     Properties:
       Parameters:
-        DSAdministratorRoleName: !GetAtt CheckIfSharedRolesExist.DataScienceAdministrator
-        SageMakerDetectiveControlExecutionRoleName: !GetAtt CheckIfSharedRolesExist.DSSageMakerDetectiveControlRole
-        SCLaunchRoleName: !GetAtt CheckIfSharedRolesExist.DSServiceCatalogLaunchRole
+        DSAdministratorRoleName: !Sub '${StackSetName}-${AWS::Region}-DataScienceAdministrator'
+        SageMakerDetectiveControlExecutionRoleName: !Sub '${StackSetName}-${AWS::Region}-DSSageMakerDetectiveControlRole'
+        SCLaunchRoleName: !Sub '${StackSetName}-${AWS::Region}-DSServiceCatalogLaunchRole'
       TemplateURL: core-iam-shared-roles.yaml
 
   # Shared services VPC and related network resources
@@ -267,10 +257,14 @@ Resources:
     Properties:
       Parameters:
         StackSetName: !Ref StackSetName
-        SCPortfolioPrincipalRoleArn: 
-          !If [ IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.DSAdministratorRoleArn, !Ref DSAdministratorRoleArn ]
-        SCProductLaunchRoleArn: 
-          !If [ IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.SCLaunchRoleArn, !Ref SCLaunchRoleArn ]
+        SCPortfolioPrincipalRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt IAMSharedRoles.Outputs.DSAdministratorRoleArn
+          - !Ref DSAdministratorRoleArn
+        SCProductLaunchRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt IAMSharedRoles.Outputs.SCLaunchRoleArn
+          - !Ref SCLaunchRoleArn
       TemplateURL: core-sc-shared-portfolio.yaml
 
   # Security controls for the Data Science environment
@@ -279,7 +273,9 @@ Resources:
     Properties:
       Parameters:
         StackSetName: !Ref StackSetName
-        SecurityControlExecutionRoleArn: 
-          !If [IAMRolesCondition, !GetAtt IAMSharedRoles.Outputs.SageMakerDetectiveControlExecutionRoleArn, !Ref SecurityControlExecutionRoleArn ]
+        SecurityControlExecutionRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt IAMSharedRoles.Outputs.SageMakerDetectiveControlExecutionRoleArn
+          - !Ref SecurityControlExecutionRoleArn
       TemplateURL: core-security-controls.yaml
 

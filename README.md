@@ -469,18 +469,28 @@ This special type of deployment is designed for an environment, where all IAM-ch
 The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack.
 You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
 
+See [Appendix B](README.md#AppendixB)
+
 ## Multi-region deployment considerations
 The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of the AWS account. The following limitations and considerations apply:
 
-+ The shared IAM roles (`DSAdministratorRole`, `SageMakerDetectiveControlExecutionRole`, `SCLaunchRole`) are global for the AWS account (IAM is a global AWS service). The roles and all permissions for these roles are valid and apply for all regions. If you deploy a new stack in a new region, it will use the existing shared IAM roles, created by the first stack deployment on the AWS account
++ The shared IAM roles (`DSAdministratorRole`, `SageMakerDetectiveControlExecutionRole`, `SCLaunchRole`) are created each time you deploy a new core infrastructure (`core-main`) or "quickstart" (`data-science-environment-quickstart`) stack. They created with `<StackName>-<RegionName>` prefix and designed to be unique within your end-to-end data science environment. For example, if you deploy one stack set (including core infrastructure and team data science environment) in one region and another stack in another region, these two stacks will not share any IAM roles and any users assuming any persona roles will have an independent set of permissions per stack set.
 + The environment IAM roles (`DSTeamAdministratorRole`, `DataScientistRole`, `SageMakerExecutionRole`, `SCProjectLaunchRole`, `SageMakerCrossAccountDeploymentRole`) are created with unique names. Each deployment of a new data science environment (via CloudFormation or via AWS Service Catalog) creates a set of unique roles
 + SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles.
+
+## Clean-up considerations
+The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). 
+
+❗ To delete all resources in your AWS account created by the deployment of this solution, do the following steps **before** running commands from **Clean-up** section for each deployment type:
++ From AWS console or command line delete the **nested** CloudFormation stack with `EnvironmentSageMakerStudio` literal in the name (e.g. `ds-quickstart-DataScienceEnvironment-XLEAWAS39ONA-EnvironmentSageMakerStudio-WEA30BEN89X6`)
++ After the successful deletion of this stack, delete the EFS system from AWS Console or command line. You may want to backup the EFS file system before deletion
++ Run any deployment-option specific commands from **Clean-up** instructions
 
 ## Data Science Environment Quickstart
 This option deploys the end-to-end infrastructure and a Data Science Environment in one go.
 You can change only few deployment options. The majority of the options are set to their default values.
   
-📜 Use this option if you want to provision a completely new set of the infrastructure and do not want to parametrize the deployment.
+📜 Use this option if you want to provision a _completely new set_ of the infrastructure and do not want to parametrize the deployment.
 
 The only deployment options you can change are:
 + `CreateSharedServices`: default `NO`. Set to `YES` if you want to provision a shared services VPC with a private PyPI mirror (_not implemeted at this stage_)
@@ -488,6 +498,8 @@ The only deployment options you can change are:
 + Private and public subnets CIDR blocks: default `10.0.0.0/19`
 
 Make sure you specify the CIDR blocks which do not conflict with your existing network IP ranges.
+
+❗ You cannot use existing VPC or existing IAM roles to deploy this stack. The stack will provision a new own set of network and IAM resources.
 
 Initiate the stack deployment with the following command:
 ```bash
@@ -508,15 +520,19 @@ aws cloudformation create-stack \
 The full end-to-end deployment takes about 30 minutes.
 
 ## Cleanup
-After you have played with the environment, you can delete all resources with the following command:
+After you have played with the environment, you can delete all resources as follows.
+First, do the steps from **Clean-up considerations** section.
+Second, delete the stack from AWS CloudFormation console or command line:
 ```bash
-aws cloudformation delete-stack --stack-name sagemaker-mlops
+aws cloudformation delete-stack --stack-name ds-quickstart
 ```
 
 ## Two-step deployment via CloudFormation
 Using this option you provision a Data Science environment in two steps, each with its own CloudFormation template. You can control all deployment parameters.  
 
 📜 Use this option if you want to parametrize every aspect of the deployment based on your specific requirements and enviroment.
+
+❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the correspoinding CloudFormation parameters to names and ARNs or your existing resources.
 
 ### Step 1: Deploy the base infrastructure
 In this step you deploy the _shared core infrastructure_ into your AWS Account. The stack (`core-main.yaml`) will provision:
@@ -527,7 +543,6 @@ In this step you deploy the _shared core infrastructure_ into your AWS Account. 
 5. Security guardrails for your Data Science environment
 
 The deployment options you can use are:
-+ `StackSetName`: Common name for all Data Science stacks
 + `CreateIAMRoles`: default `YES`. Set to `NO` if you have created the IAM roles outside of the stack (e.g. via a separate process) - Bring Your Own IAM Role (BYOR IAM)
 + `DSAdmininstratorRole`: required if `CreateIAMRoles=NO`
 + `DSAdministratorRoleArn`: required if `CreateIAMRoles=NO`
@@ -547,7 +562,7 @@ aws cloudformation create-stack \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
-        ParameterKey=StackSetName,ParameterValue="secure-mlops" 
+        ParameterKey=StackSetName,ParameterValue=$STACK_NAME
 ```
 
 Show the stack output:
@@ -604,6 +619,7 @@ The deployment options you can use are:
 + Deployment options:
   - `CreateEnvironmentIAMRoles`:
   - `CreateEnvironmentS3Buckets`:
+  - `CreateS3VPCEndpoint`:
   - `CreateSageMakerStudioDomain`:
   - `UseSharedServicesPyPiMirror`:
 + Environment IAM roles (only needed if created outside of this stack and `CreateEnvironmentIAMRoles` = NO):
@@ -622,6 +638,7 @@ The deployment options you can use are:
   - `CreateNATGateways`
   - `ExistingVPCId`
   - `VPCCIDR`
+  - `ExistingS3VPCEndpointId`
   - `CreatePrivateSubnets`
   - `PrivateSubnet1ACIDR`
   - `PrivateSubnet2ACIDR`
@@ -645,7 +662,7 @@ Run command providing the deployment options for your environment. The following
 ```bash
 STACK_NAME="sagemaker-mlops-env"
 ENV_NAME="sagemaker-mlops"
-AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a'\\',${AWS_DEFAULT_REGION}b
+AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
@@ -657,10 +674,12 @@ aws cloudformation create-stack \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=$AVAILABILITY_ZONES \
-        ParameterKey=NumberOfAZs,ParameterValue=2
+        ParameterKey=NumberOfAZs,ParameterValue=1
 ```
 
 ## Cleanup
+First, do the steps from **Clean-up considerations** section.
+Second, delete the two root stacks from AWS CloudFormation console or command line:
 ```bash
 aws cloudformation delete-stack --stack-name sagemaker-mlops-env
 aws cloudformation delete-stack --stack-name sagemaker-mlops-core
@@ -670,6 +689,8 @@ aws cloudformation delete-stack --stack-name sagemaker-mlops-core
 This deployment option first deploys the core infrastructure including the AWS Service Catalog portfolio of Data Science products. In the second step, the Data Science Administrator deploys a Data Science environment via the AWS Service Catalog.  
 
 📜 Use this option if you want to similate the end user experience in provisioning a Data Science environment via AWS Service Catalog
+
+❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the correspoinding CloudFormation and AWS Service Catalog product parameters to names and ARNs or your existing resources.
 
 ### Step 1: Deploy the base infrastructure
 Same as Step 1 from **Two-step deployment via CloudFormation**
@@ -706,7 +727,8 @@ Wait until AWS Service Catalog finishes the provisioning of the Data Science env
 Now you provisined the Data Science environment and can start working with it.
 
 ## Cleanup
-
+First, do the steps from **Clean-up considerations** section.
+Second, do the following steps:
 + In AWS Service Catalog console go to the _Provisioned Products_, select your product and click **Terminate** from the **Action** button. Wait until the delete process ends.
 + Delete the core infrastructure CloudFormation stack:
 ```bash
@@ -779,7 +801,7 @@ https://amazon.awsapps.com/workdocs/index.html#/folder/b0b6fc4f9f318f97efce607ae
 
 https://amazon.awsapps.com/workdocs/index.html#/folder/b8703c8450b10af9c4e8c3ba746426a9a72406572266ef534225bddc22f0dc2b
 
-# Appendix
+# AppendixA
 
 ## SageMaker default network mode
 
@@ -800,6 +822,185 @@ When you specify the subnets and security groups, SageMaker creates elastic netw
 
 ![sagemaker-vpc-network-isolation-mode](img/sagemaker-vpc-network-isolation-mode.png)
 
-
 ### SageMaker Studio Domain
 ![SageMaker studio domain](img/sagemaker-studio-domain.png)
+
+# AppendixB
+
+## Deployment into an existing VPC and with pre-provisioned IAM resources
+This deployment option is a special case where the solution is deployed into an AWS account with an existing VPC, network resources and pre-provisioned IAM roles.
+
+## Prepare the CloudFormation templates
+```bash
+S3_BUCKET_NAME=<your S3 bucket name>
+make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+```
+
+## Deploy VPC, network and IAM resources
+Skip these sub-steps and go directly to **Deploy Data Science Environment** if you have your own procedure for provisioning VPC, subnets, network connectivity, route tables, and IAM resources. 
+
+### Deploy VPC
+For VPC deployment we use the [VPC Quick Start Reference Deployment](https://fwd.aws/9VdxN).  
+We deploy VPC with private and public subnets, NAT gateways in three Availability Zones:
+
+```bash
+STACK_NAME="ds-team-vpc"
+
+aws cloudformation create-stack \
+    --template-url https://aws-quickstart.s3.amazonaws.com/quickstart-aws-vpc/templates/aws-vpc.template.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --disable-rollback \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c  \
+        ParameterKey=NumberOfAZs,ParameterValue=3
+```
+
+### Deploy IAM resources
+Deploy SageMaker Service Catalog project roles. Run the following step **only** if `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsLaunchRole` **do not** exist yet:
+```bash
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/core-iam-sc-sm-projects-roles.yaml \
+                --stack-name core-iam-sc-sm-projects-roles \
+                --capabilities CAPABILITY_NAMED_IAM 
+```
+
+Deploy IAM shared roles:
+```bash
+STACK_SET_NAME=ds-team
+ENV_NAME=ds-team
+
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/core-iam-shared-roles.yaml \
+                --stack-name core-iam-shared-roles \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                    DSAdministratorRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DataScienceAdministrator \
+                    SageMakerDetectiveControlExecutionRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
+                    SCLaunchRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
+```
+
+Deploy IAM DS environment roles:
+```bash
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam.yaml \
+                --stack-name env-iam-roles \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                EnvName=$ENV_NAME \
+                EnvType=dev
+```
+
+Deploy IAM cross-account roles
+```bash
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-cross-account-deployment-role.yaml \
+                --stack-name env-iam-cross-account-deployment-role \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                EnvName=$ENV_NAME \
+                EnvType=dev \
+                PipelineExecutionRoleArn=arn:aws:iam::949335012047:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+```
+
+Show IAM role ARNs:
+```bash
+aws cloudformation describe-stacks \
+    --stack-name core-iam-shared-roles  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+
+aws cloudformation describe-stacks \
+    --stack-name env-iam-roles  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+```
+
+## Deploy Data Science Environment
+
+### Deploy core infrastructure
+```bash
+STACK_NAME="ds-team-core"
+
+aws cloudformation create-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME  \
+    --disable-rollback \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=StackSetName,ParameterValue=$STACK_NAME \
+        ParameterKey=CreateIAMRoles,ParameterValue=NO \
+        ParameterKey=DSAdmininstratorRole,ParameterValue=ds-team-us-east-2-DataScienceAdministrator \
+        ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DataScienceAdministrator \
+        ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
+        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/DSServiceCatalogLaunchRole
+```
+
+```bash
+# show the assume DSAdministrator role link
+aws cloudformation describe-stacks \
+    --stack-name ds-team-core  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+
+# show shared IAM roles
+aws cloudformation describe-stacks \
+    --stack-name env-iam-roles  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+
+# show VPC info
+aws cloudformation describe-stacks \
+    --stack-name ds-team-vpc  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+```
+
+### Deploy DS environment
+```bash
+STACK_NAME="ds-team-env"
+ENV_NAME="ds-team-env"
+
+aws cloudformation create-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --disable-rollback \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=EnvName,ParameterValue=$ENV_NAME \
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=CreateEnvironmentIAMRoles,ParameterValue=NO \
+        ParameterKey=CreateS3VPCEndpoint,ParameterValue=NO \
+        ParameterKey=DSTeamAdministratorRoleName,ParameterValue=env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
+        ParameterKey=DataScientistRoleName,ParameterValue=env-iam-roles-DataScientistRole-PFIMUCN7IZ95 \
+        ParameterKey=DSTeamAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
+        ParameterKey=DataScientistRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScientistRole-PFIMUCN7IZ95  \
+        ParameterKey=SageMakerExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/service-role/env-iam-roles-SageMakerExecutionRole-9CYD7UX2KG8D \
+        ParameterKey=SetupLambdaExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SetupLambdaExecutionRole-4G8FY4ULHFPN  \
+        ParameterKey=SCProjectLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SCProjectLaunchRole-1XKZQDT1TG067 \
+        ParameterKey=CreateVPC,ParameterValue=NO \
+        ParameterKey=CreateNATGateways,ParameterValue=NO \
+        ParameterKey=ExistingVPCId,ParameterValue=vpc-0b1a38a31305c97d1 \
+        ParameterKey=ExistingS3VPCEndpointId,ParameterValue=vpce-05799d9d4fd694936 \
+        ParameterKey=CreatePrivateSubnets,ParameterValue=NO \
+        ParameterKey=PrivateSubnet1ACIDR,ParameterValue=10.0.0.0/19 \
+        ParameterKey=PrivateSubnet2ACIDR,ParameterValue=10.0.32.0/19 \
+        ParameterKey=PrivateSubnet3ACIDR,ParameterValue=10.0.64.0/19  \
+        ParameterKey=CreateVPCFlowLogsToCloudWatch,ParameterValue=NO \
+        ParameterKey=CreateVPCFlowLogsRole,ParameterValue=NO \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c \
+        ParameterKey=NumberOfAZs,ParameterValue=3
+```
+
+## Clean-up
+```bash
+aws cloudformation delete-stack --stack-name ds-team-env
+aws cloudformation delete-stack --stack-name ds-team-core
+aws cloudformation delete-stack --stack-name env-iam-cross-account-deployment-role
+aws cloudformation delete-stack --stack-name env-iam-roles
+aws cloudformation delete-stack --stack-name core-iam-shared-roles
+aws cloudformation delete-stack --stack-name ds-team-vpc
+```

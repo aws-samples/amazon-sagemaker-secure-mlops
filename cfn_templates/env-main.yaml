@@ -18,6 +18,7 @@ Metadata:
         Parameters:
           - CreateEnvironmentIAMRoles
           - CreateEnvironmentS3Buckets
+          - CreateS3VPCEndpoint
           - CreateSageMakerStudioDomain
           - UseSharedServicesPyPiMirror
       - Label:
@@ -41,6 +42,7 @@ Metadata:
           - CreateVPC
           - CreateNATGateways
           - ExistingVPCId
+          - ExistingS3VPCEndpointId
           - VPCCIDR
           - CreatePrivateSubnets
           - PrivateSubnet1ACIDR
@@ -72,6 +74,8 @@ Metadata:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
         default: Create environment S3 buckets
+      CreateS3VPCEndpoint:
+        default: Create S3 VPC endpoint
       CreateSageMakerStudioDomain:
         default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
@@ -100,6 +104,8 @@ Metadata:
         default: Create NAT Gateways (per AZ)
       ExistingVPCId:
         default: Existing VPC Id
+      ExistingS3VPCEndpointId:
+        default: Existing S3 VPC endpoint Id
       VPCCIDR:
         default: Create a new VPC with the following CIDR
       CreatePrivateSubnets:
@@ -173,6 +179,14 @@ Parameters:
 
   CreateEnvironmentS3Buckets:
     Description: Select YES if you want to create Amazon S3 buckets for models and data
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateS3VPCEndpoint:
+    Description: Set to NO to disable creation of an S3 VPC endpoint (and use an existing one)
     Type: String
     AllowedValues:
       - 'YES'
@@ -264,6 +278,11 @@ Parameters:
     Description: Enter an existing VPC Id for deployment or leave empty if "Create a new VPC" is set to YES
     Default: ''
     Type: String
+  
+  ExistingS3VPCEndpointId:
+    Description: Id of the existing S3 VPC endpoint (must be provided if CreateS3VPCEndpoint = NO)
+    Type: String
+    Default: ''
 
   VPCCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
@@ -495,10 +514,19 @@ Resources:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
-        PrivateSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+        CreateS3VPCEndpoint: !Ref CreateS3VPCEndpoint
+        ExistingS3VPCEndpointId: !Ref ExistingS3VPCEndpointId
+        PrivateSubnetIds: !If 
+          - ExistingVPCCondition
+          - !Join
+            - ',' 
+            - !GetAtt GetNetworkConfiguration.SubnetIds
+          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
         PrivateRouteTableIds: !If 
           - ExistingVPCCondition
-          - !GetAtt GetNetworkConfiguration.RouteTableIds
+          - !Join
+            - ',' 
+            - !GetAtt GetNetworkConfiguration.RouteTableIds
           - !GetAtt EnvironmentVPC.Outputs.PrivateRouteTableIds
         VPCEndpointsSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.VPCEndpointsSecurityGroupId
         SharedServicesVPCEndpointSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.SharedServicesVPCEndpointSecurityGroupId
@@ -588,7 +616,9 @@ Resources:
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
         SageMakerStudioSubnetIds: !If 
           - ExistingVPCCondition
-          - !GetAtt GetNetworkConfiguration.SubnetIds
+          - !Join
+            - ',' 
+            - !GetAtt GetNetworkConfiguration.SubnetIds
           - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
         SageMakerSecurityGroupIds: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
         SageMakerStudioStorageKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.SageMakerStudioStorageKMSKeyId
@@ -638,10 +668,10 @@ Resources:
       ServiceToken: !GetAtt GetNetworkConfigurationLambda.Arn
       AvailabilityZones: !Ref AvailabilityZones
       SubnetCIDRBlocks:
-        - PrivateSubnet1ACIDR
-        - PrivateSubnet2ACIDR
-        - PrivateSubnet3ACIDR
-        - PrivateSubnet4ACIDR
+        - !Ref PrivateSubnet1ACIDR
+        - !Ref PrivateSubnet2ACIDR
+        - !Ref PrivateSubnet3ACIDR
+        - !Ref PrivateSubnet4ACIDR
       
   GetNetworkConfigurationLambda:
     Type: AWS::Lambda::Function
@@ -656,14 +686,19 @@ Resources:
           import cfnresponse
           from botocore.exceptions import ClientError
 
+          ec2 = boto3.client("ec2")
+
           def lambda_handler(event, context):
               try:
                   response_status = cfnresponse.SUCCESS
                   r = {}
 
                   if 'RequestType' in event and event['RequestType'] == 'Create':
-                      r["SubnetIds"] = get_subnet_ids(event['ResourceProperties']['SubnetCIDRBlocks'])
-                      r["RouteTableIds"] = get_rt_ids(event['ResourceProperties']['SubnetCIDRBlocks'])
+                      r["SubnetIds"] = get_subnet_ids(
+                          event['ResourceProperties']['SubnetCIDRBlocks'],
+                          event['ResourceProperties']['AvailabilityZones']
+                      )
+                      r["RouteTableIds"] = get_rt_ids(r["SubnetIds"])
 
                   cfnresponse.send(event, context, response_status, r, '')
 
@@ -671,11 +706,23 @@ Resources:
                   print(exception)
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
 
-          def get_subnet_ids(cidr_blocks):
-              return []
+          def get_subnet_ids(cidr_blocks, azs):
+              print(azs)
+              print(cidr_blocks)
+              return [sn["SubnetId"] for sn in ec2.describe_subnets()["Subnets"]
+                      if sn["AvailabilityZone"] in azs and sn["CidrBlock"] in cidr_blocks]
 
-          def get_rt_ids(cidr_blocks):
-              return []
+
+          def get_rt_ids(subnet_ids):
+              print(subnet_ids)
+              return [r["RouteTableId"] for r in ec2.describe_route_tables(
+                  Filters=[
+                      {
+                          "Name":"association.subnet-id",
+                          "Values":subnet_ids
+                      }
+                  ]
+              )["RouteTables"]]
       Description: Get network configuration for SageMaker domain
       Handler: index.lambda_handler
       MemorySize: 128

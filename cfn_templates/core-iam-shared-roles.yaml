@@ -28,49 +28,49 @@ Outputs:
     Value: !If 
       - DSAdministratorRoleCondition
       - !Ref DataScienceAdministratorRole
-      - 'DataScienceAdministrator'
+      - ''
 
   DSAdministratorRoleArn:
     Description: The ARN of the DataScienceAdministrator role
     Value: !If 
       - DSAdministratorRoleCondition
       - !GetAtt DataScienceAdministratorRole.Arn
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DataScienceAdministrator'
+      - ''
 
   AssumeDSAdministratorRole:
     Description: URL for assuming the role of a cross-environment data science admin
     Value: !If 
       - DSAdministratorRoleCondition
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceAdministratorRole}&displayName=${DataScienceAdministratorRole}'
-      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=DataScienceAdministrator&displayName=DataScienceAdministrator'
+      - ''
 
   SageMakerDetectiveControlExecutionRoleName:
     Description: The name of the SageMakerDetectiveControlExecutionRole
     Value: !If 
       - SageMakerDetectiveControlExecutionRoleCondition
       - !Ref SageMakerDetectiveControlExecutionRole
-      - 'DSSageMakerDetectiveControlRole'
+      - ''
 
   SageMakerDetectiveControlExecutionRoleArn:
     Description: The ARN of the SageMakerDetectiveControlExecutionRole
     Value: !If 
       - SageMakerDetectiveControlExecutionRoleCondition
       - !GetAtt SageMakerDetectiveControlExecutionRole.Arn
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DSSageMakerDetectiveControlRole'
+      - ''
 
   SCLaunchRoleName:
     Description: The name of the Service Catalog Launch role
     Value: !If 
       - SCLaunchRoleCondition
       - !Ref SCLaunchRole
-      - 'DSServiceCatalogLaunchRole'
+      - ''
 
   SCLaunchRoleArn:
     Description: The ARN of the Service Catalog Launch role
     Value: !If 
       - SCLaunchRoleCondition
       - !GetAtt SCLaunchRole.Arn
-      - !Sub 'arn:aws:iam::${AWS::AccountId}:role/DSServiceCatalogLaunchRole'
+      - ''
 
 Conditions:
   DSAdministratorRoleCondition: !Not [ !Equals [ !Ref DSAdministratorRoleName, '' ] ]
@@ -160,8 +160,7 @@ Resources:
               - Sid: LambdaPermission
                 Effect: Allow
                 Action:
-                  - 'lambda:InvokeFunction'
-                  - 'lambda:GetFunction'
+                  - 'lambda:*'
                 Resource: '*'
               - Sid: SageMakerPermission
                 Effect: Allow
