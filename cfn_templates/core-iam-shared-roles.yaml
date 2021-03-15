@@ -148,7 +148,9 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: servicecatalog.amazonaws.com
+              Service: 
+                - 'servicecatalog.amazonaws.com'
+                - 'cloudformation.amazonaws.com'
             Action: 
               - 'sts:AssumeRole'
       Path: /

@@ -46,6 +46,94 @@ Parameters:
     Type: String
     Default: ''
 
+  CreateSSMVPCEndpoint:
+    Description: Set to NO to disable creation of an SSM VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWLVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch logs VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerRuntimeVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Runtime VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerNotebookVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Notebook VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSTSVPCEndpoint:
+    Description: Set to NO to disable creation of an STS VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRAPIVPCEndpoint:
+    Description: Set to NO to disable creation of an ECR API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRVPCEndpoint:
+    Description: Set to NO to disable creation of a ECR VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+  
   PrivateSubnetIds:
     Description: List of the subnet ids where Data Science environment deployed to
     Type: List<AWS::EC2::Subnet::Id>
@@ -89,6 +177,19 @@ Conditions:
   PyPIMirrorEndpointCondition: !Not [ !Equals [!Ref 'PyPIMirrorEndpointServiceName', ''] ]
   S3VPCEndpointCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'YES']
 
+  SSMVPCEndpointCondition: !Equals [!Ref 'CreateSSMVPCEndpoint', 'YES']
+  CWVPCEndpointCondition: !Equals [!Ref 'CreateCWVPCEndpoint', 'YES']
+  CWLVPCEndpointCondition: !Equals [!Ref 'CreateCWLVPCEndpoint', 'YES']
+  SageMakerAPIVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerAPIVPCEndpoint', 'YES']
+  SageMakerRuntimeVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerRuntimeVPCEndpoint', 'YES']
+  SageMakerNotebookVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerNotebookVPCEndpoint', 'YES']
+  STSVPCEndpointCondition: !Equals [!Ref 'CreateSTSVPCEndpoint', 'YES']
+  CodeCommitVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitVPCEndpoint', 'YES']
+  CodeCommitAPIVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitAPIVPCEndpoint', 'YES']
+  ECRAPIVPCEndpointCondition: !Equals [!Ref 'CreateECRAPIVPCEndpoint', 'YES']
+  ECRVPCEndpointCondition: !Equals [!Ref 'CreateECRVPCEndpoint', 'YES']
+
+
 Rules:
   S3VPCEndpoint:
     RuleCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'NO']
@@ -104,6 +205,7 @@ Resources:
   # Shared Services PyPi mirror VPC endpoint
   VPCEndpointSSM:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SSMVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -115,6 +217,7 @@ Resources:
 
   VPCEndpointCW:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CWVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -126,6 +229,7 @@ Resources:
 
   VPCEndpointCWL:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CWLVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -137,6 +241,7 @@ Resources:
 
   VPCEndpointSagemakerAPI:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerAPIVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -148,6 +253,7 @@ Resources:
 
   VPCEndpointSageMakerRuntime:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerRuntimeVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -159,6 +265,7 @@ Resources:
 
   VPCEndpointSageMakerNotebook:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerNotebookVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -170,6 +277,7 @@ Resources:
       
   VPCEndpointSTS:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: STSVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -181,6 +289,7 @@ Resources:
 
   VPCEndpointCodeCommit:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeCommitVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -192,6 +301,7 @@ Resources:
 
   VPCEndpointCodeCommitAPI:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeCommitAPIVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -203,6 +313,7 @@ Resources:
 
   VPCEndpointECRAPI:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ECRAPIVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -214,6 +325,7 @@ Resources:
 
   VPCEndpointECR:
     Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ECRVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true

@@ -174,7 +174,7 @@ aws cloudformation create-stack \
         ParameterKey=DSAdmininstratorRole,ParameterValue=ds-team-us-east-2-DataScienceAdministrator \
         ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DataScienceAdministrator \
         ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
-        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/DSServiceCatalogLaunchRole
+        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSServiceCatalogLaunchRole
 
 # show the assume DSAdministrator role link
 aws cloudformation describe-stacks \

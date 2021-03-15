@@ -901,7 +901,7 @@ aws cloudformation deploy \
                 --parameter-overrides \
                 EnvName=$ENV_NAME \
                 EnvType=dev \
-                PipelineExecutionRoleArn=arn:aws:iam::949335012047:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+                PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
 ```
 
 Show IAM role ARNs:
@@ -918,6 +918,7 @@ aws cloudformation describe-stacks \
 ```
 
 ## Deploy Data Science Environment
+Provide your specific parameter values for all deployment calls below.
 
 ### Deploy core infrastructure
 ```bash
@@ -932,10 +933,10 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME \
         ParameterKey=CreateIAMRoles,ParameterValue=NO \
-        ParameterKey=DSAdmininstratorRole,ParameterValue=ds-team-us-east-2-DataScienceAdministrator \
-        ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DataScienceAdministrator \
-        ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
-        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/DSServiceCatalogLaunchRole
+        ParameterKey=DSAdmininstratorRole,ParameterValue= \
+        ParameterKey=DSAdministratorRoleArn,ParameterValue= \
+        ParameterKey=SecurityControlExecutionRoleArn,ParameterValue= \
+        ParameterKey=SCLaunchRoleArn,ParameterValue=
 ```
 
 ```bash
@@ -951,7 +952,7 @@ aws cloudformation describe-stacks \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
-# show VPC info
+# show VPC info (only if you deployed the VPC stack `ds-team-vpc`)
 aws cloudformation describe-stacks \
     --stack-name ds-team-vpc  \
     --output table \
@@ -974,21 +975,21 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=CreateEnvironmentIAMRoles,ParameterValue=NO \
         ParameterKey=CreateS3VPCEndpoint,ParameterValue=NO \
-        ParameterKey=DSTeamAdministratorRoleName,ParameterValue=env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
-        ParameterKey=DataScientistRoleName,ParameterValue=env-iam-roles-DataScientistRole-PFIMUCN7IZ95 \
-        ParameterKey=DSTeamAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
-        ParameterKey=DataScientistRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScientistRole-PFIMUCN7IZ95  \
-        ParameterKey=SageMakerExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/service-role/env-iam-roles-SageMakerExecutionRole-9CYD7UX2KG8D \
-        ParameterKey=SetupLambdaExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SetupLambdaExecutionRole-4G8FY4ULHFPN  \
-        ParameterKey=SCProjectLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SCProjectLaunchRole-1XKZQDT1TG067 \
+        ParameterKey=DSTeamAdministratorRoleName,ParameterValue= \
+        ParameterKey=DataScientistRoleName,ParameterValue= \
+        ParameterKey=DSTeamAdministratorRoleArn,ParameterValue= \
+        ParameterKey=DataScientistRoleArn,ParameterValue=  \
+        ParameterKey=SageMakerExecutionRoleArn,ParameterValue= \
+        ParameterKey=SetupLambdaExecutionRoleArn,ParameterValue=  \
+        ParameterKey=SCProjectLaunchRoleArn,ParameterValue= \
         ParameterKey=CreateVPC,ParameterValue=NO \
         ParameterKey=CreateNATGateways,ParameterValue=NO \
-        ParameterKey=ExistingVPCId,ParameterValue=vpc-0b1a38a31305c97d1 \
-        ParameterKey=ExistingS3VPCEndpointId,ParameterValue=vpce-05799d9d4fd694936 \
+        ParameterKey=ExistingVPCId,ParameterValue= \
+        ParameterKey=ExistingS3VPCEndpointId,ParameterValue= \
         ParameterKey=CreatePrivateSubnets,ParameterValue=NO \
-        ParameterKey=PrivateSubnet1ACIDR,ParameterValue=10.0.0.0/19 \
-        ParameterKey=PrivateSubnet2ACIDR,ParameterValue=10.0.32.0/19 \
-        ParameterKey=PrivateSubnet3ACIDR,ParameterValue=10.0.64.0/19  \
+        ParameterKey=PrivateSubnet1ACIDR,ParameterValue= \
+        ParameterKey=PrivateSubnet2ACIDR,ParameterValue= \
+        ParameterKey=PrivateSubnet3ACIDR,ParameterValue=  \
         ParameterKey=CreateVPCFlowLogsToCloudWatch,ParameterValue=NO \
         ParameterKey=CreateVPCFlowLogsRole,ParameterValue=NO \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c \

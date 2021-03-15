@@ -18,7 +18,6 @@ Metadata:
         Parameters:
           - CreateEnvironmentIAMRoles
           - CreateEnvironmentS3Buckets
-          - CreateS3VPCEndpoint
           - CreateSageMakerStudioDomain
           - UseSharedServicesPyPiMirror
       - Label:
@@ -36,6 +35,21 @@ Metadata:
         Parameters:
           - AvailabilityZones
           - NumberOfAZs
+      - Label:
+          default: VPC Endpoint Creation
+        Parameters:
+          - CreateS3VPCEndpoint
+          - CreateSSMVPCEndpoint
+          - CreateCWVPCEndpoint
+          - CreateCWLVPCEndpoint
+          - CreateSageMakerAPIVPCEndpoint
+          - CreateSageMakerRuntimeVPCEndpoint
+          - CreateSageMakerNotebookVPCEndpoint
+          - CreateSTSVPCEndpoint
+          - CreateCodeCommitVPCEndpoint
+          - CreateCodeCommitAPIVPCEndpoint
+          - CreateECRAPIVPCEndpoint
+          - CreateECRVPCEndpoint
       - Label:
           default: Network Configuration
         Parameters:
@@ -76,6 +90,28 @@ Metadata:
         default: Create environment S3 buckets
       CreateS3VPCEndpoint:
         default: Create S3 VPC endpoint
+      CreateSSMVPCEndpoint:
+        default: Create SSM VPC endpoint
+      CreateCWVPCEndpoint:
+        default: Create CloudWatch VPC endpoint
+      CreateCWLVPCEndpoint:
+        default: Create CloudWatch Logs VPC endpoint
+      CreateSageMakerAPIVPCEndpoint:
+        default: Create SageMaker API VPC endpoint
+      CreateSageMakerRuntimeVPCEndpoint:
+        default: Create SageMaker Runtime VPC endpoint
+      CreateSageMakerNotebookVPCEndpoint:
+        default: Create SageMaker Notebook VPC endpoint
+      CreateSTSVPCEndpoint:
+        default: Create STS VPC endpoint
+      CreateCodeCommitVPCEndpoint:
+        default: Create CodeCommit VPC endpoint
+      CreateCodeCommitAPIVPCEndpoint:
+        default: Create CodeCommit API VPC endpoint
+      CreateECRAPIVPCEndpoint:
+        default: Create ECR API VPC endpoint
+      CreateECRVPCEndpoint:
+        default: Create ECR VPC endpoint
       CreateSageMakerStudioDomain:
         default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
@@ -187,6 +223,94 @@ Parameters:
 
   CreateS3VPCEndpoint:
     Description: Set to NO to disable creation of an S3 VPC endpoint (and use an existing one)
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSSMVPCEndpoint:
+    Description: Set to NO to disable creation of an SSM VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWLVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch logs VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerRuntimeVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Runtime VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerNotebookVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Notebook VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSTSVPCEndpoint:
+    Description: Set to NO to disable creation of an STS VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRAPIVPCEndpoint:
+    Description: Set to NO to disable creation of an ECR API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRVPCEndpoint:
+    Description: Set to NO to disable creation of a ECR VPC endpoint
     Type: String
     AllowedValues:
       - 'YES'
@@ -515,6 +639,17 @@ Resources:
         EnvType: !Ref EnvType
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
         CreateS3VPCEndpoint: !Ref CreateS3VPCEndpoint
+        CreateSSMVPCEndpoint: !Ref CreateSSMVPCEndpoint
+        CreateCWVPCEndpoint: !Ref CreateCWVPCEndpoint
+        CreateCWLVPCEndpoint: !Ref CreateCWLVPCEndpoint
+        CreateSageMakerAPIVPCEndpoint: !Ref CreateSageMakerAPIVPCEndpoint
+        CreateSageMakerRuntimeVPCEndpoint: !Ref CreateSageMakerRuntimeVPCEndpoint
+        CreateSageMakerNotebookVPCEndpoint: !Ref CreateSageMakerNotebookVPCEndpoint
+        CreateSTSVPCEndpoint: !Ref CreateSTSVPCEndpoint
+        CreateCodeCommitVPCEndpoint: !Ref CreateCodeCommitVPCEndpoint
+        CreateCodeCommitAPIVPCEndpoint: !Ref CreateCodeCommitAPIVPCEndpoint
+        CreateECRAPIVPCEndpoint: !Ref CreateECRAPIVPCEndpoint
+        CreateECRVPCEndpoint: !Ref CreateECRVPCEndpoint
         ExistingS3VPCEndpointId: !Ref ExistingS3VPCEndpointId
         PrivateSubnetIds: !If 
           - ExistingVPCCondition
