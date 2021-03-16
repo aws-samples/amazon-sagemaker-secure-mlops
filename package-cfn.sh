@@ -44,9 +44,9 @@ fi
 echo "Preparing content for publication to Amazon S3 s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}"
 
 ## clean away any previous builds of the CFN
-rm build/*-${AWS_DEFAULT_REGION}.zip
 rm -fr ${CFN_OUTPUT_DIR}
 mkdir -p ${CFN_OUTPUT_DIR}
+rm build/*-${AWS_DEFAULT_REGION}.zip
 cp ${CFN_TEMPLATE_DIR}/*.yaml ${CFN_OUTPUT_DIR}
 
 ## Zip the templates
