@@ -1,12 +1,9 @@
 version: 0.2
 
 phases:
-  pre_build:
-    commands:
-      - apt-get update
-      - apt-get install python3-pip zip -y
-      - pip3 install -U pip
-      - pip3 install awscli
+  install:
+    runtime-versions:
+        python: 3.8
 
   build:
     commands:
