@@ -9,4 +9,4 @@ phases:
     commands:
       - env
       - echo Packaging Cloudformation and uploading to S3...
-      - ./make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+      - make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
