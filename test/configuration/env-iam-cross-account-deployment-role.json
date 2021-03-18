@@ -1,0 +1,7 @@
+{
+    "Parameters" : {
+        "EnvName":"sagemaker-mlops",
+        "EnvType":"dev",
+        "PipelineExecutionRoleArn":"PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole"
+      }
+}

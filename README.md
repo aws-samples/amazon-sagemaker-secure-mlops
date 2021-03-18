@@ -854,8 +854,8 @@ aws cloudformation create-stack \
     --disable-rollback \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
-        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c  \
-        ParameterKey=NumberOfAZs,ParameterValue=3
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=NumberOfAZs,ParameterValue=2
 ```
 
 ### Deploy IAM resources
@@ -870,7 +870,6 @@ aws cloudformation deploy \
 Deploy IAM shared roles:
 ```bash
 STACK_SET_NAME=ds-team
-ENV_NAME=ds-team
 
 aws cloudformation deploy \
                 --template-file build/$AWS_DEFAULT_REGION/core-iam-shared-roles.yaml \
@@ -884,6 +883,8 @@ aws cloudformation deploy \
 
 Deploy IAM DS environment roles:
 ```bash
+ENV_NAME=ds-team
+
 aws cloudformation deploy \
                 --template-file build/$AWS_DEFAULT_REGION/env-iam.yaml \
                 --stack-name env-iam-roles \

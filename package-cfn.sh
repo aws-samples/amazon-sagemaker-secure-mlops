@@ -79,7 +79,7 @@ do
         --template-file ${fname} \
         --s3-bucket ${CFN_BUCKET_NAME} \
         --s3-prefix ${PROJECT_NAME} \
-        --output-template-file ${fname}-${REGION} \
+        --output-template-file ${fname}-packaged \
         --region ${REGION}
     popd
 done
@@ -88,8 +88,8 @@ done
 echo "Copying cloudformation templates and files to S3: ${UPLOAD_LIST}"
 for fname in ${UPLOAD_LIST};
 do
-    if [ -f ${CFN_OUTPUT_DIR}/${fname}-${REGION} ]; then
-        aws s3 cp ${CFN_OUTPUT_DIR}/${fname}-${REGION} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname}
+    if [ -f ${CFN_OUTPUT_DIR}/${fname}-packaged ]; then
+        aws s3 cp ${CFN_OUTPUT_DIR}/${fname}-packaged s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname}
     else
         aws s3 cp ${CFN_OUTPUT_DIR}/${fname} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname}
     fi

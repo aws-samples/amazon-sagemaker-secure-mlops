@@ -1,0 +1,7 @@
+{
+    "Parameters" : {
+        "DSAdministratorRoleName":"sagemaker-mlops-DataScienceAdministrator",
+        "SageMakerDetectiveControlExecutionRoleName":"sagemaker-mlops-DSSageMakerDetectiveControlRole",
+        "SCLaunchRoleName":"sagemaker-mlops-DSServiceCatalogLaunchRole"
+      }
+}
