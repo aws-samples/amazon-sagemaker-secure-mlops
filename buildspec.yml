@@ -18,3 +18,4 @@ artifacts:
     - automation/*.yaml
     - build/$AWS_REGION/*
     - test/configuration/*.json
+  discard-paths: yes
