@@ -51,7 +51,7 @@ Resources:
   CleanUpEFSLambda:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${ProjectName}-Automation-CleanUpEFS'
+      FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
       Code:
         ZipFile: |
           import json

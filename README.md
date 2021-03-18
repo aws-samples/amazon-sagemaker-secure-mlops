@@ -1,10 +1,10 @@
-# Amazon SageMaker secure deployment and MLOps PoC
-The goal of the project is to demostrate a deployment of Amazon SageMaker Studio into a secure controlled environment and implementation of MLOps CI/CD pipelines.
+# Amazon SageMaker secure deployment and MLOps CI/CD
+The goal of the solution is to demostrate a deployment of Amazon SageMaker Studio into a secure controlled environment and implementation of MLOps CI/CD pipelines.
 
 We are going to cover the following three main topics:
 1. Secure deployment of Amazon SageMaker Studio into the existing secure environment (VPC, subnets, VPC endpoints, security groups). End-to-end data encryption and access control, audit/monitoring, and preventive, detective and responsive security controls
-2. MLOps CI/CD automation for model training and deployment into TEST/PROD
-3. Full deployment automation based on AWS Service Catalog and CloudFormation (phase 1, in DEV account) and Terraform (phase 2, all accounts, end-to-end) 
+2. MLOps CI/CD automation for model training and deployment into TEST/PROD environments
+3. Automated data science environment provisioning based on AWS Service Catalog and CloudFormation 
 
 The solution recommends and supports the following development approach:
 + A separate AWS account per Data Science team and one Amazon SageMaker Studion domain per region per account
@@ -73,7 +73,7 @@ Four roles ML-related roles in Model Development Life Cycle (MDLC):
     - BI services (Grafana, Quicksight)
     - SageMaker notebooks
 
-  ❗ This role is currently out of scope of this PoC
+  ❗ This role is out of scope of this solution
 
 + **Data scientist**:
   “Project user” role for a DataScientist. This is baseline permissions. I think it’s fine for PoC, but for your real projects you probably need to trim the permission down. It uses the AWS managed permission policy for the job function `DataScientist`:  
@@ -746,6 +746,7 @@ aws cloudformation delete-stack --stack-name sagemaker-mlops-core
 - [R7]: [End-to-end Amazon SageMaker demo](https://github.com/aws/amazon-sagemaker-examples/tree/master/end_to_end)
 - [R8]: [Multi-account model deployment with Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/multi-account-model-deployment-with-amazon-sagemaker-pipelines/)
 - [R9]: [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/)
+- [R10]: [Best Practices for Organizational Units with AWS Organizations](https://aws.amazon.com/blogs/mt/best-practices-for-organizational-units-with-aws-organizations/)
 
 
 ## Secure ML environments

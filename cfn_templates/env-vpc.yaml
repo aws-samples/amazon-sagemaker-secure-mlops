@@ -383,9 +383,14 @@ Resources:
           Value: !Ref EnvType
 
   # VPC
+  # Set DeletionPolicy and UpdateReplacePolicy to 'Retain'
+  # SageMaker Studio creates an EFS file system with mounting points in VPC and does not delete that file system on deletion of SageMaker Studio
+  # This EFS cause the CloudFormation deletion process for VPC template to fail
   VPC:
     Type: AWS::EC2::VPC
     Condition: NewVPCCondition
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       CidrBlock: !Ref 'VPCCIDR'
       EnableDnsSupport: true

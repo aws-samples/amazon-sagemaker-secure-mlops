@@ -79,10 +79,10 @@ Parameters:
   EnvName:
     Type: String
     AllowedPattern: '[a-z0-9\-]*'
-    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+    Description: Please specify your data science environment name.  Used as a prefix for environment resource names.
 
   EnvType:
-    Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
+    Description: System Environment (e.g. dev, test, prod). Used as a prefix for environment resource names.
     Type: String
     Default: dev
 

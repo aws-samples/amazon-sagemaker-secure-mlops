@@ -10,3 +10,11 @@ phases:
       - env
       - echo Packaging Cloudformation and uploading to S3...
       - make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+      - echo Copying VPC quick start template
+      - wget -P build/$AWS_REGION/ https://raw.githubusercontent.com/aws-quickstart/quickstart-aws-vpc/main/templates/aws-vpc.template.yaml
+
+artifacts:
+  files:
+    - automation/*.yaml
+    - build/$AWS_REGION/*
+    - test/configuration/*.json
