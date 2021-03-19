@@ -1,5 +1,15 @@
 {
     "Parameters" : {
-
-      }
+        "EnvName":"sagemaker-mlops",
+        "EnvType":"dev",
+        "AvailabilityZones":"",
+        "NumberOfAZs":"2",
+        "CreateEnvironmentIAMRoles":"NO",
+        "CreateS3VPCEndpoint":"NO",
+        "CreateVPC":"NO",
+        "CreateNATGateways":"NO",
+        "CreatePrivateSubnets":"NO",
+        "CreateVPCFlowLogsToCloudWatch":"NO",
+        "CreateVPCFlowLogsRole":"NO"
+    }
 }

@@ -40,6 +40,10 @@ Parameters:
     Description: ARN of CodeCommit repository with source code
     Type: String
 
+  NotificationArn:
+    Description: SNS ARN for pipeline events and manual approval events
+    Type: String
+
 Resources:
 
   CodePipelineServiceRole:
@@ -283,6 +287,8 @@ Resources:
 
   CodePipelineArtifactsBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
       AccessControl: Private
@@ -324,6 +330,7 @@ Resources:
         Type: S3
         Location: !Ref CodePipelineArtifactsBucket
       Stages:
+        # Stage: Source -----------------------------------------------
         - Name: Source
           Actions:
             - Name: Source
@@ -339,6 +346,7 @@ Resources:
               OutputArtifacts:
                 - Name: SourceArtifact
 
+        # Stage: Build -----------------------------------------------
         - Name: Build
           Actions:
             - Name: BuildCFNTemplates
@@ -354,7 +362,214 @@ Resources:
                 - Name: BuildArtifact
               Configuration:
                 ProjectName: !Ref CfnTemplateBuildProject
-      #          EnvironmentVariables:
-      #            - Name: 'S3_BUCKET_NAME'
-      #              Value: !Sub '${CfnArtifactS3BucketNamePrefix}-${TestVPCRegion}'
+#                EnvironmentVariables: ''
               RunOrder: 1
+
+# !Sub '[{"name":"S3_BUCKET_NAME","value":"${CfnArtifactS3BucketNamePrefix}-${TestVPCRegion}","type":"PLAINTEXT"}]'
+
+        # Stage: Deploy -----------------------------------------------
+        - Name: Deploy
+          Actions:
+            # Action 1 
+            - Name: BaseVPC
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: VPCOut
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: 'ds-team-vpc'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::aws-vpc.template.yaml'
+                OutputFileName: 'vpc-output.json'
+                ParameterOverrides: !Sub '{
+                    "NumberOfAZs":"2",
+                    "AvailabilityZones": "${TestVPCRegion}a, ${TestVPCRegion}b"
+                   }'
+                TemplateConfiguration: 'BuildArtifact::base-vpc.json'
+              RunOrder: 1
+
+            # Action 2 
+            - Name: CoreIAMSharedRoles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: CoreIAMSharedRolesOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: 'core-iam-shared-roles'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::core-iam-shared-roles.yaml'
+                OutputFileName: 'core-iam-shared-roles-output.json'
+                TemplateConfiguration: 'BuildArtifact::core-iam-shared-roles.json'
+                ParameterOverrides: !Sub '{
+                  "DSAdministratorRoleName": "${ProjectName}-${TestVPCRegion}-DataScienceAdministrator", 
+                  "SageMakerDetectiveControlExecutionRoleName": "${ProjectName}-${TestVPCRegion}-DSSageMakerDetectiveControlRole", 
+                  "SCLaunchRoleName": "${ProjectName}-${TestVPCRegion}-DSServiceCatalogLaunchRole"
+                }'
+              RunOrder: 1
+
+            # Action 3
+            - Name: EnvironmentIAMRoles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: IamOut
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: 'env-iam-roles'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::env-iam.yaml'
+                OutputFileName: 'iam-out.json'
+                TemplateConfiguration: 'BuildArtifact::env-iam.json'
+                ParameterOverrides: !Sub '{
+                    "EnvName":"${ProjectName}"
+                }'
+              RunOrder: 1
+
+            # Action 4
+            - Name: EnvironmentIAMCrossAccountRoles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: EnvIAMCrossAccountDeploymentRoleOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: 'env-iam-cross-account-deployment-role'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::env-iam-cross-account-deployment-role.yaml'
+                OutputFileName: 'env-iam-cross-account-deployment-role-output.json'
+                TemplateConfiguration: 'BuildArtifact::env-iam-cross-account-deployment-role.json'
+                ParameterOverrides: !Sub '{
+                    "EnvName":"${ProjectName}",
+                    "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" 
+                   }'
+              RunOrder: 1
+
+            # Action 5
+            - Name: AutomationLambdaFunctions
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: AutomationLambdaFunctionsOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-automation-lambda-functions'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::automation-lambda-functions.yaml'
+                OutputFileName: 'automation-lambda-functions-outputs.json'
+                TemplateConfiguration: 'BuildArtifact::automation-lambda-functions.json'
+              RunOrder: 1
+
+            # Action 6
+            - Name: CoreMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+                - Name: CoreIAMSharedRolesOutput
+              OutputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-core'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
+                OutputFileName: 'core-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::core-main.json'
+                ParameterOverrides: !Sub '{
+                  "StackSetName":"${ProjectName}-core",
+                  "CreateIAMRoles":"NO",
+                  "DSAdministratorRoleArn":{ "Fn::GetParam":["CoreIAMSharedRolesOutput", "core-iam-shared-roles-output.json", "DSAdministratorRoleArn"]},
+                  "SecurityControlExecutionRoleArn":{ "Fn::GetParam":["CoreIAMSharedRolesOutput", "core-iam-shared-roles-output.json", "SageMakerDetectiveControlExecutionRoleArn"]},
+                  "SCLaunchRoleArn":{ "Fn::GetParam":["CoreIAMSharedRolesOutput", "core-iam-shared-roles-output.json", "SCLaunchRoleArn"]}
+                }'
+              RunOrder: 2
+
+            # Action 7
+            - Name: EnvironmentMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+                - Name: VPCOut
+                - Name: IamOut
+              OutputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-env'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
+                OutputFileName: 'env-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::env-main.json'
+                ParameterOverrides: !Sub '{
+                  "EnvName":"${ProjectName}",
+                  "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
+                  "DataScientistRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "DataScientistRoleArn"]},
+                  "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
+                  "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
+                  "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
+                  "AvailabilityZones":"${TestVPCRegion}a, ${TestVPCRegion}b",
+                  "ExistingVPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json, "VPCID"]},
+                  "ExistingS3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]},
+                }'
+              RunOrder: 3
+
+            # Action 8
+            - Name: ApproveDeployment
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub '${ProjectName} deployment in existing VPC and with pre-provisioned IAM roles is ready for review in ${AWS::AccountId}:${TestVPCRegion}'
+                ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
+                NotificationArn: !Ref NotificationArn
+              RunOrder: 4

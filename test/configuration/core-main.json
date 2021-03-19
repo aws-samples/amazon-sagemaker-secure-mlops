@@ -1,7 +1,5 @@
 {
     "Parameters" : {
-      "EnvName":"sagemaker-mlops",
-      "EnvType":"dev",
       "StackSetName":"sagemaker-mlops-core",
       "CreateIAMRoles":"YES",
       "CreateSharedServices":"NO",

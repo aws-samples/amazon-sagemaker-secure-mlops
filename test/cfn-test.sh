@@ -300,11 +300,14 @@ aws cloudformation create-stack \
 
 
 # CI/CD test pipeline
-# Assertion error: NAT Gateways = YES but Private Subnets = NO
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
+
 aws cloudformation deploy \
                 --template-file test/cfn_templates/test-pipeline.yaml \
                 --stack-name sagemaker-mlops-pipeline-$AWS_DEFAULT_REGION \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
-                CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops
+                CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
+                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+
              
