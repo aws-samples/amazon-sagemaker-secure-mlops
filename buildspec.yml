@@ -15,7 +15,7 @@ phases:
 
 artifacts:
   files:
-    - automation/*.yaml
-    - build/$AWS_REGION/*
+    - test/cfn_templates/*.yaml
     - test/configuration/*.json
+    - build/$AWS_REGION/*
   discard-paths: yes

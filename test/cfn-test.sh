@@ -297,3 +297,14 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev
+
+
+# CI/CD test pipeline
+# Assertion error: NAT Gateways = YES but Private Subnets = NO
+aws cloudformation deploy \
+                --template-file test/cfn_templates/test-pipeline.yaml \
+                --stack-name sagemaker-mlops-pipeline-$AWS_DEFAULT_REGION \
+                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops
+             

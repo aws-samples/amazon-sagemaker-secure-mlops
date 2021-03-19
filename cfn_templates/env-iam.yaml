@@ -36,34 +36,6 @@ Conditions:
   IAMUserRolesCondition: !Equals [!Ref CreateIAMUserRoles, 'YES']
 
 Outputs:
-  DSTeamAdministratorRoleName:
-    Description: The name of the DataScienceTeamAdministrator role
-    Value: !If 
-      - IAMUserRolesCondition
-      - !Ref DataScienceTeamAdministratorRole
-      - ''
-
-  DataScientistRoleName:
-    Description: The name of the Data Scientist role
-    Value: !If 
-      - IAMUserRolesCondition
-      - !Ref DataScientistRole
-      - ''
-
-  DSTeamAdministratorRoleArn:
-    Description: The ARN of the DataScienceTeamAdministrator role
-    Value:  !If 
-      - IAMUserRolesCondition
-      - !GetAtt DataScienceTeamAdministratorRole.Arn
-      - ''
-    
-  DataScientistRoleArn:
-    Description: The ARN of the Data Scientist role
-    Value:  !If 
-      - IAMUserRolesCondition
-      - !GetAtt DataScientistRole.Arn
-      - ''
-
   AssumeTeamAdminRole:
     Description: URL for assuming the role of a environment admin
     Value: !If 
@@ -78,17 +50,23 @@ Outputs:
       - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRole}&displayName=${DataScientistRole}'
       - ''
   
-  SageMakerExecutionRoleName:
-    Description: The name of the SageMaker execution role
-    Value: !Ref SageMakerExecutionRole
+  DSTeamAdministratorRoleArn:
+    Description: The ARN of the DataScienceTeamAdministrator role
+    Value:  !If 
+      - IAMUserRolesCondition
+      - !GetAtt DataScienceTeamAdministratorRole.Arn
+      - ''
+    
+  DataScientistRoleArn:
+    Description: The ARN of the Data Scientist role
+    Value:  !If 
+      - IAMUserRolesCondition
+      - !GetAtt DataScientistRole.Arn
+      - ''
 
   SageMakerExecutionRoleArn:
     Description: The ARN of the SageMaker execution role
     Value: !GetAtt SageMakerExecutionRole.Arn
-
-  SCProjectLaunchRoleName:
-    Description: The name of the ServiceCatalog product launch role
-    Value: !Ref SCProjectLaunchRole
 
   SCProjectLaunchRoleArn:
     Description: The ARN of the ServiceCatalog product launch role
@@ -97,10 +75,6 @@ Outputs:
   SetupLambdaExecutionRoleArn:
     Description: Lambda execution role for Data Science environment setup function
     Value: !GetAtt SetupLambdaExecutionRole.Arn
-
-  VPCFlowLogsRoleName:
-    Description: The name of the VPC Flow Logs role (used to deliver the VPC flog logs into CloudWatch group)
-    Value: !If [ VPCFlowLogsRoleCondition, !Ref VPCFlowLogsRole, '' ]
       
   VPCFlowLogsRoleArn:
     Description: The ARN of the VPC Flow Logs role

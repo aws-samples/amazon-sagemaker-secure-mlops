@@ -21,11 +21,9 @@ Metadata:
           - CreateSageMakerStudioDomain
           - UseSharedServicesPyPiMirror
       - Label:
-          default: Environment IAM Roles (only needed if created outside of this stack)
+          default: Environment IAM Roles ARNs (only needed if created outside of this stack)
         Parameters:
-          - DSTeamAdministratorRoleName
           - DSTeamAdministratorRoleArn
-          - DataScientistRoleName
           - DataScientistRoleArn
           - SageMakerExecutionRoleArn
           - SetupLambdaExecutionRoleArn
@@ -116,12 +114,8 @@ Metadata:
         default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
         default: Use shared services PyPI mirror
-      DSTeamAdministratorRoleName:
-        default: Data Science Team Administrator role name
       DSTeamAdministratorRoleArn:
         default: Data Science Team Administrator role ARN
-      DataScientistRoleName:
-        default: Data Scientist role name
       DataScientistRoleArn:
         default: Data Scientist role ARN
       SageMakerExecutionRoleArn:
@@ -185,14 +179,18 @@ Outputs:
     Value: !If 
       - IAMRolesCondition
       - !GetAtt EnvironmentIAMRoles.Outputs.AssumeTeamAdminRole
-      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSTeamAdministratorRoleName}&displayName=${DSTeamAdministratorRoleName}'
+      - !Sub 
+        - 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSTeamAdministratorRoleName}&displayName=${DSTeamAdministratorRoleName}'
+        - DSTeamAdministratorRoleName: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref DSTeamAdministratorRoleArn ]]]]
 
   AssumeDataScientistRole:
     Description: URL for assuming the role of a environment user
     Value: !If 
       - IAMRolesCondition
       - !GetAtt EnvironmentIAMRoles.Outputs.AssumeDataScientistRole
-      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRoleName}&displayName=${DataScientistRoleName}'
+      - !Sub 
+        - 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRoleName}&displayName=${DataScientistRoleName}'
+        - DataScientistRoleName: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref DataScientistRoleArn ]]]]
   
 Parameters:
   EnvName:
@@ -332,16 +330,6 @@ Parameters:
       - 'YES'
       - 'NO'
     Default: 'NO'
-
-  DSTeamAdministratorRoleName:
-    Description: The name of the DataScienceTeamAdministrator role if created outside the stack. Must be provided if Create IAM Roles = NO
-    Type: String
-    Default: ''
-
-  DataScientistRoleName:
-    Description: The name of the Data Scientist role if created outside the stack. Must be provided if Create IAM Roles = NO
-    Type: String
-    Default: ''
 
   DSTeamAdministratorRoleArn:
     Description: The ARN of the DataScienceTeamAdministrator role if created outside the stack. Must be provided if Create IAM Roles = NO
@@ -558,8 +546,6 @@ Rules:
     RuleCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'NO' ]
     Assertions:
       - Assert: !And
-          - !Not [ !Equals [ !Ref DSTeamAdministratorRoleName, '' ] ]
-          - !Not [ !Equals [ !Ref DataScientistRoleName, '' ] ]
           - !Not [ !Equals [ !Ref DSTeamAdministratorRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]

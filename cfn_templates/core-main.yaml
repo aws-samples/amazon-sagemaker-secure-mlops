@@ -19,9 +19,8 @@ Metadata:
           - CreateSharedServices
           - CreateSCPortfolio
       - Label:
-          default: IAM Roles (only needed if created outside of this stack)
+          default: IAM Role ARNs (only needed if created outside of this stack)
         Parameters:
-          - DSAdmininstratorRole
           - DSAdministratorRoleArn
           - SecurityControlExecutionRoleArn
           - SCLaunchRoleArn
@@ -34,8 +33,6 @@ Metadata:
         default: Create shared services resources
       CreateSCPortfolio:
         default: Make a SageMaker Studio environment available as an AWS Service Catalog product
-      DSAdmininstratorRole:
-        default: Data Science Administrator role name
       DSAdministratorRoleArn:
         default: Data Science Administrator role ARN
       SCLaunchRoleArn:
@@ -49,7 +46,9 @@ Outputs:
     Value: !If
       - IAMRolesCondition
       - !GetAtt IAMSharedRoles.Outputs.AssumeDSAdministratorRole
-      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSAdmininstratorRole}&displayName=${DSAdmininstratorRole}'
+      - !Sub
+        - 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DSAdmininstratorRole}&displayName=${DSAdmininstratorRole}'
+        - DSAdmininstratorRole: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref DSAdministratorRoleArn ]]]]
     
   SCLaunchRoleArn:
     Description: Service Catalog Launch role ARN
@@ -72,11 +71,6 @@ Parameters:
       - 'YES'
       - 'NO'
     Description: Set to NO if you do not want to provision IAM roles (you must have already these roles provisioned up-front)
-
-  DSAdmininstratorRole:
-    Type: String 
-    Default: ''
-    Description: Data Science Administrator role name if it is created outside of this stack. Must be provided if Create IAM Roles = NO
 
   DSAdministratorRoleArn:
     Type: String 
@@ -119,7 +113,6 @@ Rules:
     RuleCondition: !Equals [ !Ref CreateIAMRoles, 'NO' ]
     Assertions:
       - Assert: !And
-          - !Not [ !Equals [ !Ref DSAdmininstratorRole, '' ] ]
           - !Not [ !Equals [ !Ref DSAdministratorRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SCLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SecurityControlExecutionRoleArn, '' ] ]

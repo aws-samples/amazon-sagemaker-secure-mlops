@@ -1,0 +1,360 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create test CI/CD pipeline for SageMaker MLOps project
+
+Parameters:
+  ProjectName:
+    Description: Project name
+    Type: String
+    Default: 'sagemaker-secure-mlops'
+  
+  TestVPCRegion:
+    Description: Region for existing VPC and pre-provisioned IAM use case test
+    Type: String
+    Default: 'us-east-2'
+
+  TestQuickStartRegion:
+    Description: Region for Quickstart deployment use case test
+    Type: String
+    Default: 'eu-central-1'
+
+  TestCFNRegion:
+    Description: Region for 2-step CloudFormation deployment use case test
+    Type: String
+    Default: 'eu-west-1'
+
+  TestSCRegion:
+    Description: Region for 2-step CloudFormation and Service Catalog deployment use case test
+    Type: String
+    Default: 'eu-west-2'
+
+  CfnArtifactS3BucketNamePrefix:
+    Description: S3 bucket name prefix for artifact bucket
+    Type: String
+    Default: 'ilyiny-cfn-artefacts'
+
+  CodeCommitRepositoryArn:
+    Description: ARN of CodeCommit repository with source code
+    Type: String
+
+Resources:
+
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CodePipelineServiceRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+                Effect: 'Allow'
+                Condition:
+                  StringEqualsIfExists: 
+                    'iam:PassedToService':
+                      - 'cloudformation.amazonaws.com'
+                      - 'elasticbeanstalk.amazonaws.com'
+                      - 'ec2.amazonaws.com'
+                      - 'ecs-tasks.amazonaws.com'
+              -
+                Action:
+                  - 'codecommit:CancelUploadArchive'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetRepository'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:UploadArchive'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplication'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codestar-connections:UseConnection'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'elasticbeanstalk:*'
+                  - 'ec2:*'
+                  - 'elasticloadbalancing:*'
+                  - 'autoscaling:*'
+                  - 'cloudwatch:*'
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'cloudformation:*'
+                  - 'rds:*'
+                  - 'sqs:*'
+                  - 'ecs:*'
+                  - 'ecr:*'
+                  - 'servicecatalog:*'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'opsworks:CreateDeployment'
+                  - 'opsworks:DescribeApps'
+                  - 'opsworks:DescribeCommands'
+                  - 'opsworks:DescribeDeployments'
+                  - 'opsworks:DescribeInstances'
+                  - 'opsworks:DescribeStacks'
+                  - 'opsworks:UpdateApp'
+                  - 'opsworks:UpdateStack'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                  - 'codebuild:BatchGetBuildBatches'
+                  - 'codebuild:StartBuildBatch'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'states:DescribeExecution'
+                  - 'states:DescribeStateMachine'
+                  - 'states:StartExecution'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'appconfig:StartDeployment'
+                  - 'appconfig:StopDeployment'
+                  - 'appconfig:GetDeployment'
+                Resource: '*'
+                Effect: 'Allow'
+
+  CodePipelineDeployRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEC2FullAccess'
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/CloudWatchLogsFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSLambda_FullAccess'
+
+  CodeBuildServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CodeBuildServiceRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 's3:*Object'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+                  - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*'
+                  - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*/*}'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codecommit:GitPull'
+                Resource: !Ref CodeCommitRepositoryArn
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codebuild:CreateReportGroup'
+                  - 'codebuild:CreateReport'
+                  - 'codebuild:UpdateReport'
+                  - 'codebuild:BatchPutTestCases'
+                  - 'codebuild:BatchPutCodeCoverages'
+                Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
+                Effect: 'Allow'
+              
+  CloudWatchEventsTriggerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CloudWatchEventsRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'codepipeline:StartPipelineExecution'
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${VPCDeployPipeline}'
+                Effect: 'Allow'
+
+  CodeCommitTriggerEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-codecommit-trigger-${AWS::Region}'
+      Description: !Sub 'Rule to trigger a CodePipeline when ${CodeCommitRepositoryArn} is updated with a commit'
+      RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+      EventPattern:
+        source:
+          - 'aws.codecommit'
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources:
+          - !Ref CodeCommitRepositoryArn
+        detail:
+          event:
+            - 'referenceCreated'
+            - 'referenceUpdated'
+          referenceType:
+            - "branch"
+          referenceName:
+            - 'master'
+            - 'main'
+      State: 'ENABLED'
+      Targets:
+        -
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${VPCDeployPipeline}'
+          Id: !Sub codecommit-${VPCDeployPipeline}-trigger
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+
+  CodePipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      
+  CfnTemplateBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-cfn-build-${AWS::Region}'
+      Description: !Sub 'Building CFN templates for ${ProjectName}'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts: 
+        Type: CODEPIPELINE
+      Environment:
+        Type: 'LINUX_CONTAINER'
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/amazonlinux2-x86_64-standard:3.0'
+        EnvironmentVariables:
+          - Name: 'S3_BUCKET_NAME'
+            Value: !Sub '${CfnArtifactS3BucketNamePrefix}-${AWS::Region}'
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: 'ENABLED'
+      TimeoutInMinutes: 5
+
+  VPCDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-VPC'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactsBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                PollForSourceChanges: 'false'
+                RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                BranchName: 'master'
+              OutputArtifacts:
+                - Name: SourceArtifact
+
+        - Name: Build
+          Actions:
+            - Name: BuildCFNTemplates
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref CfnTemplateBuildProject
+      #          EnvironmentVariables:
+      #            - Name: 'S3_BUCKET_NAME'
+      #              Value: !Sub '${CfnArtifactS3BucketNamePrefix}-${TestVPCRegion}'
+              RunOrder: 1

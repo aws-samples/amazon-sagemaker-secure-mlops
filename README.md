@@ -544,7 +544,6 @@ In this step you deploy the _shared core infrastructure_ into your AWS Account. 
 
 The deployment options you can use are:
 + `CreateIAMRoles`: default `YES`. Set to `NO` if you have created the IAM roles outside of the stack (e.g. via a separate process) - Bring Your Own IAM Role (BYOR IAM)
-+ `DSAdmininstratorRole`: required if `CreateIAMRoles=NO`
 + `DSAdministratorRoleArn`: required if `CreateIAMRoles=NO`
 + `SCLaunchRoleArn`: required if `CreateIAMRoles=NO`
 + `SecurityControlExecutionRoleArn`: required if `CreateIAMRoles=NO`
@@ -623,9 +622,7 @@ The deployment options you can use are:
   - `CreateSageMakerStudioDomain`:
   - `UseSharedServicesPyPiMirror`:
 + Environment IAM roles (only needed if created outside of this stack and `CreateEnvironmentIAMRoles` = NO):
-  - `DSTeamAdministratorRoleName`
   - `DSTeamAdministratorRoleArn`
-  - `DataScientistRoleName`
   - `DataScientistRoleArn`
   - `SageMakerExecutionRoleArn`
   - `SetupLambdaExecutionRoleArn`
@@ -931,11 +928,9 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME  \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME \
         ParameterKey=CreateIAMRoles,ParameterValue=NO \
-        ParameterKey=DSAdmininstratorRole,ParameterValue= \
         ParameterKey=DSAdministratorRoleArn,ParameterValue= \
         ParameterKey=SecurityControlExecutionRoleArn,ParameterValue= \
         ParameterKey=SCLaunchRoleArn,ParameterValue=
@@ -971,14 +966,11 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=CreateEnvironmentIAMRoles,ParameterValue=NO \
         ParameterKey=CreateS3VPCEndpoint,ParameterValue=NO \
-        ParameterKey=DSTeamAdministratorRoleName,ParameterValue= \
-        ParameterKey=DataScientistRoleName,ParameterValue= \
         ParameterKey=DSTeamAdministratorRoleArn,ParameterValue= \
         ParameterKey=DataScientistRoleArn,ParameterValue=  \
         ParameterKey=SageMakerExecutionRoleArn,ParameterValue= \

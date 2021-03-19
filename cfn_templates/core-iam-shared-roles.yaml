@@ -23,11 +23,11 @@ Parameters:
 
 Outputs:
 
-  DSAdministratorRoleName:
-    Description: The name of the DataScienceAdministrator role
+  AssumeDSAdministratorRole:
+    Description: URL for assuming the role of a cross-environment data science admin
     Value: !If 
       - DSAdministratorRoleCondition
-      - !Ref DataScienceAdministratorRole
+      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceAdministratorRole}&displayName=${DataScienceAdministratorRole}'
       - ''
 
   DSAdministratorRoleArn:
@@ -37,32 +37,11 @@ Outputs:
       - !GetAtt DataScienceAdministratorRole.Arn
       - ''
 
-  AssumeDSAdministratorRole:
-    Description: URL for assuming the role of a cross-environment data science admin
-    Value: !If 
-      - DSAdministratorRoleCondition
-      - !Sub 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScienceAdministratorRole}&displayName=${DataScienceAdministratorRole}'
-      - ''
-
-  SageMakerDetectiveControlExecutionRoleName:
-    Description: The name of the SageMakerDetectiveControlExecutionRole
-    Value: !If 
-      - SageMakerDetectiveControlExecutionRoleCondition
-      - !Ref SageMakerDetectiveControlExecutionRole
-      - ''
-
   SageMakerDetectiveControlExecutionRoleArn:
     Description: The ARN of the SageMakerDetectiveControlExecutionRole
     Value: !If 
       - SageMakerDetectiveControlExecutionRoleCondition
       - !GetAtt SageMakerDetectiveControlExecutionRole.Arn
-      - ''
-
-  SCLaunchRoleName:
-    Description: The name of the Service Catalog Launch role
-    Value: !If 
-      - SCLaunchRoleCondition
-      - !Ref SCLaunchRole
       - ''
 
   SCLaunchRoleArn:
