@@ -310,4 +310,8 @@ aws cloudformation deploy \
                 CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
                 NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 
+
+aws cloudformation delete-stack \
+    --stack-name sagemaker-secure-mlops-automation-lambda-functions \
+    --role-arn arn:aws:iam::949335012047:role/sagemaker-secure-mlops-codepipeline-deploy-role
              

@@ -2,6 +2,7 @@ import json
 import boto3
 
 efs = boto3.client("efs")
+s3 = boto3.client("s3")
 
 def lambda_handler(event, context):
 
@@ -9,6 +10,11 @@ def lambda_handler(event, context):
         return
         
     sm_domain_id = event.get("SageMakerDomainId")
+
+    obj = s3.get_object(Bucket = bucket, Key = key)
+    msg = json.loads(obj['Body'].read().decode('utf-8'))
+    
+    print(f"object body: {msg}")
 
     print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
     fs_id = [

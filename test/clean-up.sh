@@ -1,11 +1,5 @@
 PROJECT_NAME="sagemaker-secure-mlops"
 
-aws cloudformation deploy \
-    --template-file automation/automation-lambda-functions.yaml \
-    --stack-name ${PROJECT_NAME}-automation \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-        ProjectName=${PROJECT_NAME}
 
 # Invoke lambda to delete the left-over EFS file system
 FUNC_NAME=${PROJECT_NAME}-Automation-CleanUpEFS 

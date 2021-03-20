@@ -46,6 +46,96 @@ Parameters:
 
 Resources:
 
+  AutomationLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: InlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: IAMPermission
+                Effect: Allow
+                Action:
+                  - 'iam:GetRole'
+                Resource: '*'
+              - Sid: ServiceCatalogPermission
+                Effect: Allow
+                Action:
+                  - servicecatalog:*
+                Resource: '*'
+              - Sid: S3ArtifactBucketPermission
+                Effect: Allow
+                Action:
+                  - 's3:*Object'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+
+  CleanUpEFSLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          efs = boto3.client("efs")
+
+          def lambda_handler(event, context):
+
+              if not event:
+                  return
+                  
+              print(event)
+              sm_domain_id = event.get("SageMakerDomainId")
+
+              print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
+              fs_id = [
+                  fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
+                      if [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
+                  ]
+
+              print(f"EFS file system id(s): {fs_id}")
+
+              for id in fs_id:
+                  print(f"Delete mount targets for EFS file system id: {id}")
+                  for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
+                      efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
+                  
+                  while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
+                      print("Wait until mount targes have been deleted")
+
+                  print(f"Delete EFS file system {id}")
+                  efs.delete_file_system(FileSystemId=id)
+      Description: Delete SageMaker Studio left-over EFS file systems
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt AutomationLambdaExecutionRole.Arn 
+      Runtime: python3.8
+      Timeout: 300
+
   CodePipelineServiceRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -407,6 +497,9 @@ Resources:
           Status: 'ENABLED'
       TimeoutInMinutes: 5
 
+  ########################################################################
+  # Pipelines
+  ########################################################################
   VPCDeployPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -560,28 +653,6 @@ Resources:
               RunOrder: 1
 
             # Action 5
-            - Name: AutomationLambdaFunctions
-              ActionTypeId:
-                Category: Deploy
-                Owner: AWS
-                Provider: CloudFormation
-                Version: '1'
-              Region: !Ref TestVPCRegion
-              InputArtifacts:
-                - Name: BuildArtifact
-              OutputArtifacts:
-                - Name: AutomationLambdaFunctionsOutput
-              Configuration:
-                ActionMode: 'REPLACE_ON_FAILURE'
-                StackName: !Sub '${ProjectName}-automation-lambda-functions'
-                Capabilities: 'CAPABILITY_NAMED_IAM'
-                RoleArn: !GetAtt CodePipelineDeployRole.Arn
-                TemplatePath: 'BuildArtifact::automation-lambda-functions.yaml'
-                OutputFileName: 'automation-lambda-functions-outputs.json'
-                TemplateConfiguration: 'BuildArtifact::automation-lambda-functions.json'
-              RunOrder: 1
-
-            # Action 6
             - Name: CoreMain
               ActionTypeId:
                 Category: Deploy
@@ -611,7 +682,7 @@ Resources:
                 }'
               RunOrder: 2
 
-            # Action 7
+            # Action 6
             - Name: EnvironmentMain
               ActionTypeId:
                 Category: Deploy
@@ -646,7 +717,7 @@ Resources:
                 }'
               RunOrder: 3
 
-            # Action 8
+            # Action 7
             - Name: ApproveDeployment
               ActionTypeId:
                 Category: Approval
@@ -654,12 +725,12 @@ Resources:
                 Version: '1'
                 Provider: Manual
               Configuration:
-                CustomData: !Sub '${ProjectName} deployment in existing VPC and with pre-provisioned IAM roles is ready for review in ${AWS::AccountId}:${TestVPCRegion}'
+                CustomData: !Sub '${ProjectName} pipeline (existing VPC and pre-provisioned IAM use case) ready for review in ${AWS::AccountId}:${TestVPCRegion}'
                 ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
                 NotificationArn: !Ref NotificationArn
               RunOrder: 4
 
-            # Action 9
+            # Action 8
             - Name: DeleteEnvironment
               ActionTypeId:
                 Category: Deploy
@@ -673,7 +744,7 @@ Resources:
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
               RunOrder: 5
 
-            # Action 10
+            # Action 9
             - Name: DeleteCore
               ActionTypeId:
                 Category: Deploy
@@ -687,7 +758,7 @@ Resources:
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
               RunOrder: 6
 
-            # Action 11
+            # Action 10
             - Name: DeleteEFS
               ActionTypeId:
                 Category: Invoke
@@ -698,9 +769,65 @@ Resources:
               InputArtifacts:
                 - Name: EnvMainOutput
               Configuration:
-                FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-                UserParameters: ''
+                FunctionName: !Ref CleanUpEFSLambda
+                UserParameters: 'delete_efs'
               RunOrder: 6
+
+            # Action 11
+            - Name: DeleteIAMCrossAccountDeploymentRole
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: 'env-iam-cross-account-deployment-role'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 7
+
+            # Action 12
+            - Name: DeleteEnvIAMRoles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: 'env-iam-roles'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 7
+
+            # Action 13
+            - Name: DeleteCoreIAMSharedRoles
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: 'core-iam-shared-roles'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 7
+  
+            # Action 14
+            - Name: DeleteBaseVPC
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: 'ds-team-vpc'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 7
 
   VPCDeployPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
