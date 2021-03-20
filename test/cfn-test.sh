@@ -8,7 +8,8 @@
 # These templates do not contain any nested templates and can be directly deployed from the file
 # no `aws cloudformation package` is needed
 
-S3_BUCKET_NAME=
+S3_BUCKET_NAME=ilyiny-cfn-artefacts-us-east-2
+make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # env-vpc.yaml
 # New VPC + private subnets only
@@ -93,6 +94,19 @@ aws cloudformation deploy \
                 SageMakerStudioStorageKMSKeyId= \
                 SageMakerExecutionRoleArn= \
                 SetupLambdaExecutionRoleArn=
+
+# Env-KMS
+aws cloudformation deploy \
+    --template-file build/$AWS_DEFAULT_REGION/env-kms.yaml \
+    --stack-name env-kms-test \
+    --parameter-overrides \
+        EnvName=sagemaker-mlops \
+        EnvType=dev \
+        DSTeamAdministratorRoleArn= \
+        DataScientistRoleArn= \
+        SageMakerExecutionRoleArn= \
+        SCLaunchRoleArn=  \
+        VPCEndpointS3Id= 
 
 #############################################################################################
 # Deployment into an existing VPC and with pre-provisioned IAM roles
@@ -298,8 +312,20 @@ aws cloudformation create-stack \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev
 
+###############################################################
+# CI/CD test pipeline deployment
 
-# CI/CD test pipeline
+
+# Deploy IAM roles - same as we use for the solution stacks
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/core-iam-shared-roles.yaml \
+                --stack-name base-iam-shared-roles \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                    DSAdministratorRoleName=base-$AWS_DEFAULT_REGION-DataScienceAdministrator \
+                    SageMakerDetectiveControlExecutionRoleName=base-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
+                    SCLaunchRoleName=base-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
+
 aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
 
 aws cloudformation deploy \
@@ -308,7 +334,8 @@ aws cloudformation deploy \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
                 CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
-                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns \
+                CodePipelineDeployRoleForDSEnvironmentArn=arn:aws:iam::949335012047:role/base-us-east-2-DSServiceCatalogLaunchRole
 
 
 aws cloudformation delete-stack \

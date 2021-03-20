@@ -165,7 +165,6 @@ Resources:
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
                 - !Ref SCLaunchRoleArn
-                - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*CodePipelineDeployRole*'
             Action:
             - kms:Encrypt
             - kms:Decrypt
@@ -181,7 +180,6 @@ Resources:
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
                 - !Ref SCLaunchRoleArn
-                - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*CodePipelineDeployRole*'
             Action:
             - kms:CreateGrant
             - kms:ListGrants

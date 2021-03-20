@@ -44,6 +44,10 @@ Parameters:
     Description: SNS ARN for pipeline events and manual approval events
     Type: String
 
+  CodePipelineDeployRoleForDSEnvironmentArn:
+    Description: ARN for CodePipeline deploy role
+    Type: String
+
 Resources:
 
   AutomationLambdaExecutionRole:
@@ -489,6 +493,8 @@ Resources:
         EnvironmentVariables:
           - Name: 'S3_BUCKET_NAME'
             Value: !Sub '${CfnArtifactS3BucketNamePrefix}-${AWS::Region}'
+          - Name: 'DEPLOYMENT_REGION'
+            Value: !Ref AWS::Region
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
@@ -563,7 +569,7 @@ Resources:
                 - Name: VPCOut
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
-                StackName: 'ds-team-vpc'
+                StackName: 'base-vpc'
                 Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 TemplatePath: 'BuildArtifact::aws-vpc.template.yaml'
@@ -700,7 +706,7 @@ Resources:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-env'
                 Capabilities: 'CAPABILITY_NAMED_IAM'
-                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RoleArn: !Ref CodePipelineDeployRoleForDSEnvironmentArn
                 TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
                 OutputFileName: 'env-main-output.json'
                 TemplateConfiguration: 'BuildArtifact::env-main.json'
@@ -741,7 +747,7 @@ Resources:
               Configuration:
                 ActionMode: 'DELETE_ONLY'
                 StackName: !Sub '${ProjectName}-env'
-                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RoleArn: !Ref CodePipelineDeployRoleForDSEnvironmentArn
               RunOrder: 5
 
             # Action 9
@@ -754,7 +760,7 @@ Resources:
               Region: !Ref TestVPCRegion
               Configuration:
                 ActionMode: 'DELETE_ONLY'
-                StackName: !Sub '${ProjectName}-env'
+                StackName: !Sub '${ProjectName}-core'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
               RunOrder: 6
 
@@ -774,7 +780,7 @@ Resources:
               RunOrder: 6
 
             # Action 11
-            - Name: DeleteIAMCrossAccountDeploymentRole
+            - Name: DeleteEnvironmentIAMCrossAccountRoles
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -788,7 +794,7 @@ Resources:
               RunOrder: 7
 
             # Action 12
-            - Name: DeleteEnvIAMRoles
+            - Name: DeleteEnvironmentIAMRoles
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
@@ -825,7 +831,7 @@ Resources:
               Region: !Ref TestVPCRegion
               Configuration:
                 ActionMode: 'DELETE_ONLY'
-                StackName: 'ds-team-vpc'
+                StackName: 'base-vpc'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
               RunOrder: 7
 
