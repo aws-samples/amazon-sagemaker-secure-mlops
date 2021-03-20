@@ -192,6 +192,13 @@ Outputs:
         - 'https://signin.aws.amazon.com/switchrole?account=${AWS::AccountId}&roleName=${DataScientistRoleName}&displayName=${DataScientistRoleName}'
         - DataScientistRoleName: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref DataScientistRoleArn ]]]]
   
+  SageMakerDomainId:
+    Description: SageMaker Domain Id
+    Value: !If
+      - SageMakerStudioDomainCondition
+      - !GetAtt EnvironmentSageMakerStudio.Outputs.SageMakerDomainId
+      - '' 
+  
 Parameters:
   EnvName:
     Type: String

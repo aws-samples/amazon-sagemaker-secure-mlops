@@ -64,6 +64,7 @@ Resources:
               if not event:
                   return
                   
+              print(event)
               sm_domain_id = event.get("SageMakerDomainId")
 
               print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")

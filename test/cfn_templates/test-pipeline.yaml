@@ -170,6 +170,92 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       Path: /
+      Policies:
+        - PolicyName: CodePipelineDeployRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'codecommit:CreateCommit'
+                  - 'codecommit:CreateRepository'
+                  - 'codecommit:DeleteRepository'
+                  - 'codecommit:GetRepository'
+                  - 'codecommit:ListRepositories'
+                  - 'codecommit:TagResource'
+                  - 'config:DescribeConfigurationRecorderStatus'
+                  - 'config:DescribeConfigurationRecorders'
+                  - 'ec2:DescribeAvailabilityZones'
+                  - 'ec2:CreateTags'
+                  - 'ec2:DeleteTags'
+                  - 'ec2:DescribeTags'
+                  - 'resource-groups:CreateGroup'
+                  - 'resource-groups:DeleteGroup'
+                  - 'resource-groups:Tag'
+                  - 'resource-groups:Untag'
+                  - 'ssm:AddTagsToResource'
+                  - 'ssm:DeleteParameter'
+                  - 'ssm:DeleteParameters'
+                  - 'ssm:GetParameter'
+                  - 'ssm:GetParameters'
+                  - 'ssm:PutParameter'
+                  - 'ssm:RemoveTagsFromResource'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'kms:CreateAlias'
+                  - 'kms:CreateGrant'
+                  - 'kms:CreateKey'
+                  - 'kms:Decrypt'
+                  - 'kms:DeleteAlias'
+                  - 'kms:DeleteCustomKeyStore'
+                  - 'kms:DeleteImportedKeyMaterial'
+                  - 'kms:DescribeKey'
+                  - 'kms:EnableKey'
+                  - 'kms:EnableKeyRotation'
+                  - 'kms:GenerateDataKey'
+                  - 'kms:ListAliases'
+                  - 'kms:PutKeyPolicy'
+                  - 'kms:ScheduleKeyDeletion'
+                  - 'kms:TagResource'
+                  - 'kms:UpdateAlias'
+                  - 'kms:UpdateCustomKeyStore'
+                  - 'kms:UpdateKeyDescription'
+                Resource: '*'
+                Effect: Allow
+              -
+                Action:
+                  - sagemaker:ListDomains
+                  - sagemaker:CreateDomain
+                  - sagemaker:DescribeDomain
+                  - sagemaker:DeleteDomain
+                  - sagemaker:UpdateDomain
+                  - sagemaker:ListUserProfiles
+                  - sagemaker:CreateUserProfile
+                  - sagemaker:UpdateUserProfile
+                  - sagemaker:DeleteUserProfile
+                  - sagemaker:DescribeUserProfile
+                  - sagemaker:ListApps
+                  - sagemaker:CreateApp
+                  - sagemaker:DescribeApp
+                  - sagemaker:DeleteApp
+                  - sagemaker:UpdateApp
+                  - sagemaker:CreateNotebookInstanceLifecycleConfig
+                  - sagemaker:DeleteNotebookInstanceLifecycleConfig
+                  - sagemaker:DescribeNotebookInstanceLifecycleConfig
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:domain/*"
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:user-profile/*"
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:app/*"
+                Effect: Allow
+              - 
+                Action:
+                  - servicecatalog:AcceptPortfolioShare
+                  - sagemaker:EnableSagemakerServicecatalogPortfolio
+                  - sagemaker:DisableSagemakerServicecatalogPortfolio
+                Resource: '*'
+                Effect: Allow
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AmazonEC2FullAccess'
         - 'arn:aws:iam::aws:policy/IAMFullAccess'
@@ -390,8 +476,7 @@ Resources:
                 TemplatePath: 'BuildArtifact::aws-vpc.template.yaml'
                 OutputFileName: 'vpc-output.json'
                 ParameterOverrides: !Sub '{
-                    "NumberOfAZs":"2",
-                    "AvailabilityZones": "${TestVPCRegion}a, ${TestVPCRegion}b"
+                    "AvailabilityZones": "${TestVPCRegion}a,${TestVPCRegion}b"
                    }'
                 TemplateConfiguration: 'BuildArtifact::base-vpc.json'
               RunOrder: 1
@@ -434,7 +519,7 @@ Resources:
               InputArtifacts:
                 - Name: BuildArtifact
               OutputArtifacts:
-                - Name: IamOut
+                - Name: IAMOut
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: 'env-iam-roles'
@@ -537,7 +622,7 @@ Resources:
               InputArtifacts:
                 - Name: BuildArtifact
                 - Name: VPCOut
-                - Name: IamOut
+                - Name: IAMOut
               OutputArtifacts:
                 - Name: EnvMainOutput
               Configuration:
@@ -550,14 +635,14 @@ Resources:
                 TemplateConfiguration: 'BuildArtifact::env-main.json'
                 ParameterOverrides: !Sub '{
                   "EnvName":"${ProjectName}",
-                  "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
-                  "DataScientistRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "DataScientistRoleArn"]},
-                  "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
-                  "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
-                  "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IamOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
-                  "AvailabilityZones":"${TestVPCRegion}a, ${TestVPCRegion}b",
-                  "ExistingVPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json, "VPCID"]},
-                  "ExistingS3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]},
+                  "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
+                  "DataScientistRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DataScientistRoleArn"]},
+                  "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
+                  "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
+                  "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
+                  "AvailabilityZones":"${TestVPCRegion}a,${TestVPCRegion}b",
+                  "ExistingVPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},
+                  "ExistingS3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]}
                 }'
               RunOrder: 3
 
@@ -573,3 +658,68 @@ Resources:
                 ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
                 NotificationArn: !Ref NotificationArn
               RunOrder: 4
+
+            # Action 9
+            - Name: DeleteEnvironment
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-env'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 5
+
+            # Action 10
+            - Name: DeleteCore
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-env'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 6
+
+            # Action 11
+            - Name: DeleteEFS
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+                UserParameters: ''
+              RunOrder: 6
+
+  VPCDeployPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${VPCDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${VPCDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
+
+
+
+
+
+  
