@@ -685,8 +685,8 @@ Resources:
                   Version: '1'
                   Provider: Manual
                 Configuration:
-                  CustomData: !Sub '${ProjectName} pipeline (existing VPC and pre-provisioned IAM use case) ready for review in ${AWS::AccountId}:${TestVPCRegion}'
-                  ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
+                  CustomData: !Sub '${ProjectName} pipeline for base-VPC test is ready in ${AWS::AccountId}:${AWS::Region}'
+                  ExternalEntityLink: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines?region=${AWS::Region}'
                   NotificationArn: !Ref NotificationArn
                 RunOrder: 3
 
