@@ -130,6 +130,7 @@ Resources:
               Service: 
                 - 'servicecatalog.amazonaws.com'
                 - 'cloudformation.amazonaws.com'
+                - 'codepipeline.amazonaws.com'
             Action: 
               - 'sts:AssumeRole'
       Path: /

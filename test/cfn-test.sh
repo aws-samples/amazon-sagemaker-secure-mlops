@@ -185,7 +185,6 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME \
         ParameterKey=CreateIAMRoles,ParameterValue=NO \
-        ParameterKey=DSAdmininstratorRole,ParameterValue=ds-team-us-east-2-DataScienceAdministrator \
         ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DataScienceAdministrator \
         ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
         ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSServiceCatalogLaunchRole
@@ -223,8 +222,6 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=CreateEnvironmentIAMRoles,ParameterValue=NO \
         ParameterKey=CreateS3VPCEndpoint,ParameterValue=NO \
-        ParameterKey=DSTeamAdministratorRoleName,ParameterValue=env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
-        ParameterKey=DataScientistRoleName,ParameterValue=env-iam-roles-DataScientistRole-PFIMUCN7IZ95 \
         ParameterKey=DSTeamAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
         ParameterKey=DataScientistRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScientistRole-PFIMUCN7IZ95  \
         ParameterKey=SageMakerExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/service-role/env-iam-roles-SageMakerExecutionRole-9CYD7UX2KG8D \
@@ -275,7 +272,6 @@ aws cloudformation create-stack \
 
     # Parameter block if CreateIAMRoles = NO (the IAM role ARNs must be provided)
     ParameterKey=CreateIAMRoles,ParameterValue=NO
-    ParameterKey=DSAdmininstrator,ParameterValue=
     ParameterKey=DSAdministratorRoleArn,ParameterValue=
     ParameterKey=SCLaunchRoleArn,ParameterValue=
     ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=
@@ -330,3 +326,11 @@ aws cloudformation delete-stack \
     --stack-name $STACK_NAME \
     --role-arn arn:aws:iam::949335012047:role/sagemaker-secure-mlops-codepipeline-deploy-role
              
+
+aws cloudformation delete-stack --stack-name base-env-iam-cross-account-deployment-role
+aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
+aws cloudformation delete-stack --stack-name base-env-iam-roles
+aws cloudformation delete-stack --stack-name sagemaker-secure-mlops-us-east-2-VPC-pipeline
+aws cloudformation delete-stack --stack-name base-vpc 
+
+aws cloudformation delete-stack --stack-name base-infra-us-east-2
