@@ -68,6 +68,7 @@ Resources:
             Principal:
               AWS: 
                 - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              Service:
                 - 'cloudformation.amazonaws.com'
                 - 'codepipeline.amazonaws.com'
             Action:
