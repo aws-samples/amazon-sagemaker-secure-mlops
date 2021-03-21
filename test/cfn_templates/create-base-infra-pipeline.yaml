@@ -1,0 +1,777 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create based test infrastructure (VPC and IAM roles) for base-vpc-pipeline test
+
+Parameters:
+  ProjectName:
+      Description: Project name
+      Type: String
+      Default: 'sagemaker-secure-mlops'
+
+  TestVPCRegion:
+    Description: Region for existing VPC and pre-provisioned IAM use case test
+    Type: String
+    Default: 'us-east-2'
+
+  CfnArtifactS3BucketNamePrefix:
+    Description: S3 bucket name prefix for artifact bucket
+    Type: String
+    Default: 'ilyiny-cfn-artefacts'
+
+  CodeCommitRepositoryArn:
+    Description: ARN of CodeCommit repository with source code
+    Type: String
+
+  NotificationArn:
+    Description: SNS ARN for pipeline events and manual approval events
+    Type: String
+
+Resources:
+
+  AutomationLambdaExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: InlinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: IAMPermission
+                Effect: Allow
+                Action:
+                  - 'iam:GetRole'
+                Resource: '*'
+              - Sid: ServiceCatalogPermission
+                Effect: Allow
+                Action:
+                  - servicecatalog:*
+                Resource: '*'
+              - Sid: S3ArtifactBucketPermission
+                Effect: Allow
+                Action:
+                  - 's3:*Object'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+
+  CleanUpEFSLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          efs = boto3.client("efs")
+
+          def lambda_handler(event, context):
+
+          if not event:
+              return
+              
+          bucket = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["bucketName"]
+          key = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["objectKey"]
+
+          obj = s3.get_object(Bucket = bucket, Key = key)
+          msg = json.loads(obj['Body'].read().decode('utf-8'))
+          
+          print(f"object body: {msg}")
+
+          sm_domain_id = msg["SageMakerDomainId"]
+
+          print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
+          fs_id = [
+              fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
+                  if [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
+              ]
+
+          print(f"EFS file system id(s): {fs_id}")
+
+          for id in fs_id:
+              print(f"Delete mount targets for EFS file system id: {id}")
+              for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
+                  efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
+              
+              while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
+                  print("Wait until mount targes have been deleted")
+
+              print(f"Delete EFS file system {id}")
+              efs.delete_file_system(FileSystemId=id)
+      Description: Delete SageMaker Studio left-over EFS file systems
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt AutomationLambdaExecutionRole.Arn 
+      Runtime: python3.8
+      Timeout: 300
+
+  CodePipelineServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      RoleName: !Sub '${ProjectName}-${AWS::Region}-CodePipelineServiceRole' 
+      Policies:
+        - PolicyName: CodePipelineServiceRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'iam:PassRole'
+                Resource: '*'
+                Effect: 'Allow'
+                Condition:
+                  StringEqualsIfExists: 
+                    'iam:PassedToService':
+                      - 'cloudformation.amazonaws.com'
+                      - 'elasticbeanstalk.amazonaws.com'
+                      - 'ec2.amazonaws.com'
+                      - 'ecs-tasks.amazonaws.com'
+              -
+                Action:
+                  - 'codecommit:CancelUploadArchive'
+                  - 'codecommit:GetBranch'
+                  - 'codecommit:GetCommit'
+                  - 'codecommit:GetRepository'
+                  - 'codecommit:GetUploadArchiveStatus'
+                  - 'codecommit:UploadArchive'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codedeploy:CreateDeployment'
+                  - 'codedeploy:GetApplication'
+                  - 'codedeploy:GetApplicationRevision'
+                  - 'codedeploy:GetDeployment'
+                  - 'codedeploy:GetDeploymentConfig'
+                  - 'codedeploy:RegisterApplicationRevision'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codestar-connections:UseConnection'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'elasticbeanstalk:*'
+                  - 'ec2:*'
+                  - 'elasticloadbalancing:*'
+                  - 'autoscaling:*'
+                  - 'cloudwatch:*'
+                  - 's3:*'
+                  - 'sns:*'
+                  - 'cloudformation:*'
+                  - 'rds:*'
+                  - 'sqs:*'
+                  - 'ecs:*'
+                  - 'ecr:*'
+                  - 'servicecatalog:*'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:ListFunctions'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'opsworks:CreateDeployment'
+                  - 'opsworks:DescribeApps'
+                  - 'opsworks:DescribeCommands'
+                  - 'opsworks:DescribeDeployments'
+                  - 'opsworks:DescribeInstances'
+                  - 'opsworks:DescribeStacks'
+                  - 'opsworks:UpdateApp'
+                  - 'opsworks:UpdateStack'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codebuild:BatchGetBuilds'
+                  - 'codebuild:StartBuild'
+                  - 'codebuild:BatchGetBuildBatches'
+                  - 'codebuild:StartBuildBatch'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'states:DescribeExecution'
+                  - 'states:DescribeStateMachine'
+                  - 'states:StartExecution'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'appconfig:StartDeployment'
+                  - 'appconfig:StopDeployment'
+                  - 'appconfig:GetDeployment'
+                Resource: '*'
+                Effect: 'Allow'
+
+  CodePipelineDeployRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: CodePipelineDeployRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'codecommit:CreateCommit'
+                  - 'codecommit:CreateRepository'
+                  - 'codecommit:DeleteRepository'
+                  - 'codecommit:GetRepository'
+                  - 'codecommit:ListRepositories'
+                  - 'codecommit:TagResource'
+                  - 'config:DescribeConfigurationRecorderStatus'
+                  - 'config:DescribeConfigurationRecorders'
+                  - 'ec2:DescribeAvailabilityZones'
+                  - 'ec2:CreateTags'
+                  - 'ec2:DeleteTags'
+                  - 'ec2:DescribeTags'
+                  - 'resource-groups:CreateGroup'
+                  - 'resource-groups:DeleteGroup'
+                  - 'resource-groups:Tag'
+                  - 'resource-groups:Untag'
+                  - 'ssm:AddTagsToResource'
+                  - 'ssm:DeleteParameter'
+                  - 'ssm:DeleteParameters'
+                  - 'ssm:GetParameter'
+                  - 'ssm:GetParameters'
+                  - 'ssm:PutParameter'
+                  - 'ssm:RemoveTagsFromResource'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'kms:CreateAlias'
+                  - 'kms:CreateGrant'
+                  - 'kms:CreateKey'
+                  - 'kms:Decrypt'
+                  - 'kms:DeleteAlias'
+                  - 'kms:DeleteCustomKeyStore'
+                  - 'kms:DeleteImportedKeyMaterial'
+                  - 'kms:DescribeKey'
+                  - 'kms:EnableKey'
+                  - 'kms:EnableKeyRotation'
+                  - 'kms:GenerateDataKey'
+                  - 'kms:ListAliases'
+                  - 'kms:PutKeyPolicy'
+                  - 'kms:ScheduleKeyDeletion'
+                  - 'kms:TagResource'
+                  - 'kms:UpdateAlias'
+                  - 'kms:UpdateCustomKeyStore'
+                  - 'kms:UpdateKeyDescription'
+                Resource: '*'
+                Effect: Allow
+              -
+                Action:
+                  - sagemaker:ListDomains
+                  - sagemaker:CreateDomain
+                  - sagemaker:DescribeDomain
+                  - sagemaker:DeleteDomain
+                  - sagemaker:UpdateDomain
+                  - sagemaker:ListUserProfiles
+                  - sagemaker:CreateUserProfile
+                  - sagemaker:UpdateUserProfile
+                  - sagemaker:DeleteUserProfile
+                  - sagemaker:DescribeUserProfile
+                  - sagemaker:ListApps
+                  - sagemaker:CreateApp
+                  - sagemaker:DescribeApp
+                  - sagemaker:DeleteApp
+                  - sagemaker:UpdateApp
+                  - sagemaker:CreateNotebookInstanceLifecycleConfig
+                  - sagemaker:DeleteNotebookInstanceLifecycleConfig
+                  - sagemaker:DescribeNotebookInstanceLifecycleConfig
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:domain/*"
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:user-profile/*"
+                  - !Sub "arn:${AWS::Partition}:sagemaker:*:*:app/*"
+                Effect: Allow
+              - 
+                Action:
+                  - servicecatalog:AcceptPortfolioShare
+                  - sagemaker:EnableSagemakerServicecatalogPortfolio
+                  - sagemaker:DisableSagemakerServicecatalogPortfolio
+                Resource: '*'
+                Effect: Allow
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEC2FullAccess'
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/CloudWatchLogsFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSLambda_FullAccess'
+
+  CodeBuildServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CodeBuildServiceRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 's3:*Object'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
+                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+                  - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*'
+                  - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*/*}'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codecommit:GitPull'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codebuild:CreateReportGroup'
+                  - 'codebuild:CreateReport'
+                  - 'codebuild:UpdateReport'
+                  - 'codebuild:BatchPutTestCases'
+                  - 'codebuild:BatchPutCodeCoverages'
+                Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
+                Effect: 'Allow'
+              
+  CodePipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+
+  CfnTemplateBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub '${ProjectName}-cfn-build-${AWS::Region}'
+      Description: !Sub 'Building CFN templates for ${ProjectName}'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts: 
+        Type: CODEPIPELINE
+      Environment:
+        Type: 'LINUX_CONTAINER'
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/amazonlinux2-x86_64-standard:3.0'
+        EnvironmentVariables:
+          - Name: 'S3_BUCKET_NAME_PREFIX'
+            Value: !Sub '${CfnArtifactS3BucketNamePrefix}'
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: 'ENABLED'
+      TimeoutInMinutes: 5
+
+  CloudWatchEventsTriggerRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CloudWatchEventsRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'codepipeline:StartPipelineExecution'
+                Resource: 
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
+                Effect: 'Allow'
+
+  CodeCommitTriggerEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub '${ProjectName}-codecommit-trigger-${AWS::Region}'
+      Description: !Sub 'Rule to trigger a CodePipeline when ${CodeCommitRepositoryArn} is updated with a commit'
+      RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+      EventPattern:
+        source:
+          - 'aws.codecommit'
+        detail-type:
+          - 'CodeCommit Repository State Change'
+        resources:
+          - !Ref CodeCommitRepositoryArn
+        detail:
+          event:
+            - 'referenceCreated'
+            - 'referenceUpdated'
+          referenceType:
+            - "branch"
+          referenceName:
+            - 'master'
+            - 'main'
+      State: 'ENABLED'
+      Targets:
+        -
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
+          Id: !Sub codecommit-${BaseDeployPipeline}-trigger
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+
+  ########################################################################
+  # Pipelines
+  ########################################################################
+  BaseDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-base'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactsBucket
+
+      Stages:
+          # Stage: Source -----------------------------------------------
+          - Name: Source
+            Actions:
+              - Name: Source
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  PollForSourceChanges: 'false'
+                  RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                  BranchName: 'master'
+                OutputArtifacts:
+                  - Name: SourceArtifact
+
+          # Stage: Build -----------------------------------------------
+          - Name: Build
+            Actions:
+              - Name: BuildCFNTemplates
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  ProjectName: !Ref CfnTemplateBuildProject
+                RunOrder: 1
+
+          # Stage: Deploy -----------------------------------------------
+          - Name: Deploy
+            Actions:
+
+              # Action 1 
+              - Name: BaseVPC
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: VPCOut
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: 'base-vpc'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::aws-vpc.template.yaml'
+                  OutputFileName: 'vpc-output.json'
+                  ParameterOverrides: !Sub '{
+                      "AvailabilityZones": "${TestVPCRegion}a,${TestVPCRegion}b"
+                    }'
+                  TemplateConfiguration: 'BuildArtifact::base-vpc.json'
+                RunOrder: 1
+
+              # Action 2 
+              - Name: CoreIAMSharedRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: CoreIAMSharedRolesOutput
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: 'base-core-iam-shared-roles'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::core-iam-shared-roles.yaml'
+                  OutputFileName: 'core-iam-shared-roles-output.json'
+                  TemplateConfiguration: 'BuildArtifact::core-iam-shared-roles.json'
+                  ParameterOverrides: !Sub '{
+                    "DSAdministratorRoleName": "base-${TestVPCRegion}-DataScienceAdministrator", 
+                    "SageMakerDetectiveControlExecutionRoleName": "base-${TestVPCRegion}-DSSageMakerDetectiveControlRole", 
+                    "SCLaunchRoleName": "base-${TestVPCRegion}-DSServiceCatalogLaunchRole"
+                  }'
+                RunOrder: 1
+  
+              # Action 3
+              - Name: EnvironmentIAMRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: IAMOut
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: 'base-env-iam-roles'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::env-iam.yaml'
+                  OutputFileName: 'iam-out.json'
+                  TemplateConfiguration: 'BuildArtifact::env-iam.json'
+                  ParameterOverrides: '{
+                      "EnvName":"base"
+                  }'
+                RunOrder: 1
+
+              # Action 4
+              - Name: EnvironmentIAMCrossAccountRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: EnvIAMCrossAccountDeploymentRoleOutput
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: 'base-env-iam-cross-account-deployment-role'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::env-iam-cross-account-deployment-role.yaml'
+                  OutputFileName: 'env-iam-cross-account-deployment-role-output.json'
+                  TemplateConfiguration: 'BuildArtifact::env-iam-cross-account-deployment-role.json'
+                  ParameterOverrides: !Sub '{
+                      "EnvName":"${ProjectName}",
+                      "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" 
+                    }'
+                RunOrder: 1
+
+              # Action 5
+              - Name: BaseVPCTestPipeline
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                  - Name: IAMOut
+                  - Name: VPCOut
+                OutputArtifacts:
+                  - Name: BaseVPCTestPipelineOutput
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-${AWS::Region}-VPC-pipeline'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::test-base-vpc-pipeline.yaml'
+                  OutputFileName: 'test-base-vpc-pipeline-output.json'
+                  TemplateConfiguration: 'BuildArtifact::test-base-vpc-pipeline.json'
+                  ParameterOverrides: '{
+                      "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
+                      "DataScientistRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DataScientistRoleArn"]}, 
+                      "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
+                      "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
+                      "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
+                      "VPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},
+                      "S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]},
+                    }'
+                RunOrder: 2
+
+              # Action 6
+              - Name: ApproveDeployment
+                ActionTypeId:
+                  Category: Approval
+                  Owner: AWS
+                  Version: '1'
+                  Provider: Manual
+                Configuration:
+                  CustomData: !Sub '${ProjectName} pipeline (existing VPC and pre-provisioned IAM use case) ready for review in ${AWS::AccountId}:${TestVPCRegion}'
+                  ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
+                  NotificationArn: !Ref NotificationArn
+                RunOrder: 3
+
+              # Action 7
+              - Name: DeleteBaseVPCTestPipeline
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: !Sub '${ProjectName}-${AWS::Region}-VPC-pipeline'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 4
+
+              # Action 8
+              - Name: DeleteEnvironmentIAMCrossAccountRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: 'env-iam-cross-account-deployment-role'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 5
+
+              # Action 9
+              - Name: DeleteEnvironmentIAMRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: 'env-iam-roles'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 5
+
+              # Action 10
+              - Name: DeleteCoreIAMSharedRoles
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: 'core-iam-shared-roles'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 5
+    
+              # Action 11
+              - Name: DeleteBaseVPC
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestVPCRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: 'base-vpc'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 5
+  
+  BasePipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${BaseDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'

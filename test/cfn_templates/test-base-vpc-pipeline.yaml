@@ -1,0 +1,272 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Create test CI/CD pipeline for base-VPC test (existing VPC and pre-provisioned IAM roles) for SageMaker MLOps project
+
+Parameters:
+  ProjectName:
+    Description: Project name
+    Type: String
+    Default: 'sagemaker-secure-mlops'
+  
+  TestVPCRegion:
+    Description: Region for existing VPC and pre-provisioned IAM use case test
+    Type: String
+    Default: 'us-east-2'
+
+  CodeCommitRepositoryArn:
+    Description: ARN of CodeCommit repository with source code
+    Type: String
+
+  NotificationArn:
+    Description: SNS ARN for pipeline events and manual approval events
+    Type: String
+
+  CodePipelineServiceRoleArn:
+    Type: String
+    Description: CodePipeline service role
+  
+  CleanUpEFSLambdaName:
+    Type: String
+    Description: Lambda function name for EFS deletion
+
+  CodePipelineArtifactsBucket:
+    Type: String
+    Description: Amazon S3 bucket name for CodePipeline artifacts
+
+  CfnTemplateBuildProject:
+    Type: String
+    Description: Solution CodeBuild project
+
+  DSAdministratorRoleArn:
+    Type: String 
+    Description: Data Science Administrator role ARN - must be created outside of this stack
+
+  SCLaunchRoleArn:
+    Type: String
+    Description: Service Catalog Launch role ARN - must be created outside of this stack
+
+  SecurityControlExecutionRoleArn:
+    Type: String
+    Description: Execution role ARN for security controls - must be created outside of this stack
+
+  DSTeamAdministratorRoleArn:
+    Description: The ARN of the DataScienceTeamAdministrator role if created outside the stack.
+    Type: String
+
+  DataScientistRoleArn:
+    Description: The ARN of the DataScientist role - must be created outside the stack.
+    Type: String
+
+  SageMakerExecutionRoleArn:
+    Description: The ARN of the SageMaker Execution - must be created outside the stack. 
+    Type: String
+
+  SetupLambdaExecutionRoleArn:
+    Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup - must be created outside of the stack
+    Type: String
+
+  SCProjectLaunchRoleArn:
+    Description: The ARN of the Service Catalog Project launch role - must be created outside the stack. 
+    Type: String
+
+  VPCId:
+    Type: String
+    Description: Existing VPC Id
+
+  S3VPCEndpointId:
+    Type: String
+    Description: Existing S3 VPC Endpoint Id
+
+Resources:
+
+  ########################################################################
+  # Pipelines
+  ########################################################################
+  BaseVPCTestPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-VPC'
+      RoleArn: !Ref CodePipelineServiceRoleArn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactsBucket
+      Stages:
+        # Stage: Source -----------------------------------------------
+        - Name: Source
+          Actions:
+            - Name: Source
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                PollForSourceChanges: 'false'
+                RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                BranchName: 'master'
+              OutputArtifacts:
+                - Name: SourceArtifact
+
+        # Stage: Build -----------------------------------------------
+        - Name: Build
+          Actions:
+            - Name: BuildCFNTemplates
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: SourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref CfnTemplateBuildProject
+              RunOrder: 1
+
+        # Stage: Deploy -----------------------------------------------
+        - Name: Deploy
+          Actions:
+
+            # Action 1
+            - Name: CoreMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-core'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !Ref DSAdministratorRoleArn
+                TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
+                OutputFileName: 'core-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::core-main.json'
+                ParameterOverrides: !Sub '{
+                  "StackSetName":"${ProjectName}-core",
+                  "CreateIAMRoles":"NO",
+                  "DSAdministratorRoleArn":"${DSAdministratorRoleArn}",
+                  "SecurityControlExecutionRoleArn":"${SecurityControlExecutionRoleArn}",
+                  "SCLaunchRoleArn":"${SCLaunchRoleArn}"
+                }'
+              RunOrder: 1
+
+            # Action 2
+            - Name: EnvironmentMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-env'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !Ref SCLaunchRoleArn
+                TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
+                OutputFileName: 'env-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::env-main.json'
+                ParameterOverrides: !Sub '{
+                  "DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}",
+                  "DataScientistRoleArn":"${DataScientistRoleArn}",
+                  "SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}",
+                  "SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}",
+                  "SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}",
+                  "AvailabilityZones":"${TestVPCRegion}a,${TestVPCRegion}b",
+                  "ExistingVPCId":"${VPCId}",
+                  "ExistingS3VPCEndpointId":"${S3VPCEndpointId}"
+                }'
+              RunOrder: 2
+
+            # Action 3
+            - Name: ApproveDeployment
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub '${ProjectName} pipeline (existing VPC and pre-provisioned IAM use case) ready for review in ${AWS::AccountId}:${TestVPCRegion}'
+                ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
+                NotificationArn: !Ref NotificationArn
+              RunOrder: 3
+
+            # Action 4
+            - Name: DeleteEnvironment
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-env'
+                RoleArn: !Ref SCLaunchRoleArn
+              RunOrder: 4
+
+            # Action 5
+            - Name: DeleteCore
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !Ref DSAdministratorRoleArn
+              RunOrder: 5
+
+            # Action 6
+            - Name: DeleteEFS
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref TestVPCRegion
+              InputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                FunctionName: !Ref CleanUpEFSLambdaName
+                UserParameters: 'EnvMainOutput'
+              RunOrder: 5
+         
+  BaseVPCTestPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${BaseVPCTestPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseVPCTestPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
+
+
+
+
+
+  

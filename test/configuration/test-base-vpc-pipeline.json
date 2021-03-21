@@ -1,0 +1,15 @@
+{
+    "Parameters" : {
+        "ProjectName":"sagemaker-secure-mlops",
+        "TestVPCRegion":"eu-east-2",
+        "CodeCommitRepositoryArn":"arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops",
+        "NotificationArn":"arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns",
+        "CodePipelineServiceRoleArn":"arn:aws:iam::949335012047:role/service-role/sagemaker-secure-mlops-east-2-CodePipelineServiceRole",
+        "CleanUpEFSLambdaName":"sagemaker-secure-mlops-automation-CleanUpEFS",
+        "CodePipelineArtifactsBucket":"codepipeline-sagemaker-secure-mlops-us-east-2",
+        "CfnTemplateBuildProject":"sagemaker-secure-mlops-cfn-build-us-east-2",
+        "DSAdministratorRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DataScienceAdministrator",
+        "SCLaunchRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DSServiceCatalogLaunchRole",
+        "SecurityControlExecutionRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DSSageMakerDetectiveControlRole"
+      }
+}

@@ -314,31 +314,20 @@ aws cloudformation create-stack \
 
 ###############################################################
 # CI/CD test pipeline deployment
-
-
-# Deploy IAM roles - same as we use for the solution stacks
-aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/core-iam-shared-roles.yaml \
-                --stack-name base-iam-shared-roles \
-                --capabilities CAPABILITY_NAMED_IAM \
-                --parameter-overrides \
-                    DSAdministratorRoleName=base-$AWS_DEFAULT_REGION-DataScienceAdministrator \
-                    SageMakerDetectiveControlExecutionRoleName=base-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
-                    SCLaunchRoleName=base-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
-
 aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
 
+# Base infrastructure and base-VPC pipeline
 aws cloudformation deploy \
-                --template-file test/cfn_templates/test-pipeline.yaml \
-                --stack-name sagemaker-mlops-pipeline-$AWS_DEFAULT_REGION \
+                --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
+                --stack-name base-infra-$AWS_DEFAULT_REGION \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
                 CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
-                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns \
-                CodePipelineDeployRoleForDSEnvironmentArn=arn:aws:iam::949335012047:role/base-us-east-2-DSServiceCatalogLaunchRole
+                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 
-
+# Delete stack under a role other than it has been created
+STACK_NAME=
 aws cloudformation delete-stack \
-    --stack-name sagemaker-secure-mlops-automation-lambda-functions \
+    --stack-name $STACK_NAME \
     --role-arn arn:aws:iam::949335012047:role/sagemaker-secure-mlops-codepipeline-deploy-role
              

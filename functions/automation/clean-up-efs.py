@@ -9,12 +9,15 @@ def lambda_handler(event, context):
     if not event:
         return
         
-    sm_domain_id = event.get("SageMakerDomainId")
+    bucket = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["bucketName"]
+    key = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["objectKey"]
 
     obj = s3.get_object(Bucket = bucket, Key = key)
     msg = json.loads(obj['Body'].read().decode('utf-8'))
     
     print(f"object body: {msg}")
+
+    sm_domain_id = msg["SageMakerDomainId"]
 
     print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
     fs_id = [
