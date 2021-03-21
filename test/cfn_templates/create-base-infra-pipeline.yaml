@@ -673,7 +673,7 @@ Resources:
                       "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
                       "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
                       "VPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},
-                      "S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]},
+                      "S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]}
                     }'
                 RunOrder: 2
 

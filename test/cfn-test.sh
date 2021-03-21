@@ -316,7 +316,6 @@ aws cloudformation create-stack \
 # CI/CD test pipeline deployment
 aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
 
-# Base infrastructure and base-VPC pipeline
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \
