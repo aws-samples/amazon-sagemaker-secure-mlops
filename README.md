@@ -999,3 +999,26 @@ aws cloudformation delete-stack --stack-name env-iam-roles
 aws cloudformation delete-stack --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name ds-team-vpc
 ```
+
+# AppendixC
+
+## Solution CI/CD pipelines
+The solution is tested end-to-end for all possible depoyment options using [AWS CodePipeline](https://aws.amazon.com/codepipeline/) and AWS developer tools.
+
+## Setup CI/CD pipelines
+
+### Setup CodeCommit repository and notifications
+
+### Setup pipelines
+To setup all CI/CD pipelines run the following command from the solution directory:
+```bash
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
+
+aws cloudformation deploy \
+                --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
+                --stack-name base-infra-$AWS_DEFAULT_REGION \
+                --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                CodeCommitRepositoryArn= \
+                NotificationArn=
+```
