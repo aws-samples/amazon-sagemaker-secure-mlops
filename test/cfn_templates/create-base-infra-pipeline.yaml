@@ -313,24 +313,7 @@ Resources:
                 Effect: 'Allow'
               -
                 Action:
-                  - 'kms:CreateAlias'
-                  - 'kms:CreateGrant'
-                  - 'kms:CreateKey'
-                  - 'kms:Decrypt'
-                  - 'kms:DeleteAlias'
-                  - 'kms:DeleteCustomKeyStore'
-                  - 'kms:DeleteImportedKeyMaterial'
-                  - 'kms:DescribeKey'
-                  - 'kms:EnableKey'
-                  - 'kms:EnableKeyRotation'
-                  - 'kms:GenerateDataKey'
-                  - 'kms:ListAliases'
-                  - 'kms:PutKeyPolicy'
-                  - 'kms:ScheduleKeyDeletion'
-                  - 'kms:TagResource'
-                  - 'kms:UpdateAlias'
-                  - 'kms:UpdateCustomKeyStore'
-                  - 'kms:UpdateKeyDescription'
+                  - 'kms:*'
                 Resource: '*'
                 Effect: Allow
               -
