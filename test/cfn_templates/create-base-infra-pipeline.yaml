@@ -318,6 +318,11 @@ Resources:
                 Effect: Allow
               -
                 Action:
+                  - 'lambda:*'
+                Resource: '*'
+                Effect: Allow
+              -
+                Action:
                   - sagemaker:ListDomains
                   - sagemaker:CreateDomain
                   - sagemaker:DescribeDomain
@@ -358,7 +363,6 @@ Resources:
         - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
         - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
         - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
-        - 'arn:aws:iam::aws:policy/AWSLambda_FullAccess'
         - 'arn:aws:iam::aws:policy/AWSCodePipelineFullAccess'
 
   CodeBuildServiceRole:
