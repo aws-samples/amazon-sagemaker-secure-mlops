@@ -75,6 +75,10 @@ Outputs:
     Description: URL for assuming the role of a environment user
     Value: !GetAtt DataScienceEnvironment.Outputs.AssumeDataScientistRole
 
+  SageMakerDomainId:
+    Description: SageMaker Domain Id
+    Value: !GetAtt DataScienceEnvironment.Outputs.SageMakerDomainId
+
 Parameters:
   EnvName:
     Type: String

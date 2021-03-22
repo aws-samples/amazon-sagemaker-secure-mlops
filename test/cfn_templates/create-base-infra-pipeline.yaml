@@ -16,6 +16,11 @@ Parameters:
     Type: String
     Default: 'us-east-2'
 
+  TestDSQuickstartRegion:
+    Description: Region for existing VPC and pre-provisioned IAM use case test
+    Type: String
+    Default: 'eu-central-1'
+
   CfnArtifactS3BucketNamePrefix:
     Description: S3 bucket name prefix for artifact bucket
     Type: String
@@ -85,48 +90,69 @@ Resources:
         ZipFile: |
           import json
           import boto3
+          import time
 
           efs = boto3.client("efs")
+          s3 = boto3.client("s3")
+          ec2 = boto3.client("ec2")
 
           def lambda_handler(event, context):
 
-          if not event:
-              return
+              if not event:
+                  return
+                  
+              bucket = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["bucketName"]
+              key = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["objectKey"]
+              user_param = event["CodePipeline.job"]["data"]["actionConfiguration"]["configuration"]["UserParameters"]
               
-          bucket = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["bucketName"]
-          key = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["objectKey"]
+              print(f"{bucket}/{key}")
+              print(f"{user_param}")
 
-          obj = s3.get_object(Bucket = bucket, Key = key)
-          msg = json.loads(obj['Body'].read().decode('utf-8'))
-          
-          print(f"object body: {msg}")
-
-          sm_domain_id = msg["SageMakerDomainId"]
-
-          print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
-          fs_id = [
-              fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
-                  if [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
-              ]
-
-          print(f"EFS file system id(s): {fs_id}")
-
-          for id in fs_id:
-              print(f"Delete mount targets for EFS file system id: {id}")
-              for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
-                  efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
+              # read output from the CloudFormation stack to get the SageMaker domain id
+              obj = s3.get_object(Bucket = bucket, Key = key)
+              msg = json.loads(obj['Body'].read().decode('utf-8'))
               
-              while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
-                  print("Wait until mount targes have been deleted")
+              print(f"object body: {msg}")
 
-              print(f"Delete EFS file system {id}")
-              efs.delete_file_system(FileSystemId=id)
+              sm_domain_id = msg.get("SageMakerDomainId")
+              vpc_id=""
+
+              # Get EFS which belongs to SageMaker (based on a tag)
+              print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
+              for id in [
+                  fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
+                      if fs.get("Tags") and [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
+                  ]:
+                  print(f"Delete mount targets for EFS file system id: {id}")
+                  for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
+                      efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
+                      vpc_id = mt["VpcId"]
+                  
+                  while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
+                      print("Wait until mount targes have been deleted")
+                      time.sleep(5)
+
+                  # Delete SageMaker EFS security groups (based on a tag)
+                  for sg in [sg for sg in ec2.describe_security_groups(Filters=[{"Name":"vpc-id","Values":[vpc_id]}])["SecurityGroups"]
+                      if sg.get("Tags") and [t["Value"] for t in sg["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
+                  ]:
+                      if len(sg["IpPermissionsEgress"]) > 0:
+                          ec2.revoke_security_group_egress(GroupId=sg["GroupId"], IpPermissions=sg["IpPermissionsEgress"])
+                      if len(sg["IpPermissions"]) > 0:
+                          ec2.revoke_security_group_ingress(GroupId=sg["GroupId"], IpPermissions=sg["IpPermissions"])
+                      ec2.delete_security_group(GroupId=sg["GroupId"])
+
+                  print(f"Delete EFS file system {id}")
+                  efs.delete_file_system(FileSystemId=id)
+
+              if vpc_id and user_param.split(":")[0] == "VPC" and user_param.split(":")[1] == "delete":
+                  ec2.delete_vpc(VpcId=vpc_id)
       Description: Delete SageMaker Studio left-over EFS file systems
       Handler: index.lambda_handler
       MemorySize: 128
       Role: !GetAtt AutomationLambdaExecutionRole.Arn 
       Runtime: python3.8
-      Timeout: 300
+      Timeout: 180
 
   CodePipelineServiceRole:
     Type: 'AWS::IAM::Role'
@@ -490,6 +516,10 @@ Resources:
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
           Id: !Sub codecommit-${BaseDeployPipeline}-trigger
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+        - 
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
+          Id: !Sub codecommit-${DSQuickstartDeployPipeline}-trigger
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
   # Pipelines
@@ -686,8 +716,8 @@ Resources:
                   Version: '1'
                   Provider: Manual
                 Configuration:
-                  CustomData: !Sub '${ProjectName} pipeline for base-VPC test is ready in ${AWS::AccountId}:${AWS::Region}'
-                  ExternalEntityLink: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines?region=${AWS::Region}'
+                  CustomData: !Sub '${ProjectName} pipeline for base-VPC test is ready in ${AWS::AccountId}:${AWS::Region}. Start the pipeline to execute the test.'
+                  ExternalEntityLink: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines/${ProjectName}-${AWS::Region}-VPC/view?region=${AWS::Region}'
                   NotificationArn: !Ref NotificationArn
                 RunOrder: 3
 
@@ -715,7 +745,7 @@ Resources:
                 Region: !Ref TestVPCRegion
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'env-iam-cross-account-deployment-role'
+                  StackName: 'base-env-iam-cross-account-deployment-role'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
 
@@ -729,7 +759,7 @@ Resources:
                 Region: !Ref TestVPCRegion
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'env-iam-roles'
+                  StackName: 'base-env-iam-roles'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
 
@@ -743,7 +773,7 @@ Resources:
                 Region: !Ref TestVPCRegion
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'core-iam-shared-roles'
+                  StackName: 'base-core-iam-shared-roles'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
     
@@ -771,6 +801,135 @@ Resources:
         - 'codepipeline-pipeline-manual-approval-needed'
       Name: !Sub '${BaseDeployPipeline}-notifications'
       Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
+
+  ########################################################################
+  DSQuickstartDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-ds-quickstart'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref CodePipelineArtifactsBucket
+
+      Stages:
+          # Stage: Source -----------------------------------------------
+          - Name: Source
+            Actions:
+              - Name: Source
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  PollForSourceChanges: 'false'
+                  RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                  BranchName: 'master'
+                OutputArtifacts:
+                  - Name: SourceArtifact
+
+          # Stage: Build -----------------------------------------------
+          - Name: Build
+            Actions:
+              - Name: BuildCFNTemplates
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Region: !Ref TestDSQuickstartRegion
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  ProjectName: !Ref CfnTemplateBuildProject
+                RunOrder: 1
+
+          # Stage: Deploy -----------------------------------------------
+          - Name: Deploy
+            Actions:
+
+              # Action 1 
+              - Name: DSQuickstart
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestDSQuickstartRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: DSQuickStartArtifact
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-quickstart'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::data-science-environment-quickstart.yaml'
+                  OutputFileName: 'quickstart-output.json'
+                  TemplateConfiguration: 'data-science-environment-quickstart.json'
+                RunOrder: 1
+
+              # Action 2
+              - Name: ApproveDeployment
+                ActionTypeId:
+                  Category: Approval
+                  Owner: AWS
+                  Version: '1'
+                  Provider: Manual
+                Configuration:
+                  CustomData: !Sub '${ProjectName} for DS Quickstart test is deployed in ${AWS::AccountId}:${TestDSQuickstartRegion}.'
+                  ExternalEntityLink: !Sub 'https://${TestDSQuickstartRegion}.console.aws.amazon.com/cloudformation/home?region=${TestDSQuickstartRegion}'
+                  NotificationArn: !Ref NotificationArn
+                RunOrder: 2
+
+              # Action 3
+              - Name: DeleteDSQuickstart
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestDSQuickstartRegion
+                Configuration:
+                  ActionMode: 'DELETE_ONLY'
+                  StackName: !Sub '${ProjectName}-quickstart'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                RunOrder: 3
+
+              # Action 4
+              - Name: DeleteEFS
+                ActionTypeId:
+                  Category: Invoke
+                  Owner: AWS
+                  Provider: Lambda
+                  Version: '1'
+                Region: !Ref TestDSQuickstartRegion
+                InputArtifacts:
+                  - Name: DSQuickStartArtifact
+                Configuration:
+                  FunctionName: !Ref CleanUpEFSLambda
+                  UserParameters: 'VPC:delete'
+                RunOrder: 4
+
+  DSQuicksigtPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${DSQuickstartDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
       Status: 'ENABLED'
       Targets:
           - 

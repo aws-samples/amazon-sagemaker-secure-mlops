@@ -147,7 +147,6 @@ Resources:
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-core'
-                Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !Ref DSAdministratorRoleArn
                 TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
                 OutputFileName: 'core-main-output.json'
@@ -176,7 +175,6 @@ Resources:
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-env'
-                Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !Ref SCLaunchRoleArn
                 TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
                 OutputFileName: 'env-main-output.json'
@@ -246,7 +244,7 @@ Resources:
                 - Name: EnvMainOutput
               Configuration:
                 FunctionName: !Ref CleanUpEFSLambdaName
-                UserParameters: 'EnvMainOutput'
+                UserParameters: 'VPC:retain'
               RunOrder: 5
          
   BaseVPCTestPipelineNotificationRule:

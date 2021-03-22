@@ -1008,6 +1008,12 @@ The solution is tested end-to-end for all possible depoyment options using [AWS 
 ## Setup CI/CD pipelines
 
 ### Setup CodeCommit repository and notifications
+To use CI/CD pipelines you must setup CodeCommit repository and configure notifications on pipeline status changes.
+
++ Setup CodeCommit repository
+
++ Create SNS topic to receive notifications
+
 
 ### Setup pipelines
 To setup all CI/CD pipelines run the following command from the solution directory:
