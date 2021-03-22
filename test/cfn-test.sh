@@ -311,6 +311,9 @@ aws cloudformation create-stack \
 ###############################################################
 # CI/CD test pipeline deployment
 aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-central-1 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-1 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-2 --force
 
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \

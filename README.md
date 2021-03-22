@@ -1006,6 +1006,17 @@ aws cloudformation delete-stack --stack-name ds-team-vpc
 The solution is tested end-to-end for all possible depoyment options using [AWS CodePipeline](https://aws.amazon.com/codepipeline/) and AWS developer tools.
 
 ## Setup CI/CD pipelines
+### Create CodePipeline artifact Amazon S3 buckets
+The CodePipeline pipelines used in the solution deploy stack in different regions. You must create an Amazon S3 CodePipeline bucket per region following the naming convention: `codepipeline-<ProjectName>-<AWS Region>`:
+
+```
+PROJECT_NAME=sagemaker-secure-mlops
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-us-east-2 --region us-east-2
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
+```
+
 
 ### Setup CodeCommit repository and notifications
 To use CI/CD pipelines you must setup CodeCommit repository and configure notifications on pipeline status changes.
@@ -1019,6 +1030,9 @@ To use CI/CD pipelines you must setup CodeCommit repository and configure notifi
 To setup all CI/CD pipelines run the following command from the solution directory:
 ```bash
 aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-central-1 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-1 --force
+aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-2 --force
 
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \

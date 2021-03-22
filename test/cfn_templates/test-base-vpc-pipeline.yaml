@@ -88,7 +88,7 @@ Resources:
   BaseVPCTestPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub '${ProjectName}-${AWS::Region}-VPC'
+      Name: !Sub '${ProjectName}-${TestVPCRegion}-VPC'
       RoleArn: !Ref CodePipelineServiceRoleArn
       ArtifactStore:
         Type: S3
@@ -256,7 +256,7 @@ Resources:
         - 'codepipeline-pipeline-pipeline-execution-succeeded'
         - 'codepipeline-pipeline-manual-approval-needed'
       Name: !Sub '${BaseVPCTestPipeline}-notifications'
-      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseVPCTestPipeline}'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${TestVPCRegion}:${AWS::AccountId}:${BaseVPCTestPipeline}'
       Status: 'ENABLED'
       Targets:
           - 

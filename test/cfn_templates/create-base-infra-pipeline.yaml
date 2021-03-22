@@ -11,15 +11,20 @@ Parameters:
       Type: String
       Default: 'sagemaker-secure-mlops'
 
-  TestVPCRegion:
-    Description: Region for existing VPC and pre-provisioned IAM use case test
-    Type: String
-    Default: 'us-east-2'
-
   TestDSQuickstartRegion:
-    Description: Region for existing VPC and pre-provisioned IAM use case test
+    Description: Region for data science quickstart use case test
     Type: String
     Default: 'eu-central-1'
+
+  TestServiceCatalogRegion:
+    Description: Region for service catalog deployment use case test
+    Type: String
+    Default: 'eu-west-1'
+  
+  Test2StepCFNRegion:
+    Description: Region for 2-step CFN deployment use case test
+    Type: String
+    Default: 'eu-west-2'
 
   CfnArtifactS3BucketNamePrefix:
     Description: S3 bucket name prefix for artifact bucket
@@ -73,8 +78,8 @@ Resources:
                   - 's3:GetBucketLocation'
                   - 's3:ListBucket'
                 Resource:
-                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
-                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*'
+                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*/*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
@@ -396,8 +401,8 @@ Resources:
                   - 's3:GetBucketLocation'
                   - 's3:ListBucket'
                 Resource: 
-                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*'
-                  - !Sub 'arn:aws:s3:::${CodePipelineArtifactsBucket}*/*'
+                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*'
+                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*/*'
                   - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*'
                   - !Sub 'arn:aws:s3:::${CfnArtifactS3BucketNamePrefix}*/*}'
                 Effect: 'Allow'
@@ -415,19 +420,6 @@ Resources:
                   - 'codebuild:BatchPutCodeCoverages'
                 Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
                 Effect: 'Allow'
-              
-  CodePipelineArtifactsBucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BucketName: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
-      AccessControl: Private
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: TRUE
-        BlockPublicPolicy: TRUE
-        IgnorePublicAcls: TRUE
-        RestrictPublicBuckets: TRUE
 
   CfnTemplateBuildProject:
     Type: AWS::CodeBuild::Project
@@ -518,7 +510,7 @@ Resources:
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStore:
         Type: S3
-        Location: !Ref CodePipelineArtifactsBucket
+        Location: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
 
       Stages:
           # Stage: Source -----------------------------------------------
@@ -546,7 +538,7 @@ Resources:
                   Owner: AWS
                   Provider: CodeBuild
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: SourceArtifact
                 OutputArtifacts:
@@ -566,7 +558,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
@@ -579,7 +571,7 @@ Resources:
                   TemplatePath: 'BuildArtifact::aws-vpc.template.yaml'
                   OutputFileName: 'vpc-output.json'
                   ParameterOverrides: !Sub '{
-                      "AvailabilityZones": "${TestVPCRegion}a,${TestVPCRegion}b"
+                      "AvailabilityZones": "${AWS::Region}a,${AWS::Region}b"
                     }'
                   TemplateConfiguration: 'BuildArtifact::base-vpc.json'
                 RunOrder: 1
@@ -591,7 +583,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
@@ -605,9 +597,9 @@ Resources:
                   OutputFileName: 'core-iam-shared-roles-output.json'
                   TemplateConfiguration: 'BuildArtifact::core-iam-shared-roles.json'
                   ParameterOverrides: !Sub '{
-                    "DSAdministratorRoleName": "base-${TestVPCRegion}-DataScienceAdministrator", 
-                    "SageMakerDetectiveControlExecutionRoleName": "base-${TestVPCRegion}-DSSageMakerDetectiveControlRole", 
-                    "SCLaunchRoleName": "base-${TestVPCRegion}-DSServiceCatalogLaunchRole"
+                    "DSAdministratorRoleName": "base-${AWS::Region}-DataScienceAdministrator", 
+                    "SageMakerDetectiveControlExecutionRoleName": "base-${AWS::Region}-DSSageMakerDetectiveControlRole", 
+                    "SCLaunchRoleName": "base-${AWS::Region}-DSServiceCatalogLaunchRole"
                   }'
                 RunOrder: 1
   
@@ -618,7 +610,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
@@ -643,7 +635,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
@@ -669,7 +661,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
                   - Name: IAMOut
@@ -684,7 +676,8 @@ Resources:
                   TemplatePath: 'BuildArtifact::test-base-vpc-pipeline.yaml'
                   OutputFileName: 'test-base-vpc-pipeline-output.json'
                   TemplateConfiguration: 'BuildArtifact::test-base-vpc-pipeline.json'
-                  ParameterOverrides: '{
+                  ParameterOverrides: !Sub '{
+                      "TestVPCRegion":"${AWS::Region}",
                       "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
                       "DataScientistRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DataScientistRoleArn"]}, 
                       "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
@@ -715,7 +708,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
                   StackName: !Sub '${ProjectName}-${AWS::Region}-VPC-pipeline'
@@ -729,7 +722,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
                   StackName: 'base-env-iam-cross-account-deployment-role'
@@ -743,7 +736,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
                   StackName: 'base-env-iam-roles'
@@ -757,7 +750,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
                   StackName: 'base-core-iam-shared-roles'
@@ -771,7 +764,7 @@ Resources:
                   Owner: AWS
                   Provider: CloudFormation
                   Version: '1'
-                Region: !Ref TestVPCRegion
+                Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
                   StackName: 'base-vpc'
@@ -800,9 +793,17 @@ Resources:
     Properties:
       Name: !Sub '${ProjectName}-${AWS::Region}-ds-quickstart'
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
-      ArtifactStore:
-        Type: S3
-        Location: !Ref CodePipelineArtifactsBucket
+      ArtifactStores:
+        -
+          Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+        -
+          Region: !Ref TestDSQuickstartRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${TestDSQuickstartRegion}'
 
       Stages:
           # Stage: Source -----------------------------------------------

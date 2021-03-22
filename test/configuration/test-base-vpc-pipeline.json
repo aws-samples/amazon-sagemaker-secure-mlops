@@ -1,7 +1,6 @@
 {
     "Parameters" : {
         "ProjectName":"sagemaker-secure-mlops",
-        "TestVPCRegion":"us-east-2",
         "CodeCommitRepositoryArn":"arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops",
         "NotificationArn":"arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns",
         "CodePipelineServiceRoleArn":"arn:aws:iam::949335012047:role/service-role/sagemaker-secure-mlops-us-east-2-CodePipelineServiceRole",
