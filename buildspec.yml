@@ -9,13 +9,13 @@ phases:
     commands:
       - env
       - echo Packaging Cloudformation and uploading to S3...
-      - make package CFN_BUCKET_NAME=${S3_BUCKET_NAME_PREFIX}-${AWS_REGION}
+      - ./package-cfn.sh ${S3_BUCKET_NAME_PREFIX}-${DEPLOYMENT_REGION} ${DEPLOYMENT_REGION}
       - echo Copying VPC quick start template
-      - wget -P build/$AWS_REGION/ https://raw.githubusercontent.com/aws-quickstart/quickstart-aws-vpc/main/templates/aws-vpc.template.yaml
+      - wget -P build/$DEPLOYMENT_REGION/ https://raw.githubusercontent.com/aws-quickstart/quickstart-aws-vpc/main/templates/aws-vpc.template.yaml
 
 artifacts:
   files:
     - test/cfn_templates/*.yaml
     - test/configuration/*.json
-    - build/$AWS_REGION/*
+    - build/$DEPLOYMENT_REGION/*
   discard-paths: yes

@@ -310,10 +310,13 @@ aws cloudformation create-stack \
 
 ###############################################################
 # CI/CD test pipeline deployment
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-central-1 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-1 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-2 --force
+PROJECT_NAME=sagemaker-secure-mlops
+
+# one-off Amazon S3 bucket creation
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-us-east-2 --region us-east-2
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
@@ -323,6 +326,7 @@ aws cloudformation deploy \
                 CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
                 NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 
+# Clean up
 # Delete stack under a role other than it has been created
 STACK_NAME=
 aws cloudformation delete-stack \
@@ -337,3 +341,9 @@ aws cloudformation delete-stack --stack-name sagemaker-secure-mlops-us-east-2-VP
 aws cloudformation delete-stack --stack-name base-vpc 
 
 aws cloudformation delete-stack --stack-name base-infra-us-east-2
+
+PROJECT_NAME=sagemaker-secure-mlops
+aws s3 rb s3://codepipeline-${PROJECT_NAME}-us-east-2 --force
+aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --force
+aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --force
+aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --force

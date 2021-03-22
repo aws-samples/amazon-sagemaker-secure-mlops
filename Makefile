@@ -28,6 +28,6 @@ delete:
 build: clean
 
 package: build 
-		./package-cfn.sh $(CFN_BUCKET_NAME)
+		./package-cfn.sh $(CFN_BUCKET_NAME) $(AWS_DEFAULT_REGION)
 
 

@@ -436,6 +436,8 @@ Resources:
         EnvironmentVariables:
           - Name: 'S3_BUCKET_NAME_PREFIX'
             Value: !Sub '${CfnArtifactS3BucketNamePrefix}'
+          - Name: 'DEPLOYMENT_REGION'
+            Value: !Ref AWS::Region
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
@@ -493,11 +495,11 @@ Resources:
       Targets:
         -
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
-          Id: !Sub codecommit-${BaseDeployPipeline}-trigger
+          Id: !Sub commit-${BaseDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
         - 
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
-          Id: !Sub codecommit-${DSQuickstartDeployPipeline}-trigger
+          Id: !Sub commit-${DSQuickstartDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
@@ -831,13 +833,14 @@ Resources:
                   Owner: AWS
                   Provider: CodeBuild
                   Version: '1'
-                Region: !Ref TestDSQuickstartRegion
+                Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: SourceArtifact
                 OutputArtifacts:
                   - Name: BuildArtifact
                 Configuration:
                   ProjectName: !Ref CfnTemplateBuildProject
+                  EnvironmentVariables: !Sub '[{"name":"DEPLOYMENT_REGION","value":"${TestDSQuickstartRegion}","type":"PLAINTEXT"}]'
                 RunOrder: 1
 
           # Stage: Deploy -----------------------------------------------
@@ -861,7 +864,7 @@ Resources:
                   StackName: !Sub '${ProjectName}-quickstart'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
-                  TemplatePath: 'BuildArtifact::data-science-environment-quickstart.yaml'
+                  TemplatePath: 'BuildArtifact::data-science-environment-quickstart.yaml-packaged'
                   OutputFileName: 'quickstart-output.json'
                   TemplateConfiguration: 'data-science-environment-quickstart.json'
                 RunOrder: 1

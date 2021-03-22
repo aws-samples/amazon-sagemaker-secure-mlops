@@ -22,9 +22,10 @@ set -e
 
 # PLEASE NOTE this script will store all resources to an Amazon S3 bucket s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}
 CFN_BUCKET_NAME=$1
+DEPLOYMENT_REGION=$2
 PROJECT_NAME="sagemaker-mlops"
 CFN_TEMPLATE_DIR="cfn_templates"
-CFN_OUTPUT_DIR="build/${AWS_DEFAULT_REGION}"
+CFN_OUTPUT_DIR="build/${DEPLOYMENT_REGION}"
 
 # files that need to be scrubbed with sed to replace < S3 BUCKET LOCATION > with an actual S3 bucket name
 SELF_PACKAGE_LIST="core-sc-shared-portfolio.yaml env-sc-portfolio.yaml"
@@ -39,29 +40,28 @@ UPLOAD_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.ya
 if aws s3 ls s3://${CFN_BUCKET_NAME} 2>&1 | grep NoSuchBucket
 then
     echo Creating Amazon S3 bucket ${CFN_BUCKET_NAME}
-    aws s3 mb s3://${CFN_BUCKET_NAME} --region $AWS_DEFAULT_REGION
+    aws s3 mb s3://${CFN_BUCKET_NAME} --region $DEPLOYMENT_REGION
 fi
 echo "Preparing content for publication to Amazon S3 s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}"
 
 ## clean away any previous builds of the CFN
 rm -fr ${CFN_OUTPUT_DIR}
 mkdir -p ${CFN_OUTPUT_DIR}
-rm -f build/*-${AWS_DEFAULT_REGION}.zip
+rm -f build/*-${DEPLOYMENT_REGION}.zip
 cp ${CFN_TEMPLATE_DIR}/*.yaml ${CFN_OUTPUT_DIR}
 
 ## Zip the templates
 echo "Zipping CloudFormation templates in ${CFN_OUTPUT_DIR}"
-zip -r build/cfn-templates-${AWS_DEFAULT_REGION}.zip ${CFN_OUTPUT_DIR}/*.yaml
+zip -r build/cfn-templates-${DEPLOYMENT_REGION}.zip ${CFN_OUTPUT_DIR}/*.yaml
 
 ## publish materials to target AWS regions
-REGION=${AWS_DEFAULT_REGION:="us-east-1"}
-echo "Publishing CloudFormation to ${REGION}"
+echo "Publishing CloudFormation to ${DEPLOYMENT_REGION}"
 echo "Clearing ${CFN_BUCKET_NAME}..."
 
 aws s3 rm \
     s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/ \
     --recursive \
-    --region ${REGION}
+    --region ${DEPLOYMENT_REGION}
 
 echo "Self-packaging the Cloudformation templates: ${SELF_PACKAGE_LIST}"
 for fname in ${SELF_PACKAGE_LIST};
@@ -80,7 +80,7 @@ do
         --s3-bucket ${CFN_BUCKET_NAME} \
         --s3-prefix ${PROJECT_NAME} \
         --output-template-file ${fname}-packaged \
-        --region ${REGION}
+        --region ${DEPLOYMENT_REGION}
     popd
 done
 
@@ -95,7 +95,7 @@ do
     fi
 
     echo "To deploy stack execute:"
-    echo "aws cloudformation create-stack --template-url https://s3.${REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname} --region ${REGION} --stack-name <STACK_NAME> --disable-rollback --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameters ParameterKey=,ParameterValue=" 
+    echo "aws cloudformation create-stack --template-url https://s3.${DEPLOYMENT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname} --region ${DEPLOYMENT_REGION} --stack-name <STACK_NAME> --disable-rollback --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameters ParameterKey=,ParameterValue=" 
 
 done
 
