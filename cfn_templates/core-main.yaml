@@ -59,6 +59,34 @@ Outputs:
     Export:
       Name: 'ds-service-catalog-launch-role-arn'
 
+  ProductId:
+    Description: Service Catalog data science product Id
+    Value: !If 
+      - SCPortfolioCondition
+      - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProductId
+      - ''
+
+  ProductName:
+    Description: Service Catalog data science product Id
+    Value: !If 
+      - SCPortfolioCondition
+      - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProductName
+      - ''
+
+  ProvisioningArtifactIds:
+    Description: Service Catalog data science product Id
+    Value: !If 
+      - SCPortfolioCondition
+      - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProvisioningArtifactIds
+      - ''
+
+  ProvisioningArtifactNames:
+    Description: Service Catalog data science product Id
+    Value: !If 
+      - SCPortfolioCondition
+      - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProvisioningArtifactNames
+      - ''
+
 Parameters:
   StackSetName:
     Type: String 

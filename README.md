@@ -481,10 +481,11 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 ## Clean-up considerations
 The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). 
 
-❗ To delete all resources in your AWS account created by the deployment of this solution, do the following steps **before** running commands from **Clean-up** section for each deployment type:
-+ From AWS console or command line delete the **nested** CloudFormation stack with `EnvironmentSageMakerStudio` literal in the name (e.g. `ds-quickstart-DataScienceEnvironment-XLEAWAS39ONA-EnvironmentSageMakerStudio-WEA30BEN89X6`)
-+ After the successful deletion of this stack, delete the EFS system from AWS Console or command line. You may want to backup the EFS file system before deletion
-+ Run any deployment-option specific commands from **Clean-up** instructions
+❗ To delete all resources in your AWS account created by the deployment of this solution, do the following steps **after** running commands from **Clean-up** section for each deployment type:
++ From AWS console:
+  - Go to the EFS console and delete all mounting points in all private subnets of the data science VPC
+  - delete the EFS system. You may want to backup the EFS file system before deletion
+  - Go to the VPC console and delete the data science VPC
 
 ## Data Science Environment Quickstart
 This option deploys the end-to-end infrastructure and a Data Science Environment in one go.
@@ -552,7 +553,7 @@ The deployment options you can use are:
 
 The following command uses the default values for the deployment options. You can specify parameters via `ParameterKey=<ParameterKey>,ParameterValue=<Value>` pairs in the `aws cloudformation create-stack` call:
 ```bash
-STACK_NAME="sagemaker-mlops-core"
+STACK_NAME="sm-mlops-core"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
@@ -567,7 +568,7 @@ aws cloudformation create-stack \
 Show the stack output:
 ```bash
 aws cloudformation describe-stacks \
-    --stack-name sagemaker-mlops-core  \
+    --stack-name sm-mlops-core  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
@@ -675,12 +676,12 @@ aws cloudformation create-stack \
 ```
 
 ## Cleanup
-First, do the steps from **Clean-up considerations** section.
-Second, delete the two root stacks from AWS CloudFormation console or command line:
+First, delete the two root stacks from AWS CloudFormation console or command line:
 ```bash
 aws cloudformation delete-stack --stack-name sagemaker-mlops-env
-aws cloudformation delete-stack --stack-name sagemaker-mlops-core
+aws cloudformation delete-stack --stack-name sm-mlops-core
 ```
+Second, do the steps from **Clean-up considerations** section.
 
 ## Two-step deployment via CloudFormation and AWS Service Catalog
 This deployment option first deploys the core infrastructure including the AWS Service Catalog portfolio of Data Science products. In the second step, the Data Science Administrator deploys a Data Science environment via the AWS Service Catalog.  
@@ -698,7 +699,7 @@ After the base infrastructure is provisioned, data scientists and other users ca
 First, show the output from the stack deployment in Step 1:
 ```bash
 aws cloudformation describe-stacks \
-    --stack-name sagemaker-mlops-core  \
+    --stack-name sm-mlops-core  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
@@ -724,13 +725,13 @@ Wait until AWS Service Catalog finishes the provisioning of the Data Science env
 Now you provisined the Data Science environment and can start working with it.
 
 ## Cleanup
-First, do the steps from **Clean-up considerations** section.
-Second, do the following steps:
+First, do the following steps:
 + In AWS Service Catalog console go to the _Provisioned Products_, select your product and click **Terminate** from the **Action** button. Wait until the delete process ends.
 + Delete the core infrastructure CloudFormation stack:
 ```bash
-aws cloudformation delete-stack --stack-name sagemaker-mlops-core
+aws cloudformation delete-stack --stack-name sm-mlops-core
 ```
+Second, do the steps from **Clean-up considerations** section.
 
 # Resources
 
@@ -1029,11 +1030,6 @@ To use CI/CD pipelines you must setup CodeCommit repository and configure notifi
 ### Setup pipelines
 To setup all CI/CD pipelines run the following command from the solution directory:
 ```bash
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-us-east-2 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-central-1 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-1 --force
-aws s3 rb s3://codepipeline-sagemaker-secure-mlops-eu-west-2 --force
-
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \

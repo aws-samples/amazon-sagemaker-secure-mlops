@@ -82,8 +82,9 @@ Resources:
           ec2 = boto3.client("ec2")
           code_pipeline = boto3.client('codepipeline')
 
-          def delete_efs(sm_domain_id):
+          def delete_efs(sm_domain_id, delete_vpc=False):
               vpc_id=""
+              subnets = []
 
               # Get EFS which belongs to SageMaker (based on a tag)
               print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
@@ -91,7 +92,7 @@ Resources:
                   fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
                       if fs.get("Tags") and [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
                   ]:
-                  subnets = []
+                  
                   print(f"Delete mount targets for EFS file system id: {id}")
                   for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
                       efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
@@ -123,11 +124,14 @@ Resources:
                   print(f"Delete EFS file system {id}")
                   efs.delete_file_system(FileSystemId=id)
 
+              if vpc_id and delete_vpc:
                   for sn in subnets:
                       print(f"delete subnet {sn}")
                       ec2.delete_subnet(SubnetId=sn)
 
-                  return vpc_id
+                  print(f"delete VPC {vpc_id}")
+                  ec2.delete_vpc(VpcId=vpc_id)
+
 
           def get_file(artifact, f_name):
               bucket = artifact["location"]["s3Location"]["bucketName"]
@@ -146,17 +150,17 @@ Resources:
                   job_data = event['CodePipeline.job']['data']
 
                   user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
-                  sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param["FileName"]).get("SageMakerDomainId")
+                  sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
 
-                  vpc_id = delete_efs(sm_domain_id)
+                  print(f"user parameters: {user_param}")
+                  delete_efs(sm_domain_id, user_param.get("VPC") == "delete")
                   
-                  if vpc_id and user_param.get("VPC") == "delete":
-                      ec2.delete_vpc(VpcId=vpc_id)
-
                   code_pipeline.put_job_success_result(jobId=job_id)
 
               except Exception as e:
+                  print(f"exception: {str(e)}")
                   code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
+
       Description: Delete SageMaker Studio left-over EFS file systems
       Handler: index.lambda_handler
       MemorySize: 128
@@ -164,4 +168,63 @@ Resources:
       Runtime: python3.8
       Timeout: 180
 
+  ProvisionProductLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-automation-ProvisionProduct'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import tempfile
+          import zipfile
+          import uuid
+
+          sc = boto3.client("servicecatalog")
+          code_pipeline = boto3.client('codepipeline')
+          s3 = boto3.client("s3")
+
+          def get_file(artifact, f_name):
+              bucket = artifact["location"]["s3Location"]["bucketName"]
+              key = artifact["location"]["s3Location"]["objectKey"]
+
+              print(f"{bucket}/{key}")
+
+              with tempfile.NamedTemporaryFile() as tmp_file:
+                  s3.download_file(bucket, key, tmp_file.name)
+                  with zipfile.ZipFile(tmp_file.name, 'r') as z:
+                      return json.loads(z.read(f_name))
+
+          def provision_product(product_id, product_name, provisioning_artifact_id, provisioning_parameters):
+
+                  r = sc.provision_product(
+                      ProductId=product_id,
+                      ProvisioningArtifactId=provisioning_artifact_id,
+                      ProvisionedProductName=product_name + str(uuid.uuid4()).split("-")[0],
+                      ProvisioningParameters=provisioning_parameters
+                  )
+
+                  print(r)
+
+          def lambda_handler(event, context):
+              try:
+                  job_id = event['CodePipeline.job']['id']
+                  job_data = event['CodePipeline.job']['data']
+
+                  user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
+                  data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
+
+                  provision_product(data["ProductId"], data["ProvisioningArtifactIds"], data["ProductName"], user_param["ProvisioningParameters"])
+
+                  code_pipeline.put_job_success_result(jobId=job_id)
+              except Exception as e:
+                  print(f"exception: {str(e)}")
+                  code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
+
+      Description: Provision AWS Service Catalog product
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt AutomationLambdaExecutionRole.Arn 
+      Runtime: python3.8
+      Timeout: 60
 

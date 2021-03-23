@@ -9,8 +9,9 @@ s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 code_pipeline = boto3.client('codepipeline')
 
-def delete_efs(sm_domain_id):
+def delete_efs(sm_domain_id, delete_vpc=False):
     vpc_id=""
+    subnets = []
 
     # Get EFS which belongs to SageMaker (based on a tag)
     print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
@@ -18,7 +19,7 @@ def delete_efs(sm_domain_id):
         fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
             if fs.get("Tags") and [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
         ]:
-        subnets = []
+        
         print(f"Delete mount targets for EFS file system id: {id}")
         for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
             efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
@@ -50,11 +51,14 @@ def delete_efs(sm_domain_id):
         print(f"Delete EFS file system {id}")
         efs.delete_file_system(FileSystemId=id)
 
+    if vpc_id and delete_vpc:
         for sn in subnets:
             print(f"delete subnet {sn}")
             ec2.delete_subnet(SubnetId=sn)
 
-        return vpc_id
+        print(f"delete VPC {vpc_id}")
+        ec2.delete_vpc(VpcId=vpc_id)
+
 
 def get_file(artifact, f_name):
     bucket = artifact["location"]["s3Location"]["bucketName"]
@@ -73,14 +77,13 @@ def lambda_handler(event, context):
         job_data = event['CodePipeline.job']['data']
 
         user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
-        sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param["FileName"]).get("SageMakerDomainId")
+        sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
 
-        vpc_id = delete_efs(sm_domain_id)
+        print(f"user parameters: {user_param}")
+        delete_efs(sm_domain_id, user_param.get("VPC") == "delete")
         
-        if vpc_id and user_param.get("VPC") == "delete":
-            ec2.delete_vpc(VpcId=vpc_id)
-
         code_pipeline.put_job_success_result(jobId=job_id)
 
     except Exception as e:
+        print(f"exception: {str(e)}")
         code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})

@@ -258,7 +258,7 @@ aws cloudformation delete-stack --stack-name ds-team-vpc
 #############################################################################################
 
 # core-main.yaml
-STACK_NAME="sagemaker-mlops-core"
+STACK_NAME="sm-mlops-core"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
@@ -278,8 +278,8 @@ aws cloudformation create-stack \
 
 
 # env-main.yaml
-STACK_NAME="sagemaker-mlops-env"
-ENV_NAME="sagemaker-mlops"
+STACK_NAME="sm-mlops-env"
+ENV_NAME="sm-mlops"
 AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a
 
 aws cloudformation create-stack \
@@ -296,7 +296,7 @@ aws cloudformation create-stack \
  
 # data-science-environment-quickstart.yaml
 STACK_NAME="ds-quickstart"
-ENV_NAME="sagemaker-mlops"
+ENV_NAME="sm-mlops"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/data-science-environment-quickstart.yaml \

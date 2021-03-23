@@ -5,6 +5,24 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: |
   Create the shared portfolio of Data Science environments in AWS Service Catalog
 
+Outputs:
+  ProductId:
+    Description: Service Catalog data science product Id
+    Value: !Ref DataScienceEnvironmentProduct
+
+  ProductName:
+    Description: Service Catalog data science product Id
+    Value: !GetAtt DataScienceEnvironmentProduct.ProductName
+
+  ProvisioningArtifactIds:
+    Description: Service Catalog data science product Id
+    Value: !GetAtt DataScienceEnvironmentProduct.ProvisioningArtifactIds
+
+  ProvisioningArtifactNames:
+    Description: Service Catalog data science product Id
+    Value: !GetAtt DataScienceEnvironmentProduct.ProvisioningArtifactNames
+
+
 Parameters:
   StackSetName:
     Type: String 

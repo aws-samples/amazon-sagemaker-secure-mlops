@@ -1,0 +1,32 @@
+{
+    "CodePipeline.job": {
+      "id": "b8c0c8af-8a18-48ba-ad0a-4c022beafe7d",
+      "accountId": "949335012047",
+      "data": {
+        "actionConfiguration": {
+          "configuration": {
+            "FunctionName": "sagemaker-secure-mlops-automation-CleanUpEFS",
+            "UserParameters": "{\"VPC\":\"retain\"},{\"FileName\":\"env-main-output.json\"}"
+          }
+        },
+        "inputArtifacts": [{
+          "name": "EnvMainOutput",
+          "revision": "None",
+          "location": {
+            "type": "S3",
+            "s3Location": {
+              "bucketName": "codepipeline-sagemaker-secure-mlops-us-east-2",
+              "objectKey": "sagemaker-secure-mlo/EnvMainOut/1u8ty4P"
+            }
+          }
+        }],
+        "outputArtifacts": [],
+        "artifactCredentials": {
+          "accessKeyId": "xxxxxx",
+          "secretAccessKey": "xxxxx",
+          "sessionToken": "xxxxxx",
+          "expirationTime": "1616509967000"
+        }
+      }
+    }
+  }

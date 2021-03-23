@@ -391,6 +391,10 @@ Resources:
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
           Id: !Sub commit-${2StepCFNDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+        - 
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
+          Id: !Sub commit-${ServiceCatalogDeployPipeline}
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
   # Pipelines
@@ -956,7 +960,7 @@ Resources:
                   UserParameters: '{"VPC":"delete", "FileName":"quickstart-output.json"}'
                 RunOrder: 4
 
-  DSQuicksigtPipelineNotificationRule:
+  DSQuicksightPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
     Properties:
       DetailType: 'FULL'
@@ -1045,6 +1049,7 @@ Resources:
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-core'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
                 OutputFileName: 'core-main-output.json'
@@ -1069,6 +1074,7 @@ Resources:
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-env'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
                 OutputFileName: 'env-main-output.json'
@@ -1139,7 +1145,7 @@ Resources:
                 - Name: EnvMainOutput
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-                UserParameters: '{"VPC":"delete"},{"FileName":"env-main-output.json"}'
+                UserParameters: '{"VPC":"delete","FileName":"env-main-output.json"}'
               RunOrder: 5
 
   2StepCFNPipelineNotificationRule:
@@ -1150,7 +1156,7 @@ Resources:
         - 'codepipeline-pipeline-pipeline-execution-failed'
         - 'codepipeline-pipeline-pipeline-execution-succeeded'
         - 'codepipeline-pipeline-manual-approval-needed'
-      Name: !Sub '${DSQuickstartDeployPipeline}-notifications'
+      Name: !Sub '${2StepCFNDeployPipeline}-notifications'
       Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
       Status: 'ENABLED'
       Targets:
@@ -1231,6 +1237,7 @@ Resources:
               Configuration:
                 ActionMode: 'REPLACE_ON_FAILURE'
                 StackName: !Sub '${ProjectName}-core'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
                 OutputFileName: 'core-main-output.json'
@@ -1241,7 +1248,36 @@ Resources:
               RunOrder: 1
 
             # Action 2 - Launch SC Product
-
+            - Name: SCProduct
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              InputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                FunctionName: !Sub '${ProjectName}-automation-ProvisionProduct'
+                UserParameters: !Sub '{
+                  "ProvisioningParameters":
+                  [
+                    {
+                      
+                      "Key":"EnvName",
+                      "Value":"ds-product"
+                    },
+                    {
+                      "Key":"AvailabilityZones",
+                      "Value":"${TestServiceCatalogRegion}a,${TestServiceCatalogRegion}b"
+                    },
+                    {
+                      "Key":"NumberOfAZs",
+                      "Value":"2"
+                    }
+                  ],
+                  "FileName":"env-main-output.json"
+                }'
 
             # Action 3
             - Name: ApproveDeployment
@@ -1285,7 +1321,7 @@ Resources:
                 - Name: CoreMainOutput
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-                UserParameters: '{"VPC":"delete"},{"FileName":"env-main-output.json"}'
+                UserParameters: '{"VPC":"delete","FileName":"env-main-output.json"}'
               RunOrder: 5
 
   ServiceCatalogPipelineNotificationRule:
