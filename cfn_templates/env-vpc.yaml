@@ -433,6 +433,8 @@ Resources:
   # Private subnets
   PrivateSubnet1A:
     Type: AWS::EC2::Subnet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Condition: PrivateSubnetsCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -450,6 +452,8 @@ Resources:
 
   PrivateSubnet2A:
     Type: AWS::EC2::Subnet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Condition: PrivateSubnets&2AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -467,6 +471,8 @@ Resources:
 
   PrivateSubnet3A:
     Type: AWS::EC2::Subnet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Condition: PrivateSubnets&3AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -484,6 +490,8 @@ Resources:
 
   PrivateSubnet4A:
     Type: AWS::EC2::Subnet
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Condition: PrivateSubnets&4AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]

@@ -199,7 +199,7 @@ Resources:
                 Version: '1'
                 Provider: Manual
               Configuration:
-                CustomData: !Sub '${ProjectName} enironment with existing VPC and pre-provisioned IAM use case ready for review in ${AWS::AccountId}:${TestVPCRegion}'
+                CustomData: !Sub '${ProjectName} environment with existing VPC and pre-provisioned IAM use case ready for review in ${AWS::AccountId}:${TestVPCRegion}'
                 ExternalEntityLink: !Sub 'https://${TestVPCRegion}.console.aws.amazon.com/cloudformation/home?region=${TestVPCRegion}'
                 NotificationArn: !Ref NotificationArn
               RunOrder: 3
@@ -244,7 +244,7 @@ Resources:
                 - Name: EnvMainOutput
               Configuration:
                 FunctionName: !Ref CleanUpEFSLambdaName
-                UserParameters: 'VPC:retain'
+                UserParameters: '{"VPC":"retain"},{"FileName":"env-main-output.json"}'
               RunOrder: 5
          
   BaseVPCTestPipelineNotificationRule:

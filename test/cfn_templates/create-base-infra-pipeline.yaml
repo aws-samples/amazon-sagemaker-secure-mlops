@@ -41,124 +41,6 @@ Parameters:
 
 Resources:
 
-  AutomationLambdaExecutionRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action:
-              - 'sts:AssumeRole'
-      Path: /
-      Policies:
-        - PolicyName: InlinePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Sid: IAMPermission
-                Effect: Allow
-                Action:
-                  - 'iam:GetRole'
-                Resource: '*'
-              - Sid: ServiceCatalogPermission
-                Effect: Allow
-                Action:
-                  - servicecatalog:*
-                Resource: '*'
-              - Sid: S3ArtifactBucketPermission
-                Effect: Allow
-                Action:
-                  - 's3:*Object'
-                  - 's3:GetObjectVersion'
-                  - 's3:GetBucketAcl'
-                  - 's3:GetBucketLocation'
-                  - 's3:ListBucket'
-                Resource:
-                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*'
-                  - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*/*'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
-        - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
-        - 'arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess'
-        - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
-        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
-
-  CleanUpEFSLambda:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-      Code:
-        ZipFile: |
-          import json
-          import boto3
-          import time
-
-          efs = boto3.client("efs")
-          s3 = boto3.client("s3")
-          ec2 = boto3.client("ec2")
-
-          def lambda_handler(event, context):
-
-              if not event:
-                  return
-                  
-              bucket = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["bucketName"]
-              key = event["CodePipeline.job"]["data"]["inputArtifacts"][0]["location"]["s3Location"]["objectKey"]
-              user_param = event["CodePipeline.job"]["data"]["actionConfiguration"]["configuration"]["UserParameters"]
-              
-              print(f"{bucket}/{key}")
-              print(f"{user_param}")
-
-              # read output from the CloudFormation stack to get the SageMaker domain id
-              obj = s3.get_object(Bucket = bucket, Key = key)
-              msg = json.loads(obj['Body'].read().decode('utf-8'))
-              
-              print(f"object body: {msg}")
-
-              sm_domain_id = msg.get("SageMakerDomainId")
-              vpc_id=""
-
-              # Get EFS which belongs to SageMaker (based on a tag)
-              print(f"Get EFS file system id(s) for SageMaker domain id {sm_domain_id}")
-              for id in [
-                  fs["FileSystemId"] for fs in efs.describe_file_systems()["FileSystems"] 
-                      if fs.get("Tags") and [t["Value"] for t in fs["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
-                  ]:
-                  print(f"Delete mount targets for EFS file system id: {id}")
-                  for mt in efs.describe_mount_targets(FileSystemId=id)["MountTargets"]:
-                      efs.delete_mount_target(MountTargetId=mt["MountTargetId"])
-                      vpc_id = mt["VpcId"]
-                  
-                  while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
-                      print("Wait until mount targes have been deleted")
-                      time.sleep(5)
-
-                  # Delete SageMaker EFS security groups (based on a tag)
-                  for sg in [sg for sg in ec2.describe_security_groups(Filters=[{"Name":"vpc-id","Values":[vpc_id]}])["SecurityGroups"]
-                      if sg.get("Tags") and [t["Value"] for t in sg["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
-                  ]:
-                      if len(sg["IpPermissionsEgress"]) > 0:
-                          ec2.revoke_security_group_egress(GroupId=sg["GroupId"], IpPermissions=sg["IpPermissionsEgress"])
-                      if len(sg["IpPermissions"]) > 0:
-                          ec2.revoke_security_group_ingress(GroupId=sg["GroupId"], IpPermissions=sg["IpPermissions"])
-                      ec2.delete_security_group(GroupId=sg["GroupId"])
-
-                  print(f"Delete EFS file system {id}")
-                  efs.delete_file_system(FileSystemId=id)
-
-              if vpc_id and user_param.split(":")[0] == "VPC" and user_param.split(":")[1] == "delete":
-                  ec2.delete_vpc(VpcId=vpc_id)
-      Description: Delete SageMaker Studio left-over EFS file systems
-      Handler: index.lambda_handler
-      MemorySize: 128
-      Role: !GetAtt AutomationLambdaExecutionRole.Arn 
-      Runtime: python3.8
-      Timeout: 180
-
   CodePipelineServiceRole:
     Type: 'AWS::IAM::Role'
     Properties:
@@ -501,9 +383,172 @@ Resources:
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
           Id: !Sub commit-${DSQuickstartDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+        - 
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
+          Id: !Sub commit-${AutomationLambdaDeployPipeline}
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
+        - 
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
+          Id: !Sub commit-${2StepCFNDeployPipeline}
+          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
   # Pipelines
+  ########################################################################
+  AutomationLambdaDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-automation'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStores:
+        -
+          Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+        -
+          Region: !Ref TestDSQuickstartRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${TestDSQuickstartRegion}'
+        -
+          Region: !Ref Test2StepCFNRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${Test2StepCFNRegion}'
+        -
+          Region: !Ref TestServiceCatalogRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${TestServiceCatalogRegion}'
+
+      Stages:
+          # Stage: Source -----------------------------------------------
+          - Name: Source
+            Actions:
+              - Name: Source
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  PollForSourceChanges: 'false'
+                  RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                  BranchName: 'master'
+                OutputArtifacts:
+                  - Name: SourceArtifact
+
+          # Stage: Build -----------------------------------------------
+          - Name: Build
+            Actions:
+              - Name: BuildCFNTemplates
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Region: !Ref AWS::Region
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  ProjectName: !Ref CfnTemplateBuildProject
+                RunOrder: 1
+
+          # Stage: Deploy -----------------------------------------------
+          - Name: Deploy
+            Actions:
+
+              # Action 1 
+              - Name: !Sub '${AWS::Region}-AutomationLambdas'
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref AWS::Region
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: !Sub 'LambdasOut-${AWS::Region}'
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-automation'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::automation-pipeline.yaml'
+                  OutputFileName: 'lambdas-output.json'
+                  TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
+                RunOrder: 1
+
+              # Action 2
+              - Name: !Sub '${TestDSQuickstartRegion}-AutomationLambdas'
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestDSQuickstartRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: !Sub 'LambdasOut-${TestDSQuickstartRegion}'
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-automation'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::automation-pipeline.yaml'
+                  OutputFileName: 'lambdas-output.json'
+                  TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
+                RunOrder: 1
+  
+              # Action 3
+              - Name: !Sub '${Test2StepCFNRegion}-AutomationLambdas'
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref Test2StepCFNRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: !Sub 'LambdasOut-${Test2StepCFNRegion}'
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-automation'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::automation-pipeline.yaml'
+                  OutputFileName: 'lambdas-output.json'
+                  TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
+                RunOrder: 1
+  
+              # Action 4
+              - Name: !Sub '${TestServiceCatalogRegion}-AutomationLambdas'
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref TestServiceCatalogRegion
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: !Sub 'LambdasOut-${TestServiceCatalogRegion}'
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-automation'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::automation-pipeline.yaml'
+                  OutputFileName: 'lambdas-output.json'
+                  TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
+                RunOrder: 1
+
   ########################################################################
   BaseDeployPipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -848,7 +893,7 @@ Resources:
             Actions:
 
               # Action 1 
-              - Name: DSQuickstart
+              - Name: 'DSQuickstart'
                 ActionTypeId:
                   Category: Deploy
                   Owner: AWS
@@ -866,7 +911,7 @@ Resources:
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::data-science-environment-quickstart.yaml-packaged'
                   OutputFileName: 'quickstart-output.json'
-                  TemplateConfiguration: 'data-science-environment-quickstart.json'
+                  TemplateConfiguration: 'BuildArtifact::data-science-environment-quickstart.json'
                 RunOrder: 1
 
               # Action 2
@@ -883,7 +928,7 @@ Resources:
                 RunOrder: 2
 
               # Action 3
-              - Name: DeleteDSQuickstart
+              - Name: 'DeleteDSQuickstart'
                 ActionTypeId:
                   Category: Deploy
                   Owner: AWS
@@ -907,8 +952,8 @@ Resources:
                 InputArtifacts:
                   - Name: DSQuickStartArtifact
                 Configuration:
-                  FunctionName: !Ref CleanUpEFSLambda
-                  UserParameters: 'VPC:delete'
+                  FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+                  UserParameters: '{"VPC":"delete", "FileName":"quickstart-output.json"}'
                 RunOrder: 4
 
   DSQuicksigtPipelineNotificationRule:
@@ -921,6 +966,338 @@ Resources:
         - 'codepipeline-pipeline-manual-approval-needed'
       Name: !Sub '${DSQuickstartDeployPipeline}-notifications'
       Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
+
+  ########################################################################
+  2StepCFNDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-2S-CFN'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStores:
+        -
+          Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+        -
+          Region: !Ref Test2StepCFNRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${Test2StepCFNRegion}'
+
+      Stages:
+          # Stage: Source -----------------------------------------------
+          - Name: Source
+            Actions:
+              - Name: Source
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  PollForSourceChanges: 'false'
+                  RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                  BranchName: 'master'
+                OutputArtifacts:
+                  - Name: SourceArtifact
+
+          # Stage: Build -----------------------------------------------
+          - Name: Build
+            Actions:
+              - Name: BuildCFNTemplates
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Region: !Ref AWS::Region
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  ProjectName: !Ref CfnTemplateBuildProject
+                  EnvironmentVariables: !Sub '[{"name":"DEPLOYMENT_REGION","value":"${Test2StepCFNRegion}","type":"PLAINTEXT"}]'
+                RunOrder: 1
+
+          # Stage: Deploy -----------------------------------------------
+          - Name: Deploy
+            Actions:
+
+            # Action 1
+            - Name: CoreMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref Test2StepCFNRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
+                OutputFileName: 'core-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::core-main.json'
+                ParameterOverrides: !Sub '{
+                  "StackSetName":"${ProjectName}-core"
+                }'
+              RunOrder: 1
+
+            # Action 2
+            - Name: EnvironmentMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref Test2StepCFNRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-env'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
+                OutputFileName: 'env-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::env-main.json'
+                ParameterOverrides: !Sub '{
+                  "EnvName":"${ProjectName}-env"   
+                  "AvailabilityZones":"${Test2StepCFNRegion}a,${Test2StepCFNRegion}b",
+                  "CreateEnvironmentIAMRoles":"YES",
+                  "CreateS3VPCEndpoint":"YES",
+                  "CreateVPC":"YES",
+                  "CreateNATGateways":"YES",
+                  "CreatePrivateSubnets":"YES",
+                  "CreateVPCFlowLogsToCloudWatch":"YES",
+                  "CreateVPCFlowLogsRole":"YES"
+                }'
+              RunOrder: 2
+
+            # Action 3
+            - Name: ApproveDeployment
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub '${ProjectName} environment with 2-step CFN deployment use case ready for review in ${AWS::AccountId}:${Test2StepCFNRegion}'
+                ExternalEntityLink: !Sub 'https://${Test2StepCFNRegion}.console.aws.amazon.com/cloudformation/home?region=${Test2StepCFNRegion}'
+                NotificationArn: !Ref NotificationArn
+              RunOrder: 3
+
+            # Action 4
+            - Name: DeleteEnvironment
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref Test2StepCFNRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-env'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 4
+
+            # Action 5
+            - Name: DeleteCore
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref Test2StepCFNRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 5
+
+            # Action 6
+            - Name: DeleteEFS
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref Test2StepCFNRegion
+              InputArtifacts:
+                - Name: EnvMainOutput
+              Configuration:
+                FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+                UserParameters: '{"VPC":"delete"},{"FileName":"env-main-output.json"}'
+              RunOrder: 5
+
+  2StepCFNPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${DSQuickstartDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
+
+  ########################################################################
+  ServiceCatalogDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub '${ProjectName}-${AWS::Region}-SC'
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStores:
+        -
+          Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${AWS::Region}'
+        -
+          Region: !Ref TestServiceCatalogRegion
+          ArtifactStore:
+            Type: S3
+            Location: !Sub 'codepipeline-${ProjectName}-${TestServiceCatalogRegion}'
+
+      Stages:
+          # Stage: Source -----------------------------------------------
+          - Name: Source
+            Actions:
+              - Name: Source
+                ActionTypeId:
+                  Category: Source
+                  Owner: AWS
+                  Provider: CodeCommit
+                  Version: '1'
+                Configuration:
+                  PollForSourceChanges: 'false'
+                  RepositoryName: !Select ['5', !Split [":", !Ref CodeCommitRepositoryArn]]
+                  BranchName: 'master'
+                OutputArtifacts:
+                  - Name: SourceArtifact
+
+          # Stage: Build -----------------------------------------------
+          - Name: Build
+            Actions:
+              - Name: BuildCFNTemplates
+                ActionTypeId:
+                  Category: Build
+                  Owner: AWS
+                  Provider: CodeBuild
+                  Version: '1'
+                Region: !Ref AWS::Region
+                InputArtifacts:
+                  - Name: SourceArtifact
+                OutputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  ProjectName: !Ref CfnTemplateBuildProject
+                  EnvironmentVariables: !Sub '[{"name":"DEPLOYMENT_REGION","value":"${TestServiceCatalogRegion}","type":"PLAINTEXT"}]'
+                RunOrder: 1
+
+          # Stage: Deploy -----------------------------------------------
+          - Name: Deploy
+            Actions:
+
+            # Action 1
+            - Name: CoreMain
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::core-main.yaml-packaged'
+                OutputFileName: 'core-main-output.json'
+                TemplateConfiguration: 'BuildArtifact::core-main.json'
+                ParameterOverrides: !Sub '{
+                  "StackSetName":"${ProjectName}-core"
+                }'
+              RunOrder: 1
+
+            # Action 2 - Launch SC Product
+
+
+            # Action 3
+            - Name: ApproveDeployment
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub '${ProjectName} environment with Service Catalog deployment use case ready for review in ${AWS::AccountId}:${TestServiceCatalogRegion}'
+                ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
+                NotificationArn: !Ref NotificationArn
+              RunOrder: 3
+
+            # Action 4 - Delete SC Product
+
+
+            # Action 5
+            - Name: DeleteCore
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 5
+
+            # Action 6
+            - Name: DeleteEFS
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              InputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
+                UserParameters: '{"VPC":"delete"},{"FileName":"env-main-output.json"}'
+              RunOrder: 5
+
+  ServiceCatalogPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+        - 'codepipeline-pipeline-pipeline-execution-succeeded'
+        - 'codepipeline-pipeline-manual-approval-needed'
+      Name: !Sub '${ServiceCatalogDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
       Status: 'ENABLED'
       Targets:
           - 
