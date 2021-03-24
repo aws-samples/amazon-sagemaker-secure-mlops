@@ -67,28 +67,28 @@ Outputs:
       - ''
 
   PortfolioId:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science portfolio Id
     Value: !If 
       - SCPortfolioCondition
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.PortfolioId
       - ''
 
   ProductName:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science product name
     Value: !If 
       - SCPortfolioCondition
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProductName
       - ''
 
   ProvisioningArtifactIds:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science provisioning artifact Ids
     Value: !If 
       - SCPortfolioCondition
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProvisioningArtifactIds
       - ''
 
   ProvisioningArtifactNames:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science provisioning artifact names
     Value: !If 
       - SCPortfolioCondition
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProvisioningArtifactNames

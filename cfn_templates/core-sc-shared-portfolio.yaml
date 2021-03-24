@@ -15,15 +15,15 @@ Outputs:
     Value: !Ref DataScienceEnvironmentPortfolio
 
   ProductName:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science product name
     Value: !GetAtt DataScienceEnvironmentProduct.ProductName
 
   ProvisioningArtifactIds:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science provisioning artifact Ids
     Value: !GetAtt DataScienceEnvironmentProduct.ProvisioningArtifactIds
 
   ProvisioningArtifactNames:
-    Description: Service Catalog data science product Id
+    Description: Service Catalog data science provisioning artifact names
     Value: !GetAtt DataScienceEnvironmentProduct.ProvisioningArtifactNames
 
 

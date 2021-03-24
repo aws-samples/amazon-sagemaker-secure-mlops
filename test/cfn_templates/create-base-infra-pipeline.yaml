@@ -1080,7 +1080,7 @@ Resources:
                 OutputFileName: 'env-main-output.json'
                 TemplateConfiguration: 'BuildArtifact::env-main.json'
                 ParameterOverrides: !Sub '{
-                  "EnvName":"${ProjectName}-env"   
+                  "EnvName":"${ProjectName}-env",
                   "AvailabilityZones":"${Test2StepCFNRegion}a,${Test2StepCFNRegion}b",
                   "CreateEnvironmentIAMRoles":"YES",
                   "CreateS3VPCEndpoint":"YES",
@@ -1276,7 +1276,7 @@ Resources:
                       "Value":"2"
                     }
                   ],
-                  "FileName":"env-main-output.json"
+                  "FileName":"core-main-output.json"
                 }'
               RunOrder: 2
 
@@ -1306,9 +1306,22 @@ Resources:
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-TerminateProduct'
                 UserParameters: '{
-                  "FileName":"env-main-output.json"
+                  "FileName":"core-main-output.json"
                 }'
               RunOrder: 4
+
+            # Action 4 - Wait till termination of the SC product
+            - Name: WaitAndApproveSCTermination
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub 'Service Catalog product is being terminated in ${AWS::AccountId}:${TestServiceCatalogRegion}'
+                ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
+                NotificationArn: !Ref NotificationArn
+              RunOrder: 5
 
             # Action 5
             - Name: DeleteCore
@@ -1322,7 +1335,7 @@ Resources:
                 ActionMode: 'DELETE_ONLY'
                 StackName: !Sub '${ProjectName}-core'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
-              RunOrder: 5
+              RunOrder: 6
 
             # Action 6
             - Name: DeleteEFS
@@ -1337,7 +1350,7 @@ Resources:
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
                 UserParameters: '{"VPC":"delete","FileName":"env-main-output.json"}'
-              RunOrder: 5
+              RunOrder: 6
 
   ServiceCatalogPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule

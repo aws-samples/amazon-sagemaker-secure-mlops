@@ -53,8 +53,8 @@ def lambda_handler(event, context):
         provision_product(
             data["PortfolioId"], 
             data["ProductId"], 
-            data["ProvisioningArtifactIds"], 
-            data["ProductName"], 
+            data["ProductName"],
+            data["ProvisioningArtifactIds"],
             user_param["ProvisioningParameters"]
             )
 
