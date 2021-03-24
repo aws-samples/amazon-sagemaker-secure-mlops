@@ -5,7 +5,7 @@
       "data": {
         "actionConfiguration": {
           "configuration": {
-            "FunctionName": "sagemaker-secure-mlops-automation-CleanUpEFS",
+            "FunctionName": "sm-mlops-automation-CleanUpEFS",
             "UserParameters": "{\"VPC\":\"retain\"},{\"FileName\":\"env-main-output.json\"}"
           }
         },
@@ -15,7 +15,7 @@
           "location": {
             "type": "S3",
             "s3Location": {
-              "bucketName": "codepipeline-sagemaker-secure-mlops-us-east-2",
+              "bucketName": "codepipeline-sm-mlops-us-east-2",
               "objectKey": "sagemaker-secure-mlo/EnvMainOut/1u8ty4P"
             }
           }

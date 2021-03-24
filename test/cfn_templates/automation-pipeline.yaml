@@ -9,7 +9,7 @@ Parameters:
   ProjectName:
       Description: Project name
       Type: String
-      Default: 'sagemaker-secure-mlops'
+      Default: 'sm-mlops'
 
 Resources:
 
@@ -323,7 +323,7 @@ Resources:
               except Exception as e:
                   print(f"exception: {str(e)}")
                   code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
-                  
+
       Description: Terminate AWS Service Catalog product
       Handler: index.lambda_handler
       MemorySize: 128

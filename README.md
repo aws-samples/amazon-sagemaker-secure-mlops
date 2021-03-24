@@ -1011,7 +1011,7 @@ The solution is tested end-to-end for all possible depoyment options using [AWS 
 The CodePipeline pipelines used in the solution deploy stack in different regions. You must create an Amazon S3 CodePipeline bucket per region following the naming convention: `codepipeline-<ProjectName>-<AWS Region>`:
 
 ```
-PROJECT_NAME=sagemaker-secure-mlops
+PROJECT_NAME=sm-mlops
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-us-east-2 --region us-east-2
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1

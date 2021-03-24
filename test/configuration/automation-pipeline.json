@@ -1,5 +1,5 @@
 {
     "Parameters" : {
-        "ProjectName":"sagemaker-secure-mlops"
+        "ProjectName":"sm-mlops"
     }
 }

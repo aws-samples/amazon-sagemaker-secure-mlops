@@ -310,7 +310,7 @@ aws cloudformation create-stack \
 
 ###############################################################
 # CI/CD test pipeline deployment
-PROJECT_NAME=sagemaker-secure-mlops
+PROJECT_NAME=sm-mlops
 
 # one-off Amazon S3 bucket creation
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-us-east-2 --region us-east-2
@@ -322,6 +322,7 @@ aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+                --s3-bucket $S3_BUCKET_NAME \
                 --parameter-overrides \
                 CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
                 NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
@@ -337,12 +338,12 @@ aws cloudformation delete-stack \
 aws cloudformation delete-stack --stack-name base-env-iam-cross-account-deployment-role
 aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
 aws cloudformation delete-stack --stack-name base-env-iam-roles
-aws cloudformation delete-stack --stack-name sagemaker-secure-mlops-us-east-2-VPC-pipeline
+aws cloudformation delete-stack --stack-name sm-mlops-us-east-2-VPC-pipeline
 aws cloudformation delete-stack --stack-name base-vpc 
 
 aws cloudformation delete-stack --stack-name base-infra-us-east-2
 
-PROJECT_NAME=sagemaker-secure-mlops
+PROJECT_NAME=sm-mlops
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-us-east-2 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --force

@@ -9,7 +9,7 @@ Parameters:
   ProjectName:
       Description: Project name
       Type: String
-      Default: 'sagemaker-secure-mlops'
+      Default: 'sm-mlops'
 
   TestDSQuickstartRegion:
     Description: Region for data science quickstart use case test

@@ -1,6 +1,6 @@
 {
     "Parameters" : {
-        "EnvName":"sagemaker-secure-mlops",
+        "EnvName":"sm-mlops",
         "EnvType":"dev",
         "AvailabilityZones":"",
         "NumberOfAZs":"2",

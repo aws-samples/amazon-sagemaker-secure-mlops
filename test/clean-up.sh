@@ -1,4 +1,4 @@
-PROJECT_NAME="sagemaker-secure-mlops"
+PROJECT_NAME="sm-mlops"
 
 
 # Invoke lambda to delete the left-over EFS file system

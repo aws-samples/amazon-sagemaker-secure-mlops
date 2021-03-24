@@ -1,6 +1,6 @@
 {
     "Parameters" : {
-        "EnvName":"sagemaker-mlops",
+        "EnvName":"sm-mlops",
         "EnvType":"dev"
       }
 }

@@ -1,11 +1,11 @@
 {
     "Parameters" : {
-      "StackSetName":"sagemaker-mlops-core",
+      "StackSetName":"sm-mlops-core",
       "CreateIAMRoles":"YES",
       "CreateSharedServices":"NO",
       "CreateSCPortfolio":"YES",
-      "DSAdministratorRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sagemaker-mlops-us-east-2-DataScienceAdministrator",
-      "SecurityControlExecutionRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sagemaker-mlops-us-east-2-DSSageMakerDetectiveControlRole",
-      "SCLaunchRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sagemaker-mlops-east-2-DSServiceCatalogLaunchRole"
+      "DSAdministratorRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sm-mlops-us-east-2-DataScienceAdministrator",
+      "SecurityControlExecutionRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sm-mlops-us-east-2-DSSageMakerDetectiveControlRole",
+      "SCLaunchRoleArn":"arn:aws:iam::ACCOUNT_ID:role/sm-mlops-east-2-DSServiceCatalogLaunchRole"
       }
 }
