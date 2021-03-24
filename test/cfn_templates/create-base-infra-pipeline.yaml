@@ -1278,6 +1278,7 @@ Resources:
                   ],
                   "FileName":"env-main-output.json"
                 }'
+              RunOrder: 2
 
             # Action 3
             - Name: ApproveDeployment
@@ -1293,7 +1294,21 @@ Resources:
               RunOrder: 3
 
             # Action 4 - Delete SC Product
-
+            - Name: TerminateSCProduct
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              InputArtifacts:
+                - Name: CoreMainOutput
+              Configuration:
+                FunctionName: !Sub '${ProjectName}-automation-TerminateProduct'
+                UserParameters: '{
+                  "FileName":"env-main-output.json"
+                }'
+              RunOrder: 4
 
             # Action 5
             - Name: DeleteCore

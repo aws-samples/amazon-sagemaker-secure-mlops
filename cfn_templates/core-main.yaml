@@ -66,6 +66,13 @@ Outputs:
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProductId
       - ''
 
+  PortfolioId:
+    Description: Service Catalog data science product Id
+    Value: !If 
+      - SCPortfolioCondition
+      - !GetAtt SharedServiceCatalogPortfolio.Outputs.PortfolioId
+      - ''
+
   ProductName:
     Description: Service Catalog data science product Id
     Value: !If 

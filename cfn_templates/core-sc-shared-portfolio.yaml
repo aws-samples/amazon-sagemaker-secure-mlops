@@ -10,6 +10,10 @@ Outputs:
     Description: Service Catalog data science product Id
     Value: !Ref DataScienceEnvironmentProduct
 
+  PortfolioId:
+    Description: Service Catalog data science portfolio Id
+    Value: !Ref DataScienceEnvironmentPortfolio
+
   ProductName:
     Description: Service Catalog data science product Id
     Value: !GetAtt DataScienceEnvironmentProduct.ProductName
