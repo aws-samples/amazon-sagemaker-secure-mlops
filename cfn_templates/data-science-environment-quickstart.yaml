@@ -5,8 +5,8 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: |
   This template provisions an end-to-end secure Data Science environment with MLOps project template.
   It deploys:
-     - a VPC with three private and public subnets
-     - three NAT gateways: one in each availability zone
+     - a VPC with two private and public subnets
+     - two NAT gateways: one in each availability zone
      - route tables
      - security groups
      - VPC endpoints
@@ -53,14 +53,10 @@ Metadata:
         default: Private subnet 1A CIDR
       PrivateSubnet2ACIDR:
         default: Private subnet 2A CIDR
-      PrivateSubnet3ACIDR:
-        default: Private subnet 3A CIDR
       PublicSubnet1CIDR:
         default: Public subnet 1 CIDR
       PublicSubnet2CIDR:
         default: Public subnet 2 CIDR
-      PublicSubnet3CIDR:
-        default: Public subnet 3 CIDR
 
 Outputs:
   AssumeDSAdministratorRole:
@@ -191,15 +187,12 @@ Resources:
           - ','
           - - !Sub '${AWS::Region}a'
             - !Sub '${AWS::Region}b'
-            - !Sub '${AWS::Region}c'
-        NumberOfAZs: '3'
+        NumberOfAZs: '2'
         VPCCIDR: !Ref VPCCIDR
         PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
         PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
-        PrivateSubnet3ACIDR: !Ref PrivateSubnet3ACIDR
         PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
         PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
-        PublicSubnet3CIDR: !Ref PublicSubnet3CIDR 
       TemplateURL: env-main.yaml
       Tags:
         - Key: EnvironmentName

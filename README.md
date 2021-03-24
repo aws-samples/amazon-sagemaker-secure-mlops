@@ -512,13 +512,13 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev
 ```
 
-The full end-to-end deployment takes about 30 minutes.
+The full end-to-end deployment takes about 25 minutes.
 
 ## Cleanup
 After you have played with the environment, you can delete all resources as follows.
@@ -841,7 +841,7 @@ Skip these sub-steps and go directly to **Deploy Data Science Environment** if y
 
 ### Deploy VPC
 For VPC deployment we use the [VPC Quick Start Reference Deployment](https://fwd.aws/9VdxN).  
-We deploy VPC with private and public subnets, NAT gateways in three Availability Zones:
+We deploy VPC with private and public subnets, NAT gateways in two Availability Zones:
 
 ```bash
 STACK_NAME="ds-team-vpc"

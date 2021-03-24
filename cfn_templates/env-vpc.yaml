@@ -952,8 +952,16 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
+  # Single rule allowing traffic from the VPC CIDR block
+  VPCEndpointsSecurityGroupVPCIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      CidrIp: !Ref 'VPCCIDR'
+      Description: Allow all traffic from the VPC
+      IpProtocol: '-1'
+      GroupId: !Ref VPCEndpointsSecurityGroup
+
   # Set CIDR-based ingress rules allowing traffic from all the private subnets into the VPCE SG
-  # Can be changed to a single rule allowing traffic from the VPC CIDR block
   VPCEndpointsSecurityGroupTLSIngress1:
     Type: AWS::EC2::SecurityGroupIngress
     Condition: PrivateSubnetsCondition
