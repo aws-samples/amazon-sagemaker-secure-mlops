@@ -477,12 +477,25 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 + SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles.
 
 ## Clean-up considerations
-The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). 
+The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). Additional resources are created by SageMaker Studio and retained upon deletion together with the EFS file system:
+- EFS mounting points in each private subnet of your VPC
+- ENI for each mounting point
+- Security groups for EFS inbound and outbound traffci
 
-❗ To delete all resources in your AWS account created by the deployment of this solution, do the following steps **after** running commands from **Clean-up** section for each deployment type:
-+ From AWS console:
-  - Go to the EFS console and delete all mounting points in all private subnets of the data science VPC
-  - delete the EFS system. You may want to backup the EFS file system before deletion
+❗ To delete the EFS file system and EFS-related resources in your AWS account created by the deployment of this solution, do the following steps **after** running commands from **Clean-up** section for each deployment type:
+
+❗ **This is a destructive action. All data on the EFS file system will be deleted (SageMaker home directories). You may want to backup the EFS file system before deletion**
+  
++ Option 1:
+  - run the clean-up script:
+  ```bash
+  python3 functions/automation/clean-up-efs-cli.py
+  ```
+  
++ Option 2:
+  From AWS console:
+  - Go to the EFS console and delete all mounting points in all private subnets of the data science VPC for the SageMaker EFS file system
+  - delete the SageMaker EFS system. You may want to backup the EFS file system before deletion
   - Go to the VPC console and delete the data science VPC
 
 ## Data Science Environment Quickstart

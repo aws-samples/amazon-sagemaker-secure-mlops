@@ -1,6 +1,7 @@
 # Manual packaging of CloudFormation templates
+This manual takes you in three simple steps through the process of preparing the delivered CloudFormation templates for the deployment.
 
-### Pre-requisites
+## Pre-requisites
 Configured AWS CLI with CloudFormation `package` and S3 bucket write/read rights, `$AWS_DEFAULT_REGION` set to the region where you are going to deploy
 
 Unzip the delivered `cfn-templates-<region>.zip` file, `cd` into the directory with CloudFormation templates.
@@ -16,18 +17,17 @@ PROJECT_NAME=sagemaker-poc
 aws s3 mb s3://${CFN_BUCKET_NAME} --region $AWS_DEFAULT_REGION
 ```
 
-### Replace S3 placeholder links with actual S3 path
-In the file `core-sc-shared-portfolio.yaml` replace all `< S3_CFN_STAGING_BUCKET_PATH >` with `<you new bucket name>/<project name>`
+## 1 Replace S3 placeholder links with actual S3 path
+In the file `core-sc-shared-portfolio.yaml` replace all `< S3_CFN_STAGING_BUCKET_PATH >` with `<your new bucket name>/<project name>`
 ```bash
 atom core-sc-shared-portfolio.yaml
 ```
-or use your OS-dependent string replacement utility
-
-### Package CloudFormation templates
+or use your OS-dependent string replacement utility, e.g.
 ```bash
-CFN_BUCKET_NAME=<your bucket name>
+sed -ie "s/< S3_CFN_STAGING_BUCKET_PATH >/<your S3 bucket name>\/<project name>/" .
 ```
 
+## 2 Package CloudFormation templates
 For each of the files:
 + `core-main.yaml`
 + `env-main.yaml`  
@@ -35,8 +35,11 @@ For each of the files:
 run `aws cloudformation package`:
 
 ```bash
+CFN_BUCKET_NAME=<your bucket name>
 FILE=core-main.yaml
 PROJECT_NAME=sagemaker-poc
+
+echo $AWS_DEFAULT_REGION
 
 aws cloudformation package \
     --template-file $FILE \
@@ -47,8 +50,11 @@ aws cloudformation package \
 ```
 
 ```bash
+CFN_BUCKET_NAME=<your bucket name>
 FILE=env-main.yaml
 PROJECT_NAME=sagemaker-poc
+
+echo $AWS_DEFAULT_REGION
 
 aws cloudformation package \
     --template-file $FILE \
@@ -58,12 +64,12 @@ aws cloudformation package \
     --region $AWS_DEFAULT_REGION
 ```
 
-### Copy CloudFormation templates to the S3 bucket
+## 3 Copy CloudFormation templates to the S3 bucket
 For each of the files:
 + `core-main.yaml-<region>`
 + `env-main.yaml-<region>`
 
-run the following command:
+run the following commands:
 
 ```bash
 FILE=core-main.yaml

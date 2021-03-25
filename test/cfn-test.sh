@@ -8,7 +8,7 @@
 # These templates do not contain any nested templates and can be directly deployed from the file
 # no `aws cloudformation package` is needed
 
-S3_BUCKET_NAME=ilyiny-cfn-artefacts-us-east-2
+S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # env-vpc.yaml
@@ -111,7 +111,7 @@ aws cloudformation deploy \
 #############################################################################################
 # Deployment into an existing VPC and with pre-provisioned IAM roles
 #############################################################################################
-S3_BUCKET_NAME=ilyiny-cfn-artefacts-us-east-2
+S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # stand-alone VPC deployment
@@ -313,19 +313,20 @@ aws cloudformation create-stack \
 PROJECT_NAME=sm-mlops
 
 # one-off Amazon S3 bucket creation
-aws s3 mb s3://codepipeline-${PROJECT_NAME}-us-east-2 --region us-east-2
+aws s3 mb s3://codepipeline-${PROJECT_NAME}-$AWS_DEFAULT_REGION --region $AWS_DEFAULT_REGION
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
+S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
                 --s3-bucket $S3_BUCKET_NAME \
                 --parameter-overrides \
-                CodeCommitRepositoryArn=arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops \
-                NotificationArn=arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+                CodeCommitRepositoryArn=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
+                NotificationArn=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 
 # Clean up
 # Delete stack under a role other than it has been created
@@ -338,13 +339,13 @@ aws cloudformation delete-stack \
 aws cloudformation delete-stack --stack-name base-env-iam-cross-account-deployment-role
 aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
 aws cloudformation delete-stack --stack-name base-env-iam-roles
-aws cloudformation delete-stack --stack-name sm-mlops-us-east-2-VPC-pipeline
+aws cloudformation delete-stack --stack-name sm-mlops-$AWS_DEFAULT_REGION-VPC-pipeline
 aws cloudformation delete-stack --stack-name base-vpc 
 
-aws cloudformation delete-stack --stack-name base-infra-us-east-2
+aws cloudformation delete-stack --stack-name base-infra-$AWS_DEFAULT_REGION
 
 PROJECT_NAME=sm-mlops
-aws s3 rb s3://codepipeline-${PROJECT_NAME}-us-east-2 --force
+aws s3 rb s3://codepipeline-${PROJECT_NAME}-$AWS_DEFAULT_REGION --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --force

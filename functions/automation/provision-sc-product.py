@@ -49,6 +49,7 @@ def lambda_handler(event, context):
 
         user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
         data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
+        print(user_param)
 
         provision_product(
             data["PortfolioId"], 

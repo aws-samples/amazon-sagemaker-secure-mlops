@@ -87,6 +87,7 @@ Resources:
           s3 = boto3.client("s3")
           ec2 = boto3.client("ec2")
           code_pipeline = boto3.client('codepipeline')
+          ssm = boto3.client("ssm")
 
           def delete_efs(sm_domain_id, delete_vpc=False):
               vpc_id=""
@@ -156,9 +157,13 @@ Resources:
                   job_data = event['CodePipeline.job']['data']
 
                   user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
-                  sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
-
                   print(f"user parameters: {user_param}")
+
+                  if user_param.get("FileName"):
+                      sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
+                  else:
+                      sm_domain_id = ssm.get_parameter(Name = user_param.get("SSMParameterName"))['Parameter']['Value']
+
                   delete_efs(sm_domain_id, user_param.get("VPC") == "delete")
                   
                   code_pipeline.put_job_success_result(jobId=job_id)
@@ -231,20 +236,22 @@ Resources:
 
                   user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
                   data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
+                  print(user_param)
 
                   provision_product(
                       data["PortfolioId"], 
                       data["ProductId"], 
-                      data["ProvisioningArtifactIds"], 
-                      data["ProductName"], 
+                      data["ProductName"],
+                      data["ProvisioningArtifactIds"],
                       user_param["ProvisioningParameters"]
                       )
 
                   code_pipeline.put_job_success_result(jobId=job_id)
               except Exception as e:
                   print(f"exception: {str(e)}")
-                  code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
-      Description: Provision AWS Service Catalog product
+                  code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})      Description: Provision AWS Service Catalog product
+
+      Description: Provision AWS Service Catalog product  
       Handler: index.lambda_handler
       MemorySize: 128
       Role: !GetAtt AutomationLambdaExecutionRole.Arn 
@@ -290,6 +297,7 @@ Resources:
                       "Value":"self"
                   }
               )
+              print(pp)
 
               if len(pp["ProvisionedProducts"]) != 1:
                   print(f"no provisioned products or more than one provisioned product found")
@@ -329,7 +337,7 @@ Resources:
               except Exception as e:
                   print(f"exception: {str(e)}")
                   code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
-
+                
       Description: Terminate AWS Service Catalog product
       Handler: index.lambda_handler
       MemorySize: 128
