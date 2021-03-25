@@ -8,6 +8,7 @@ efs = boto3.client("efs")
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 code_pipeline = boto3.client('codepipeline')
+ssm = boto3.client("ssm")
 
 def delete_efs(sm_domain_id, delete_vpc=False):
     vpc_id=""
@@ -77,9 +78,13 @@ def lambda_handler(event, context):
         job_data = event['CodePipeline.job']['data']
 
         user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
-        sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
-
         print(f"user parameters: {user_param}")
+
+        if user_param.get("FileName"):
+            sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
+        else:
+            sm_domain_id = ssm.get_parameter(Name = user_param.get("SSMParameterName"))['Parameter']['Value']
+
         delete_efs(sm_domain_id, user_param.get("VPC") == "delete")
         
         code_pipeline.put_job_success_result(jobId=job_id)

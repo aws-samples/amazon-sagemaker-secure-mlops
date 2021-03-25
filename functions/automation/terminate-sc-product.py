@@ -31,6 +31,7 @@ def terminate_product(portfolio_id, product_id):
             "Value":"self"
         }
     )
+    print(pp)
 
     if len(pp["ProvisionedProducts"]) != 1:
         print(f"no provisioned products or more than one provisioned product found")

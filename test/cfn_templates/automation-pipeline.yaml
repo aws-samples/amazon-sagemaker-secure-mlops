@@ -47,6 +47,12 @@ Resources:
                   - codepipeline:PutJobSuccessResult
                   - codepipeline:PutJobFailureResult
                 Resource: '*'
+              - Sid: SSMReadPermission
+                Effect: Allow
+                Action:
+                  - 'ssm:GetParameters'
+                  - 'ssm:GetParameter'
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
               - Sid: S3ArtifactBucketPermission
                 Effect: Allow
                 Action:

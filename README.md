@@ -435,8 +435,6 @@ def enable_projects(studio_role_arn):
 
 # Deployment
 
-❗ This is work in progress. This section will be changed significantly with each project iteration.
-
 # Pre-requisites
 The following guide assumes you have cloned the GitHub repository and will deploy the CloudFormation template from your terminal.
 

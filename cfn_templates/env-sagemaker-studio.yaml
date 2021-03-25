@@ -62,6 +62,8 @@ Outputs:
   SageMakerDomainId:
     Description: SageMaker Domain Id
     Value: !GetAtt SageMakerStudioDomain.DomainId
+    Export:
+      Name: 'ds-sagemaker-domain-id'
 
 Mappings: 
   RegionMap: 
@@ -355,3 +357,14 @@ Resources:
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
+
+  # SSM parameter
+  SageMakerDomainIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Delete    
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-sagemaker-domain-id"
+      Type: String
+      Value: !GetAtt SageMakerStudioDomain.DomainId
+      Description: !Sub 'SageMaker Studio domain id for ${SageMakerStudioDomain.DomainArn}'

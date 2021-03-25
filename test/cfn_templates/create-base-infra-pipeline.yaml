@@ -1268,6 +1268,10 @@ Resources:
                       "Value":"ds-product"
                     },
                     {
+                      "Key":"EnvType",
+                      "Value":"dev"
+                    },
+                    {
                       "Key":"AvailabilityZones",
                       "Value":"${TestServiceCatalogRegion}a,${TestServiceCatalogRegion}b"
                     },
@@ -1349,7 +1353,7 @@ Resources:
                 - Name: CoreMainOutput
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-                UserParameters: '{"VPC":"delete","FileName":"env-main-output.json"}'
+                UserParameters: '{"VPC":"delete","SSMParameterName":"ds-product-dev-sagemaker-domain-id"}'
               RunOrder: 6
 
   ServiceCatalogPipelineNotificationRule:
