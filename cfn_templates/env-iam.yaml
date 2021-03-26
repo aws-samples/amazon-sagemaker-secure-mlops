@@ -341,11 +341,6 @@ Resources:
             PolicyDocument:
               Version: 2012-10-17
               Statement:
-                - Sid: LambdaPermission
-                  Effect: Allow
-                  Action:
-                  - 'lambda:*'
-                  Resource: '*'
                 - Sid: IAMPermission
                   Effect: Allow
                   Action:
