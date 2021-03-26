@@ -361,8 +361,6 @@ Resources:
   # SSM parameter
   SageMakerDomainIdSSM:
     Type: 'AWS::SSM::Parameter'
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Delete    
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-sagemaker-domain-id"
       Type: String

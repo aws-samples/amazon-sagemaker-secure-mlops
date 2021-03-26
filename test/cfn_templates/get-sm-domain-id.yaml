@@ -1,0 +1,31 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  Retrieves a SageMaker domain id from the SSM parameter and outputs it as template output
+
+Outputs:
+  SageMakerDomainId:
+    Description: SageMaker Domain Id
+    Value: !GetAtt GetSageMakerDomainId.SageMakerDomainId
+
+Parameters:
+  SSMParameterName:
+    Type: String
+    Description: SSM parameter name to retrieve
+
+  GetSageMakerDomainIdLambdaArn:
+    Type: String
+    Description: Arn of the Lambda function to get SageMaker domain id
+
+Resources:
+
+  GetSageMakerDomainId:
+    Type: Custom::GetSageMakerDomainId
+    Properties:
+      ServiceToken: !Ref GetSageMakerDomainIdLambdaArn
+      SSMParameterName: !Ref SSMParameterName
+
+  
+

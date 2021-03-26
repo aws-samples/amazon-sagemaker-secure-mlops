@@ -349,3 +349,20 @@ aws s3 rb s3://codepipeline-${PROJECT_NAME}-$AWS_DEFAULT_REGION --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --force
+
+
+# Test
+aws cloudformation deploy \
+        --template-file test/cfn_templates/get-sm-domain-id.yaml \
+        --stack-name get-sm-domain-id \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --parameter-overrides \
+        SSMParameterName=sm-mlops-dev-sagemaker-domain-id \
+        GetSageMakerDomainIdLambdaArn=arn:aws:lambda:us-east-2:949335012047:function:sm-mlops-automation-GetSageMakerDomainId
+
+aws cloudformation deploy \
+        --template-file test/cfn_templates/automation-pipeline.yaml \
+        --stack-name automation-pipeline \
+        --capabilities CAPABILITY_NAMED_IAM 
+
+        

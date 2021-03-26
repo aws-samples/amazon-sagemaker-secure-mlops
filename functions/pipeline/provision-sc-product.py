@@ -23,37 +23,23 @@ def get_file(artifact, f_name):
 def get_role_arn():
     return "/".join(sts.get_caller_identity()["Arn"].replace("assumed-role", "role").replace("sts", "iam").split("/")[0:-1])
 
-def terminate_product(portfolio_id, product_id):
+def provision_product(portfolio_id, product_id, product_name, provisioning_artifact_id, provisioning_parameters):
 
-    pp = sc.search_provisioned_products(
-        AccessLevelFilter={
-            "Key":"Role",
-            "Value":"self"
-        }
-    )
-    print(pp)
-
-    if len(pp["ProvisionedProducts"]) != 1:
-        print(f"no provisioned products or more than one provisioned product found")
-        return
-
-    provisioned_product_id = pp["ProvisionedProducts"][0]["Id"]
-
-    if pp["ProvisionedProducts"][0]["Status"] != "AVAILABLE":
-        print(f"provisioned product {provisioned_product_id} is not in AVAILABLE state")
-        return
-
-    print(f"terminating the provisioned product {provisioned_product_id}")
-    r = sc.terminate_provisioned_product(
-        ProvisionedProductId=provisioned_product_id,
-        TerminateToken=str(uuid.uuid4())
+    role_arn = get_role_arn()
+    print(f"associating the lambda execution role {role_arn} with the portfolio {portfolio_id}")
+    r = sc.associate_principal_with_portfolio(
+        PortfolioId=portfolio_id,
+        PrincipalARN=role_arn,
+        PrincipalType='IAM'
     )
     print(r)
 
-    print(f"disassociating the lambda execution role with the portfolio {portfolio_id}")
-    sc.disassociate_principal_from_portfolio(
-        PortfolioId=portfolio_id,
-        PrincipalARN=get_role_arn()
+    print(f"launching the product {product_id}")
+    r = sc.provision_product(
+        ProductId=product_id,
+        ProvisioningArtifactId=provisioning_artifact_id,
+        ProvisionedProductName=product_name.replace(" ", "_").lower() + "-" + str(uuid.uuid4()).split("-")[0],
+        ProvisioningParameters=provisioning_parameters
     )
     print(r)
 
@@ -64,8 +50,15 @@ def lambda_handler(event, context):
 
         user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
         data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
+        print(user_param)
 
-        terminate_product(data["PortfolioId"], data["ProductId"])
+        provision_product(
+            data["PortfolioId"], 
+            data["ProductId"], 
+            data["ProductName"],
+            data["ProvisioningArtifactIds"],
+            user_param["ProvisioningParameters"]
+            )
 
         code_pipeline.put_job_success_result(jobId=job_id)
     except Exception as e:

@@ -212,10 +212,11 @@ Resources:
 
           def provision_product(portfolio_id, product_id, product_name, provisioning_artifact_id, provisioning_parameters):
 
-              print(f"associating the lambda execution role with the portfolio {portfolio_id}")
+              role_arn = get_role_arn()
+              print(f"associating the lambda execution role {role_arn} with the portfolio {portfolio_id}")
               r = sc.associate_principal_with_portfolio(
                   PortfolioId=portfolio_id,
-                  PrincipalARN=get_role_arn(),
+                  PrincipalARN=role_arn,
                   PrincipalType='IAM'
               )
               print(r)
@@ -249,7 +250,7 @@ Resources:
                   code_pipeline.put_job_success_result(jobId=job_id)
               except Exception as e:
                   print(f"exception: {str(e)}")
-                  code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})      Description: Provision AWS Service Catalog product
+                  code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
 
       Description: Provision AWS Service Catalog product  
       Handler: index.lambda_handler
@@ -344,4 +345,38 @@ Resources:
       Role: !GetAtt AutomationLambdaExecutionRole.Arn 
       Runtime: python3.8
       Timeout: 60
+
+  GetSageMakerDomainIdLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-automation-GetSageMakerDomainId'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+
+          ssm = boto3.client("ssm")
+
+          def lambda_handler(event, context):
+              try:
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["SageMakerDomainId"] = ssm.get_parameter(
+                          Name=event['ResourceProperties']['SSMParameterName']
+                          )["Parameter"]["Value"]
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, r, '')
+
+              except Exception as e:
+                  print(f"exception: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(e))
+
+      Description: Get SageMaker domain id
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt AutomationLambdaExecutionRole.Arn
+      Runtime: python3.8
+      Timeout: 60 
 

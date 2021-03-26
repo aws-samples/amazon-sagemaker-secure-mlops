@@ -348,7 +348,11 @@ Resources:
                 Action:
                   - 'codepipeline:StartPipelineExecution'
                 Resource: 
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
                   - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
                 Effect: 'Allow'
 
   CodeCommitTriggerEventRule:
@@ -552,6 +556,20 @@ Resources:
                   OutputFileName: 'lambdas-output.json'
                   TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
                 RunOrder: 1
+  
+  AutomationLambdaPipelineNotificationRule:
+    Type: AWS::CodeStarNotifications::NotificationRule
+    Properties:
+      DetailType: 'FULL'
+      EventTypeIds:
+        - 'codepipeline-pipeline-pipeline-execution-failed'
+      Name: !Sub '${AutomationLambdaDeployPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
+      Status: 'ENABLED'
+      Targets:
+          - 
+            TargetAddress: !Ref NotificationArn
+            TargetType: 'SNS'
 
   ########################################################################
   BaseDeployPipeline:
@@ -1285,19 +1303,45 @@ Resources:
               RunOrder: 2
 
             # Action 3
-            - Name: ApproveDeployment
+            - Name: WaitAndApproveDeployment
               ActionTypeId:
                 Category: Approval
                 Owner: AWS
                 Version: '1'
                 Provider: Manual
               Configuration:
-                CustomData: !Sub '${ProjectName} environment with Service Catalog deployment use case ready for review in ${AWS::AccountId}:${TestServiceCatalogRegion}'
+                CustomData: !Sub '${ProjectName} environment has launched Service Catalog product in ${AWS::AccountId}:${TestServiceCatalogRegion}'
                 ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
                 NotificationArn: !Ref NotificationArn
               RunOrder: 3
+            
+            # Action 4
+            - Name: GetSageMakerDomainId
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              InputArtifacts:
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: GetSMDomainIdOutput
+              Configuration:
+                ActionMode: 'REPLACE_ON_FAILURE'
+                StackName: !Sub '${ProjectName}-get-sm-domain-id'
+                Capabilities: 'CAPABILITY_NAMED_IAM'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                TemplatePath: 'BuildArtifact::get-sm-domain-id.yaml'
+                OutputFileName: 'get-sm-domain-id-output.json'
+                TemplateConfiguration: 'BuildArtifact::get-sm-domain-id.json'
+                ParameterOverrides: !Sub '{
+                  "GetSageMakerDomainIdLambdaArn":"arn:${AWS::Partition}:lambda:${TestServiceCatalogRegion}:${AWS::AccountId}:function:${ProjectName}-automation-GetSageMakerDomainId",
+                  "SSMParameterName":"ds-product-dev-sagemaker-domain-id"
+                }'
+              RunOrder: 4
 
-            # Action 4 - Delete SC Product
+            # Action 5 - Delete SC Product
             - Name: TerminateSCProduct
               ActionTypeId:
                 Category: Invoke
@@ -1312,9 +1356,9 @@ Resources:
                 UserParameters: '{
                   "FileName":"core-main-output.json"
                 }'
-              RunOrder: 4
+              RunOrder: 5
 
-            # Action 4 - Wait till termination of the SC product
+            # Action 6 - Wait till termination of the SC product
             - Name: WaitAndApproveSCTermination
               ActionTypeId:
                 Category: Approval
@@ -1325,9 +1369,9 @@ Resources:
                 CustomData: !Sub 'Service Catalog product is being terminated in ${AWS::AccountId}:${TestServiceCatalogRegion}'
                 ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
                 NotificationArn: !Ref NotificationArn
-              RunOrder: 5
+              RunOrder: 6
 
-            # Action 5
+            # Action 6
             - Name: DeleteCore
               ActionTypeId:
                 Category: Deploy
@@ -1339,9 +1383,9 @@ Resources:
                 ActionMode: 'DELETE_ONLY'
                 StackName: !Sub '${ProjectName}-core'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
-              RunOrder: 6
+              RunOrder: 7
 
-            # Action 6
+            # Action 7
             - Name: DeleteEFS
               ActionTypeId:
                 Category: Invoke
@@ -1350,11 +1394,28 @@ Resources:
                 Version: '1'
               Region: !Ref TestServiceCatalogRegion
               InputArtifacts:
-                - Name: CoreMainOutput
+                - Name: GetSMDomainIdOutput
               Configuration:
                 FunctionName: !Sub '${ProjectName}-automation-CleanUpEFS'
-                UserParameters: '{"VPC":"delete","SSMParameterName":"ds-product-dev-sagemaker-domain-id"}'
-              RunOrder: 6
+                UserParameters: '{
+                  "VPC":"delete",
+                  "FileName":"get-sm-domain-id-output.json"
+                  }'
+              RunOrder: 7
+
+            # Action 8
+            - Name: DeleteGetSMDomainId
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-get-sm-domain-id'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 7
 
   ServiceCatalogPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule

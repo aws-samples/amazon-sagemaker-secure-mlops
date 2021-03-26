@@ -8,7 +8,6 @@ efs = boto3.client("efs")
 s3 = boto3.client("s3")
 ec2 = boto3.client("ec2")
 code_pipeline = boto3.client('codepipeline')
-ssm = boto3.client("ssm")
 
 def delete_efs(sm_domain_id, delete_vpc=False):
     vpc_id=""
@@ -31,10 +30,11 @@ def delete_efs(sm_domain_id, delete_vpc=False):
             print("Wait until mount targes have been deleted")
             time.sleep(5)
 
-        # Get all SageMaker EFS security groups (based on a tag)
+        # Get all SageMaker EFS security groups (based on a tag)    
         security_groups = [sg for sg in ec2.describe_security_groups(Filters=[{"Name":"vpc-id","Values":[vpc_id]}])["SecurityGroups"]
             if sg.get("Tags") and [t["Value"] for t in sg["Tags"] if t["Key"]=="ManagedByAmazonSageMakerResource"][0].split("/")[-1] == sm_domain_id
         ]
+
         # Remove all ingress and egress rules
         for sg in security_groups:
             if len(sg["IpPermissionsEgress"]) > 0:
@@ -44,7 +44,7 @@ def delete_efs(sm_domain_id, delete_vpc=False):
                 print(f"revoke ingress rule for security group {sg['GroupId']}")
                 ec2.revoke_security_group_ingress(GroupId=sg["GroupId"], IpPermissions=sg["IpPermissions"])
 
-        # Delete all SageMaker security groups 
+        # Delete all SageMaker security groups for eth1 (efs)
         for sg in security_groups:
             print(f"delete security group {sg['GroupId']}: {sg['GroupName']}")
             ec2.delete_security_group(GroupId=sg["GroupId"])
@@ -59,7 +59,6 @@ def delete_efs(sm_domain_id, delete_vpc=False):
 
         print(f"delete VPC {vpc_id}")
         ec2.delete_vpc(VpcId=vpc_id)
-
 
 def get_file(artifact, f_name):
     bucket = artifact["location"]["s3Location"]["bucketName"]
@@ -80,10 +79,7 @@ def lambda_handler(event, context):
         user_param = json.loads(job_data["actionConfiguration"]["configuration"]["UserParameters"])
         print(f"user parameters: {user_param}")
 
-        if user_param.get("FileName"):
-            sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
-        else:
-            sm_domain_id = ssm.get_parameter(Name = user_param.get("SSMParameterName"))['Parameter']['Value']
+        sm_domain_id = get_file(job_data["inputArtifacts"][0], user_param.get("FileName")).get("SageMakerDomainId")
 
         delete_efs(sm_domain_id, user_param.get("VPC") == "delete")
         
