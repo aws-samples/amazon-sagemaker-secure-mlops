@@ -3,6 +3,7 @@ import boto3
 import tempfile
 import zipfile
 import uuid
+import time
 
 sc = boto3.client("servicecatalog")
 code_pipeline = boto3.client('codepipeline')
@@ -33,6 +34,9 @@ def provision_product(portfolio_id, product_id, product_name, provisioning_artif
         PrincipalType='IAM'
     )
     print(r)
+
+    # due to eventual consistency of role associating, wait here for 60 sec
+    time.sleep(60)
 
     print(f"launching the product {product_id}")
     r = sc.provision_product(

@@ -383,14 +383,14 @@ Resources:
           Value: !Ref EnvType
 
   # VPC
-  # Set DeletionPolicy and UpdateReplacePolicy to 'Retain'
+  # Set DeletionPolicy to 'Retain'
   # SageMaker Studio creates an EFS file system with mounting points in VPC and does not delete that file system on deletion of SageMaker Studio
   # This EFS cause the CloudFormation deletion process for VPC template to fail
   VPC:
     Type: AWS::EC2::VPC
     Condition: NewVPCCondition
     DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    UpdateReplacePolicy: Delete
     Properties:
       CidrBlock: !Ref 'VPCCIDR'
       EnableDnsSupport: true
@@ -434,7 +434,7 @@ Resources:
   PrivateSubnet1A:
     Type: AWS::EC2::Subnet
     DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    UpdateReplacePolicy: Delete
     Condition: PrivateSubnetsCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -453,7 +453,7 @@ Resources:
   PrivateSubnet2A:
     Type: AWS::EC2::Subnet
     DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    UpdateReplacePolicy: Delete
     Condition: PrivateSubnets&2AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -472,7 +472,7 @@ Resources:
   PrivateSubnet3A:
     Type: AWS::EC2::Subnet
     DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    UpdateReplacePolicy: Delete
     Condition: PrivateSubnets&3AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
@@ -491,7 +491,7 @@ Resources:
   PrivateSubnet4A:
     Type: AWS::EC2::Subnet
     DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    UpdateReplacePolicy: Delete
     Condition: PrivateSubnets&4AZCondition
     Properties:
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
