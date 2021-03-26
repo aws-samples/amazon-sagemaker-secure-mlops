@@ -24,8 +24,7 @@ def get_file(artifact, f_name):
 def get_role_arn():
     return "/".join(sts.get_caller_identity()["Arn"].replace("assumed-role", "role").replace("sts", "iam").split("/")[0:-1])
 
-def provision_product(portfolio_id, product_id, product_name, provisioning_artifact_id, provisioning_parameters):
-
+def associated_role(portfolio_id):
     role_arn = get_role_arn()
     print(f"associating the lambda execution role {role_arn} with the portfolio {portfolio_id}")
     r = sc.associate_principal_with_portfolio(
@@ -35,9 +34,7 @@ def provision_product(portfolio_id, product_id, product_name, provisioning_artif
     )
     print(r)
 
-    # due to eventual consistency of role associating, wait here for 60 sec
-    time.sleep(60)
-
+def provision_product(product_id, product_name, provisioning_artifact_id, provisioning_parameters):
     print(f"launching the product {product_id}")
     r = sc.provision_product(
         ProductId=product_id,
@@ -56,13 +53,15 @@ def lambda_handler(event, context):
         data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
         print(user_param)
 
-        provision_product(
-            data["PortfolioId"], 
-            data["ProductId"], 
-            data["ProductName"],
-            data["ProvisioningArtifactIds"],
-            user_param["ProvisioningParameters"]
-            )
+        if user_param.get("Operation") == "associate-role":
+            associated_role(data["PortfolioId"])
+        else:
+            provision_product(
+                data["ProductId"], 
+                data["ProductName"],
+                data["ProvisioningArtifactIds"],
+                user_param["ProvisioningParameters"]
+                )
 
         code_pipeline.put_job_success_result(jobId=job_id)
     except Exception as e:

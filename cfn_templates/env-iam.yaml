@@ -330,13 +330,22 @@ Resources:
           Statement:
             - Effect: Allow
               Principal:
-                Service: servicecatalog.amazonaws.com
+                Service: 
+                  - 'servicecatalog.amazonaws.com'
+                  - 'cloudformation.amazonaws.com'
+                  - 'codepipeline.amazonaws.com'
               Action: 'sts:AssumeRole'
+        Path: /
         Policies:
           - PolicyName: SCInlinePolicy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
+                - Sid: LambdaPermission
+                  Effect: Allow
+                  Action:
+                  - 'lambda:*'
+                  Resource: '*'
                 - Sid: IAMPermission
                   Effect: Allow
                   Action:
