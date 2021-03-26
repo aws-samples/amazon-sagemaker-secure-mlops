@@ -330,12 +330,8 @@ Resources:
           Statement:
             - Effect: Allow
               Principal:
-                Service: 
-                  - 'servicecatalog.amazonaws.com'
-                  - 'cloudformation.amazonaws.com'
-                  - 'codepipeline.amazonaws.com'
+                Service: servicecatalog.amazonaws.com
               Action: 'sts:AssumeRole'
-        Path: /
         Policies:
           - PolicyName: SCInlinePolicy
             PolicyDocument:
