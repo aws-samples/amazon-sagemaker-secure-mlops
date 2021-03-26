@@ -392,7 +392,7 @@ Resources:
           - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'
           - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
           - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
-          - 'arn:aws:iam::aws:policy/AWSLambdaFullAccess'
+          - 'arn:aws:iam::aws:policy/AWSLambda_FullAccess'
         Tags:
           - Key: EnvironmentName
             Value: !Ref EnvName
