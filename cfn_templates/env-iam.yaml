@@ -219,7 +219,7 @@ Resources:
         - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/AWSLambdaReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AWSCodeCommitReadOnly'
         - 'arn:aws:iam::aws:policy/job-function/DataScientist'
       Tags:
