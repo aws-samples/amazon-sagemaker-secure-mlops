@@ -9,6 +9,7 @@ sc = boto3.client("servicecatalog")
 code_pipeline = boto3.client('codepipeline')
 s3 = boto3.client("s3")
 sts = boto3.client("sts")
+ssm = boto3.client("ssm")
 
 def get_file(artifact, f_name):
     bucket = artifact["location"]["s3Location"]["bucketName"]
@@ -43,6 +44,15 @@ def provision_product(product_id, product_name, provisioning_artifact_id, provis
         ProvisioningParameters=provisioning_parameters
     )
     print(r)
+    print(f"ProvisionedProductId: {r['RecordDetail']['ProvisionedProductId']}")
+
+    ssm.put_parameter(
+        Name=f"/{product_name}/provisioned_product_id",
+        Description=f"Provisioned product id for product_id: {product_id}",
+        Value=r['RecordDetail']['ProvisionedProductId'],
+        Type="String",
+        Overwrite=True
+    )
 
 def lambda_handler(event, context):
     try:

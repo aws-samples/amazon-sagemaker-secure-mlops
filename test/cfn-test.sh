@@ -350,19 +350,14 @@ aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --force
 aws s3 rb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --force
 
+# update pipeline stack
+aws s3 cp test/cfn_templates/create-base-infra-pipeline.yaml s3://$S3_BUCKET_NAME/sagemaker-mlops/create-base-infra-pipeline.yaml
 
-# Test
-aws cloudformation deploy \
-        --template-file test/cfn_templates/get-sm-domain-id.yaml \
-        --stack-name get-sm-domain-id \
-        --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides \
-        SSMParameterName=sm-mlops-dev-sagemaker-domain-id \
-        GetSageMakerDomainIdLambdaArn=arn:aws:lambda:us-east-2:949335012047:function:sm-mlops-automation-GetSageMakerDomainId
-
-aws cloudformation deploy \
-        --template-file test/cfn_templates/automation-pipeline.yaml \
-        --stack-name automation-pipeline \
-        --capabilities CAPABILITY_NAMED_IAM 
-
-        
+aws cloudformation update-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/create-base-infra-pipeline.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name base-infra-$AWS_DEFAULT_REGION \
+    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=CodeCommitRepositoryArn,ParameterValue=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
+        ParameterKey=NotificationArn,ParameterValue=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns

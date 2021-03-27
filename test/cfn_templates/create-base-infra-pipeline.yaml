@@ -1241,6 +1241,20 @@ Resources:
             Actions:
 
             # Action 1
+            - Name: Cleanup
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: '1'
+              Region: !Ref TestServiceCatalogRegion
+              Configuration:
+                ActionMode: 'DELETE_ONLY'
+                StackName: !Sub '${ProjectName}-core'
+                RoleArn: !GetAtt CodePipelineDeployRole.Arn
+              RunOrder: 1
+
+            # Action 2
             - Name: CoreMain
               ActionTypeId:
                 Category: Deploy
@@ -1263,9 +1277,9 @@ Resources:
                 ParameterOverrides: !Sub '{
                   "StackSetName":"${ProjectName}-core"
                 }'
-              RunOrder: 1
+              RunOrder: 2
 
-            # Action 2 - Associate role with SC product 
+            # Action 3 - Associate role with SC product 
             - Name: AssociateSCProduct
               ActionTypeId:
                 Category: Invoke
@@ -1281,10 +1295,10 @@ Resources:
                   "Operation":"associate-role",
                   "FileName":"core-main-output.json"
                 }'
-              RunOrder: 2
+              RunOrder: 3
 
-            # Action 3 - Launch SC Product
-            - Name: SCProduct
+            # Action 4 - Launch SC Product
+            - Name: LaunchSCProduct
               ActionTypeId:
                 Category: Invoke
                 Owner: AWS
@@ -1318,9 +1332,9 @@ Resources:
                   ],
                   "FileName":"core-main-output.json"
                 }'
-              RunOrder: 3
+              RunOrder: 4
 
-            # Action 4
+            # Action 5
             - Name: WaitAndApproveDeployment
               ActionTypeId:
                 Category: Approval
@@ -1331,9 +1345,9 @@ Resources:
                 CustomData: !Sub '${ProjectName} environment has launched Service Catalog product in ${AWS::AccountId}:${TestServiceCatalogRegion}'
                 ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
                 NotificationArn: !Ref NotificationArn
-              RunOrder: 4
+              RunOrder: 5
             
-            # Action 5
+            # Action 6
             - Name: GetSageMakerDomainId
               ActionTypeId:
                 Category: Deploy
@@ -1357,9 +1371,9 @@ Resources:
                   "GetSageMakerDomainIdLambdaArn":"arn:${AWS::Partition}:lambda:${TestServiceCatalogRegion}:${AWS::AccountId}:function:${ProjectName}-automation-GetSageMakerDomainId",
                   "SSMParameterName":"ds-product-dev-sagemaker-domain-id"
                 }'
-              RunOrder: 5
+              RunOrder: 6
 
-            # Action 6 - Delete SC Product
+            # Action 7 - Delete SC Product
             - Name: TerminateSCProduct
               ActionTypeId:
                 Category: Invoke
@@ -1374,9 +1388,9 @@ Resources:
                 UserParameters: '{
                   "FileName":"core-main-output.json"
                 }'
-              RunOrder: 6
+              RunOrder: 7
 
-            # Action 7 - Wait till termination of the SC product
+            # Action 8 - Wait till termination of the SC product
             - Name: WaitAndApproveSCTermination
               ActionTypeId:
                 Category: Approval
@@ -1387,9 +1401,9 @@ Resources:
                 CustomData: !Sub 'Service Catalog product is being terminated in ${AWS::AccountId}:${TestServiceCatalogRegion}'
                 ExternalEntityLink: !Sub 'https://${TestServiceCatalogRegion}.console.aws.amazon.com/cloudformation/home?region=${TestServiceCatalogRegion}'
                 NotificationArn: !Ref NotificationArn
-              RunOrder: 7
+              RunOrder: 8
 
-            # Action 8
+            # Action 9
             - Name: DeleteCore
               ActionTypeId:
                 Category: Deploy
@@ -1401,9 +1415,9 @@ Resources:
                 ActionMode: 'DELETE_ONLY'
                 StackName: !Sub '${ProjectName}-core'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
-              RunOrder: 8
+              RunOrder: 9
 
-            # Action 9
+            # Action 10
             - Name: DeleteEFS
               ActionTypeId:
                 Category: Invoke
@@ -1419,9 +1433,9 @@ Resources:
                   "VPC":"delete",
                   "FileName":"get-sm-domain-id-output.json"
                   }'
-              RunOrder: 8
+              RunOrder: 9
 
-            # Action 10
+            # Action 11
             - Name: DeleteGetSMDomainId
               ActionTypeId:
                 Category: Deploy
@@ -1433,7 +1447,7 @@ Resources:
                 ActionMode: 'DELETE_ONLY'
                 StackName: !Sub '${ProjectName}-get-sm-domain-id'
                 RoleArn: !GetAtt CodePipelineDeployRole.Arn
-              RunOrder: 8
+              RunOrder: 9
 
   ServiceCatalogPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
