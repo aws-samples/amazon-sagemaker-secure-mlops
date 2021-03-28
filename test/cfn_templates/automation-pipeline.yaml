@@ -231,7 +231,7 @@ Resources:
               print(f"ProvisionedProductId: {r['RecordDetail']['ProvisionedProductId']}")
 
               ssm.put_parameter(
-                  Name=f"/{product_name}/provisioned_product_id",
+                  Name=f"/ds-product-catalog/{product_id}/provisioned-product-id",
                   Description=f"Provisioned product id for product_id: {product_id}",
                   Value=r['RecordDetail']['ProvisionedProductId'],
                   Type="String",
@@ -301,9 +301,9 @@ Resources:
           def get_role_arn():
               return "/".join(sts.get_caller_identity()["Arn"].replace("assumed-role", "role").replace("sts", "iam").split("/")[0:-1])
 
-          def terminate_product(portfolio_id, product_name):
+          def terminate_product(portfolio_id, product_id):
 
-              provisioned_product_id = ssm.get_parameter(Name=f"/{product_name}/provisioned_product_id")["Parameter"]["Value"]
+              provisioned_product_id = ssm.get_parameter(Name=f"/ds-product-catalog/{product_id}/provisioned-product-id")["Parameter"]["Value"]
 
               print(sc.describe_provisioned_product(Id=provisioned_product_id))
               
@@ -333,12 +333,46 @@ Resources:
                   print(user_param)
                   data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
 
-                  terminate_product(data["PortfolioId"], data["ProductName"])
+                  terminate_product(data["PortfolioId"], data["ProductId"])
 
                   code_pipeline.put_job_success_result(jobId=job_id)
               except Exception as e:
                   print(f"exception: {str(e)}")
                   code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
+
+      Description: Get SageMaker domain id
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !GetAtt AutomationLambdaExecutionRole.Arn
+      Runtime: python3.8
+      Timeout: 60 
+
+  GetSageMakerDomainIdLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${ProjectName}-automation-GetSageMakerDomainId'
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+
+          ssm = boto3.client("ssm")
+
+          def lambda_handler(event, context):
+              try:
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["SageMakerDomainId"] = ssm.get_parameter(
+                          Name=event['ResourceProperties']['SSMParameterName']
+                          )["Parameter"]["Value"]
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, r, '')
+
+              except Exception as e:
+                  print(f"exception: {str(e)}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(e))
 
       Description: Get SageMaker domain id
       Handler: index.lambda_handler

@@ -47,7 +47,7 @@ def provision_product(product_id, product_name, provisioning_artifact_id, provis
     print(f"ProvisionedProductId: {r['RecordDetail']['ProvisionedProductId']}")
 
     ssm.put_parameter(
-        Name=f"/{product_name}/provisioned_product_id",
+        Name=f"/ds-product-catalog/{product_id}/provisioned-product-id",
         Description=f"Provisioned product id for product_id: {product_id}",
         Value=r['RecordDetail']['ProvisionedProductId'],
         Type="String",

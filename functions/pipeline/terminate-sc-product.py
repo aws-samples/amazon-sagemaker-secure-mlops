@@ -24,9 +24,9 @@ def get_file(artifact, f_name):
 def get_role_arn():
     return "/".join(sts.get_caller_identity()["Arn"].replace("assumed-role", "role").replace("sts", "iam").split("/")[0:-1])
 
-def terminate_product(portfolio_id, product_name):
+def terminate_product(portfolio_id, product_id):
 
-    provisioned_product_id = ssm.get_parameter(Name=f"/{product_name}/provisioned_product_id")["Parameter"]["Value"]
+    provisioned_product_id = ssm.get_parameter(Name=f"/ds-product-catalog/{product_id}/provisioned-product-id")["Parameter"]["Value"]
 
     print(sc.describe_provisioned_product(Id=provisioned_product_id))
     
@@ -56,7 +56,7 @@ def lambda_handler(event, context):
         print(user_param)
         data = get_file(job_data["inputArtifacts"][0], user_param.get("FileName"))
 
-        terminate_product(data["PortfolioId"], data["ProductName"])
+        terminate_product(data["PortfolioId"], data["ProductId"])
 
         code_pipeline.put_job_success_result(jobId=job_id)
     except Exception as e:
