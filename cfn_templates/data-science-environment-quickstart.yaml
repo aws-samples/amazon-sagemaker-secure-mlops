@@ -182,6 +182,7 @@ Resources:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
+        StartKernelGatewayApps: 'YES'
         UseSharedServicesPyPiMirror: !If [ SharedServicesCondition, 'YES', 'NO' ]
         AvailabilityZones: !Join
           - ','

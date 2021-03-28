@@ -19,6 +19,7 @@ Metadata:
           - DomainName
           - UserProfileName
           - AuthMode
+          - StartKernelGatewayApps
       - Label:
           default: Network and Storage Configuration
         Parameters:
@@ -41,6 +42,8 @@ Metadata:
         default: Domain name
       UserProfileName:
         default: User profile name
+      StartKernelGatewayApps:
+        default: Select YES to start the Data Science and Data Wrangler kernels on KernelGateway
       AuthMode:
         default: Authentication mode
       VPCId:
@@ -146,6 +149,14 @@ Parameters:
     Description: The user profile name for the SageMaker Studio. Leave empty to auto generate.
     Default: ''
 
+  StartKernelGatewayApps:
+    Type: String
+    Description: Start the KernelGateway Apps (Data Science and Data Wrangler)
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'NO'
+
   VPCId:
     Type: AWS::EC2::VPC::Id
     Description: Choose a VPC for SageMaker Studio and SageMaker workloads
@@ -192,6 +203,7 @@ Conditions:
   GenerateDomainNameCondition: !Equals [ !Ref DomainName, '' ]
   GenerateProfileNameCondition: !Equals [ !Ref UserProfileName, '' ]
   SageMakerEFSKMSKeyCondition: !Not [ !Equals [ !Ref SageMakerStudioStorageKMSKeyId, ''] ]
+  KernelGatewayAppsCondition: !Equals [ !Ref StartKernelGatewayApps, 'YES' ]
 
 Resources:
   SageMakerStudioDomain:
@@ -252,6 +264,7 @@ Resources:
   DataScienceApp:
     Type: AWS::SageMaker::App
     DependsOn: SageMakerUserProfile
+    Condition: KernelGatewayAppsCondition
     Properties: 
       AppName: instance-event-engine-datascience-ml-t3-medium
       AppType: KernelGateway
@@ -275,6 +288,7 @@ Resources:
   DataWranglerApp:
     Type: AWS::SageMaker::App
     DependsOn: SageMakerUserProfile
+    Condition: KernelGatewayAppsCondition
     Properties: 
       AppName: instance-event-engine-datawrangler-ml-m5-4xlarge
       AppType: KernelGateway

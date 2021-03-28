@@ -13,6 +13,7 @@ Metadata:
         Parameters:
           - EnvName
           - EnvType
+          - StartKernelGatewayApps
       - Label:
           default: Deployment Options
         Parameters:
@@ -82,6 +83,8 @@ Metadata:
         default: Environment name
       EnvType:
         default: Environment stage name (dev, test, prod)
+      StartKernelGatewayApps:
+        default: Select YES to start the Data Science and Data Wrangler kernels on KernelGateway
       CreateEnvironmentIAMRoles:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
@@ -209,6 +212,14 @@ Parameters:
     Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
     Type: String
     Default: dev
+
+  StartKernelGatewayApps:
+    Type: String
+    Description: Start the KernelGateway Apps (Data Science and Data Wrangler)
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'NO'
 
   CreateEnvironmentIAMRoles:
     Description: Select YES if you want to create an IAM Roles for Data Science environment
@@ -741,6 +752,7 @@ Resources:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
+        StartKernelGatewayApps: !Ref StartKernelGatewayApps
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
         SageMakerStudioSubnetIds: !If 
           - ExistingVPCCondition
