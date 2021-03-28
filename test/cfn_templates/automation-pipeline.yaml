@@ -52,6 +52,7 @@ Resources:
                 Action:
                   - 'ssm:GetParameters'
                   - 'ssm:GetParameter'
+                  - 'ssm:PutParameter'
                 Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
               - Sid: S3ArtifactBucketPermission
                 Effect: Allow
