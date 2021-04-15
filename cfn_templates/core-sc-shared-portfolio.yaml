@@ -52,11 +52,12 @@ Resources:
   DataScienceEnvironmentProduct:
     Type: 'AWS::ServiceCatalog::CloudFormationProduct'
     Properties:
-      Name: !Sub '${StackSetName}-${AWS::Region} Data Science Environment'
-      Description: 'A secure SageMaker Studio environment with VPC, S3 bucket, and service catalog portfolio to support data science projects'
+      Name: !Sub '${StackSetName}-${AWS::Region} Data Science Environment v1.1'
+      Description: 'A secure SageMaker Studio environment with VPC, S3 buckets, and service catalog portfolio to support data science projects'
       Owner: 'Data Science Administration Team'
       ProvisioningArtifactParameters:
-        - Name: 'DS Environment v1'
+        - Name: 'DS Environment v1.1'
+          Description: 'A secure SageMaker Studio environment deployment into VPC'
           Info:
             LoadTemplateFromURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-main.yaml'
 

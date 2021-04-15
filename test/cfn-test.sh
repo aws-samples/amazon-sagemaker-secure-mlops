@@ -8,7 +8,7 @@
 # These templates do not contain any nested templates and can be directly deployed from the file
 # no `aws cloudformation package` is needed
 
-S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
+S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # env-vpc.yaml
@@ -307,6 +307,26 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev
+
+###############################################################
+# MLOps project product portfolio for Service Catalog
+STACK_NAME="sm-mlops-env-EnvironmentSCPortfolio-763ISDO7DYL8"
+LAUNCH_ROLE_ARN="arn:aws:iam::949335012047:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole"
+USE_ROLE_ARN="arn:aws:iam::949335012047:role/service-role/sm-mlops-env-EnvironmentIAM-SageMakerExecutionRole-HKP7J3CUKSPE"
+
+aws s3 cp build/$AWS_DEFAULT_REGION/env-sc-portfolio.yaml s3://$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml
+
+aws cloudformation update-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --parameters \
+        ParameterKey=EnvName,ParameterValue=sm-mlops \
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=SCMLOpsPortfolioPrincipalRoleArn,ParameterValue=$USE_ROLE_ARN \
+        ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
+
+
 
 ###############################################################
 # CI/CD test pipeline deployment

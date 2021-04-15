@@ -736,6 +736,11 @@ Resources:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
+        SCMLOpsPortfolioPrincipalRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn
+          - !Ref SageMakerExecutionRoleArn
+        SCMLOpsProductLaunchRoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole'
       TemplateURL: env-sc-portfolio.yaml
       Tags:
         - Key: EnvironmentName

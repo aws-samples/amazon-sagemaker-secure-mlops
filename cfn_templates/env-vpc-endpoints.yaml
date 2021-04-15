@@ -133,7 +133,15 @@ Parameters:
       - 'YES'
       - 'NO'
     Default: 'YES'
-  
+
+  CreateServiceCatalogVPCEndpoint:
+    Description: Set to NO to disable creation of a Service Catalog VPC endpoint. This VPC endpoint is needed to access Studio Projects functionality
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
   PrivateSubnetIds:
     Description: List of the subnet ids where Data Science environment deployed to
     Type: List<AWS::EC2::Subnet::Id>
@@ -188,7 +196,7 @@ Conditions:
   CodeCommitAPIVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitAPIVPCEndpoint', 'YES']
   ECRAPIVPCEndpointCondition: !Equals [!Ref 'CreateECRAPIVPCEndpoint', 'YES']
   ECRVPCEndpointCondition: !Equals [!Ref 'CreateECRVPCEndpoint', 'YES']
-
+  ServiceCatalogPCEndpointCondition: !Equals [!Ref 'CreateServiceCatalogVPCEndpoint', 'YES']
 
 Rules:
   S3VPCEndpoint:
@@ -333,6 +341,18 @@ Resources:
       SecurityGroupIds:
         - !Ref VPCEndpointsSecurityGroupId
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcId: !Ref VPCId
+
+  VPCEndpointServiceCatalog:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ServiceCatalogPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointsSecurityGroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.servicecatalog'
       VpcId: !Ref VPCId
 
   VPCEndpointSharedServicesPyPIMirror:

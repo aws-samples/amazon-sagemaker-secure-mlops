@@ -37,7 +37,9 @@ Resources:
         Statement:
           - Effect: "Allow"
             Principal:
-              Service: "servicecatalog.amazonaws.com"
+              Service: 
+                - servicecatalog.amazonaws.com
+                - codepipeline.amazonaws.com
             Action: "sts:AssumeRole"
       Path: "/service-role/"
       MaxSessionDuration: 3600
@@ -289,7 +291,6 @@ Resources:
                   - 'arn:aws:states:*:*:stateMachine:sagemaker-*'
                 Effect: Allow
 
-
   AmazonSageMakerServiceCatalogProductsUseRole:
     Type: "AWS::IAM::Role"
     DeletionPolicy: Retain
@@ -316,24 +317,41 @@ Resources:
                 - "states.amazonaws.com"
                 - "codepipeline.amazonaws.com"
                 - "firehose.amazonaws.com"
+                - arn:aws:iam::*:role/sagemaker-*
             Action: "sts:AssumeRole"
       Policies: 
-        - PolicyName: AmazonSageMakerServiceCatalogProductsUseRole-20210122T152377
+        - PolicyName: AmazonSageMakerServiceCatalogProductsUseRole
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - 
                 Action:
-                  - cloudformation:CreateChangeSet
-                  - cloudformation:CreateStack
-                  - cloudformation:DescribeChangeSet
-                  - cloudformation:DeleteChangeSet
-                  - cloudformation:DeleteStack
-                  - cloudformation:DescribeStacks
+                  - cloudformation:Delete*
+                  - cloudformation:Get*
+                  - cloudformation:Create*
+                  - cloudformation:Update*
+                  - cloudformation:List*
+                  - cloudformation:Describe*
                   - cloudformation:ExecuteChangeSet
                   - cloudformation:SetStackPolicy
-                  - cloudformation:UpdateStack
-                Resource: arn:aws:cloudformation:*:*:stack/sagemaker-*
+                Resource: 
+                  - arn:aws:cloudformation:*:*:stack/sagemaker-*
+                  - arn:aws:cloudformation:*:*:stackset/sagemaker-*
+                  - arn:aws:cloudformation:*:*:type/resource/*
+                  - arn:aws:cloudformation:*:*:stackset-target/sagemaker-*
+                Effect: Allow
+              - 
+                Action:
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:TagResource
+                Resource: "*"
+                Effect: Allow
+              - 
+                Action:
+                  - organizations:DescribeOrganizationalUnit
+                  - organizations:ListAccountsForParent
+                Resource: "arn:aws:organizations::*:ou/o-*/ou-*"
                 Effect: Allow
               - 
                 Action:

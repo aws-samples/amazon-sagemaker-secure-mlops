@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: |
+  MLOps SageMaker Project for CI/CD pipeline for model build, train, validate. 
+  This template creates a CI/CD pipeline to build, train, and validate an ML model using SageMaker pipelines
+
+Parameters:
+  SageMakerProjectName:
+    Type: String
+    Description: Name of the project
+    MinLength: 1
+    MaxLength: 32
+    AllowedPattern: ^[a-zA-Z](-*[a-zA-Z0-9])*
+
+  SageMakerProjectId:
+    Type: String
+    Description: Service generated Id of the project.
+
+  SeedCodeS3BucketName:
+    Type: String
+    Description: S3 bucket name where the seed code for MLOps projects for CodeCommit repository is stored
+
+Resources:
+
+  ModelDeployCodeCommitRepository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      # Max allowed length: 100 chars
+      RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
+      RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+      Code:
+        S3:
+          Bucket: !Ref SeedCodeS3BucketName 
+          Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
+        BranchName: main

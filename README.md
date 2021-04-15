@@ -4,7 +4,8 @@ The goal of the solution is to demostrate a deployment of Amazon SageMaker Studi
 We are going to cover the following three main topics:
 1. Secure deployment of Amazon SageMaker Studio into the existing secure environment (VPC, subnets, VPC endpoints, security groups). End-to-end data encryption and access control, audit/monitoring, and preventive, detective and responsive security controls
 2. MLOps CI/CD automation for model training and deployment into TEST/PROD environments
-3. Automated data science environment provisioning based on AWS Service Catalog and CloudFormation 
+3. Provisioning of MLOps project templates in SageMaker Studio
+4. Automated data science environment provisioning based on AWS Service Catalog and CloudFormation 
 
 The solution recommends and supports the following development approach:
 + A separate AWS account per Data Science team and one Amazon SageMaker Studion domain per region per account
@@ -156,7 +157,7 @@ OUs should be based on function or common set of controls rather than mirroring 
 ```
 Root
 `--- OU SageMaker PoC
-      |--- Data Science account
+      |--- Data Science account (development)
       `----OU Staging
             |--- Staging acccount
       `----OU Production
@@ -337,6 +338,21 @@ This product provisions end-to-end data science environment (Amazon SageMaker St
 
 ### Team-level Service-Catalog products
 
+#### SageMaker MLOps project templates
+This solution deploys two SageMaker projects as Service Catalog products:
++ Multi-account model deployment
++ Model building, training, and validating with SageMaker pipelines
+
+These products are visible as SageMaker projects in SageMaker Studio and only deployable from the Studio.
+
+#### User profile for SageMaker Studio domain
+Each provisioning of a Data Science environment product creates a SageMaker Studio domain with a user profile. You can optionally manually (from AWS CLI or SageMaker console) create new user profiles:
+
++ Each user profile has its own dedicated compute resource with a slice of the shared EFS file system
++ Each user profile can be associated with its own Execution Role (or use Domain role) (TBD for this solution)
+
+❗ There is a limit of one SageMaker domain per region per account and you can provision only one Data Science environment product per region per account.
+
 #### SageMaker notebook product
 This product is available for Data Scientist and Data Science Team Administrator roles. Each notebook is provisioned with pre-defined lify-cycle configuration. The following considerations are applied to the notebook product:
 + Only some instance types are allowed to use in the notebook
@@ -344,15 +360,7 @@ This product is available for Data Scientist and Data Science Team Administrator
 + Notebook execution role enforce use of security configurations and controls (e.g. the notebook can be started only in VPC attachment mode)
 + Notebook has write access only to the projejct-specific S3 buckets (data and model as deployed by the Data Science Environment product)
 + Notebook-attached EBS volume is encrypted with its own AWS KMS key
-+ Notebook is started in the SageMaker security group
-
-#### SageMaker MLOps project templates
-Available as project templates in the SageMaker Studio
-Provisions end-to-end MLOps CI/CD for a specific project
-
-#### User profile for SageMaker Studio domain
-+ Each user profile has its own dedicated compute resource with a slice of the shared EFS file system
-+ Each user profile can be associated with its own Execution Role (or use Domain role) (TBD for PoC)
++ Notebook is started in the SageMaker VPC, subnet, and security group
 
 ## Self-service provisioning of ML environments
 
@@ -362,76 +370,65 @@ Provisions end-to-end MLOps CI/CD for a specific project
 
 ## Reusability between ML projects
 
-# Terraform considerations
-
-[AWS Service Catalog Terraform Reference Architecture GitHub](https://github.com/aws-samples/aws-service-catalog-terraform-reference-architecture)
-
-[AWS Service Catalog FAQ](https://aws.amazon.com/servicecatalog/faqs/):
-> Q: Can I use Terraform with AWS Service Catalog?  
-
-> You can leverage the [AWS Service Catalog Terraform Reference Architecture](https://d1.awsstatic.com/whitepapers/DevOps/TerraformReferenceArchitecture-instructions.pdf). This reference architecture provides an example for using AWS Service Catalog products, an AWS CloudFormation custom resource, and Terraform to provision resources on AWS.
 
 # MLOps part
 
-MLOps Project template to build, train, deploy the model:
+## MLOps Project template to build, train, deploy the model
 
 ![project template: build, train, deploy](img/mlops-project-build-train-deploy.png)
 
-
-Seed code (deployed into the CodeCommit by CloudFormation template):
-```yaml
-'Type': 'AWS::CodeCommit::Repository'
-   'Properties':
-     'RepositoryName':
-       'Fn::Sub': 'sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modelbuild'
-     'RepositoryDescription':
-       'Fn::Sub': 'SageMaker Model building workflow infrastructure as code for the
-         Project ${SageMakerProjectName}'
-     'Code':
-       'S3':
-         'Bucket': 'sagemaker-servicecatalog-seedcode-us-east-1'
-         'Key': 'toolchain/model-building-workflow-v1.0.zip'
-       'BranchName': 'main'
-```
-
-Multi-account deployment with CodePipeline:
+## Multi-account deployment
 
 ![multi-account deployment](img/multi-account-deployment.png)
 
-How to get an IAM snapshot from the account:
-```
-aws iam get-account-authorization-details > iam_snapshot.json
-```
+## CodeCommit seed code
+Each of the delivered MLOps projects contains a seed code which is deployed as project's CodeCommit repository when a project instance created from SageMaker project template.  
 
-## Enabling SageMaker proejcts programmatically
-To enable SageMaker projects you need first to enable SageMaker AWS Service Catalog portfolio and then to associate the Studio execution role with the portfolio using https://docs.aws.amazon.com/cli/latest/reference/servicecatalog/associate-principal-with-portfolio.html.
+The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating or for multi-project model deployment. Please see `README.md` for each of the available projects.
 
-In addition you need to make sure to create two roles (which otherwise get created through the console): `AmazonSageMakerServiceCatalogProductsUseRole` and `AmazonSageMakerServiceCatalogProductsLaunchRole`.
+You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code as part of the project template, please follow the steps:
++ Update existing or create your own version of the seed code
++ Zip all files that should go into a project CodeCommit repository to a single `.zip` file
++ Upload that `.zip` file to an Amazon S3 bucket of your choice. You must specify this S3 bucket name when you create a new project in SageMaker Studio
++ Set a special tag on the uploaded file. This tag will enable access to the object by `AmazonSageMakerServiceCatalogProductsLaunchRole` IAM role: 
+  ```bash
+  aws s3api put-object-tagging \
+          --bucket <your Amazon S3 bucket name> \
+          --key <your project name>/seed-code/<zip-file name> \
+          --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
+  ```
++ Update the `AWS::CodeCommit::Repository` resource in the correspoinding CloudFormation template with the CI/CD pipeline with the new zip-file name.
+  
+  Model deploy project:
+  ```yaml
+    ModelDeployCodeCommitRepository:
+      Type: AWS::CodeCommit::Repository
+      Properties:
+        # Max allowed length: 100 chars
+        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-deploy # max: 10+33+15+12=70
+        RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+        Code:
+          S3:
+            Bucket: !Ref SeedCodeS3BucketName 
+            Key: <your project name>/seed-code/<zip-file name>
+          BranchName: main
+  ```
 
-Below a sample code_snippet for boto3 for the full workflow:
-  + `studio_role_arn` is the role which is associated with sagemaker studio
-  + `sc_client` is AWS Service Catalog boto3 client
-  + `client`: is SageMaker boto3 client
-
-```python
-def enable_projects(studio_role_arn):
-    # enable Project on account level (accepts portfolio share)
-    response = client.enable_sagemaker_servicecatalog_portfolio()
-
-    # associate studio role with portfolio
-    response = sc_client.list_accepted_portfolio_shares()
-
-    portfolio_id = ''
-    for portfolio in response['PortfolioDetails']:
-        if portfolio['ProviderName'] == 'Amazon SageMaker':
-            portfolio_id = portfolio['Id']
-
-    response = sc_client.associate_principal_with_portfolio(
-        PortfolioId=portfolio_id,
-        PrincipalARN=studio_role_arn,
-        PrincipalType='IAM'
-    )
-```
+  Model build, train, validate project:
+  ```yaml
+    ModelDeployCodeCommitRepository:
+      Type: AWS::CodeCommit::Repository
+      Properties:
+        # Max allowed length: 100 chars
+        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
+        RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+        Code:
+          S3:
+            Bucket: !Ref SeedCodeS3BucketName 
+            Key: <your project name>/seed-code/<zip-file name>
+          BranchName: main
+  ```
++ Update Service Catalog CloudFormation stack with the updated templates
 
 # Deployment
 
@@ -480,23 +477,15 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). Additional resources are created by SageMaker Studio and retained upon deletion together with the EFS file system:
 - EFS mounting points in each private subnet of your VPC
 - ENI for each mounting point
-- Security groups for EFS inbound and outbound traffci
+- Security groups for EFS inbound and outbound traffic
 
 ❗ To delete the EFS file system and EFS-related resources in your AWS account created by the deployment of this solution, do the following steps **after** running commands from **Clean-up** section for each deployment type:
 
 ❗ **This is a destructive action. All data on the EFS file system will be deleted (SageMaker home directories). You may want to backup the EFS file system before deletion**
   
-+ Option 1:
-  - run the clean-up script:
-  ```bash
-  python3 functions/automation/clean-up-efs-cli.py
-  ```
-  
-+ Option 2:
-  From AWS console:
-  - Go to the EFS console and delete all mounting points in all private subnets of the data science VPC for the SageMaker EFS file system
-  - delete the SageMaker EFS system. You may want to backup the EFS file system before deletion
-  - Go to the VPC console and delete the data science VPC
+From AWS console:
+- delete the SageMaker EFS system. You may want to backup the EFS file system before deletion
+- Go to the VPC console and delete the data science VPC
 
 ## Data Science Environment Quickstart
 This option deploys the end-to-end infrastructure and a Data Science Environment in one go.
@@ -532,12 +521,12 @@ aws cloudformation create-stack \
 The full end-to-end deployment takes about 25 minutes.
 
 ## Cleanup
-After you have played with the environment, you can delete all resources as follows.
-First, do the steps from **Clean-up considerations** section.
-Second, delete the stack from AWS CloudFormation console or command line:
+After you have finished experimenting with the environment, you can delete all resources as follows.
+First, delete the stack from AWS CloudFormation console or command line:
 ```bash
 aws cloudformation delete-stack --stack-name ds-quickstart
 ```
+Second, do the steps from **Clean-up considerations** section.
 
 ## Two-step deployment via CloudFormation
 Using this option you provision a Data Science environment in two steps, each with its own CloudFormation template. You can control all deployment parameters.  
@@ -737,6 +726,7 @@ Now you provisined the Data Science environment and can start working with it.
 
 ## Cleanup
 First, do the following steps:
++ Assume DS Administrator IAM role via link in the CloudFormation output
 + In AWS Service Catalog console go to the _Provisioned Products_, select your product and click **Terminate** from the **Action** button. Wait until the delete process ends.
 + Delete the core infrastructure CloudFormation stack:
 ```bash
@@ -756,7 +746,11 @@ Second, do the steps from **Clean-up considerations** section.
 - [R8]: [Multi-account model deployment with Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/multi-account-model-deployment-with-amazon-sagemaker-pipelines/)
 - [R9]: [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/)
 - [R10]: [Best Practices for Organizational Units with AWS Organizations](https://aws.amazon.com/blogs/mt/best-practices-for-organizational-units-with-aws-organizations/)
+- [R11]: [Build a CI/CD pipeline for deploying custom machine learning models using AWS services](https://aws.amazon.com/blogs/machine-learning/build-a-ci-cd-pipeline-for-deploying-custom-machine-learning-models-using-aws-services/)
 
+## AWS Solutions
+- [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
+- [SOL2]: [Amazon SageMaker with Guardrails on AWS](https://aws.amazon.com/quickstart/architecture/amazon-sagemaker-with-guardrails/)
 
 ## Secure ML environments
 - [S1]: [Building secure machine learning environments with Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/building-secure-machine-learning-environments-with-amazon-sagemaker/)
@@ -768,7 +762,8 @@ Second, do the steps from **Clean-up considerations** section.
 - [S7]: [Security group rules for different use cases](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/security-group-rules-reference.html)
 - [S8]: [Data encryption at rest in SageMaker Studion](https://docs.aws.amazon.com/sagemaker/latest/dg/encryption-at-rest-studio.html)
 - [S9]: [Connect SageMaker Studio Notebooks to Resources in a VPC](https://docs.aws.amazon.com/sagemaker/latest/dg/studio-notebooks-and-internet-access.html)
-- [S10]: [Control root access to Amazon SageMaker notebook instances](https://aws.amazon.com/blogs/machine-learning/control-root-access-to-amazon-sagemaker-notebook-instances/)
+- [S10]: [Control root access to Amazon SageMaker notebook instances](https://aws.amazon.com/blogs/machine-learning/control-root-access-to-amazon-sagemaker-notebook-instances/)  
+- [S11]: [7 ways to improve security of your machine learning workflows](https://aws.amazon.com/blogs/security/7-ways-to-improve-security-of-your-machine-learning-workflows/)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
@@ -777,11 +772,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [W4]: [Operationalizing the ML pipeline workshop](https://operational-machine-learning-pipeline.workshop.aws/)
 - [W5]: [Safe MLOps deployment pipeline](https://mlops-safe-deployment-pipeline.workshop.aws/)
 - [W6]: [Buiding secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
-
-## Amazon SageMaker with Guardrails on AWS reference deployment
-- [Amazon SageMaker with Guardrails on AWS](https://aws.amazon.com/quickstart/architecture/amazon-sagemaker-with-guardrails/)
-- [Amazon SageMaker with Guardrails on AWS Deployment Guide](https://aws-quickstart.github.io/quickstart-brillio-aws-service-catalog-amazon-sagemaker/)
-- [Amazon SageMaker with Guardrails on AWS GitHub](https://github.com/aws-quickstart/quickstart-brillio-aws-service-catalog-amazon-sagemaker)
+- [W7]: [Amazon Managed Workflows for Apache Airflow workshop](https://amazon-mwaa-for-analytics.workshop.aws/en/)
 
 ## MLOps and ML production related resources
 - https://github.com/visenger/awesome-mlops
@@ -1030,14 +1021,12 @@ aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 ```
 
-
 ### Setup CodeCommit repository and notifications
 To use CI/CD pipelines you must setup CodeCommit repository and configure notifications on pipeline status changes.
 
 + Setup CodeCommit repository
 
 + Create SNS topic to receive notifications
-
 
 ### Setup pipelines
 To setup all CI/CD pipelines run the following command from the solution directory:
@@ -1049,4 +1038,52 @@ aws cloudformation deploy \
                 --parameter-overrides \
                 CodeCommitRepositoryArn= \
                 NotificationArn=
+```
+
+# AppendixD
+
+## Terraform considerations
+
+[AWS Service Catalog Terraform Reference Architecture GitHub](https://github.com/aws-samples/aws-service-catalog-terraform-reference-architecture)
+
+[AWS Service Catalog FAQ](https://aws.amazon.com/servicecatalog/faqs/):
+> Q: Can I use Terraform with AWS Service Catalog?  
+
+> You can leverage the [AWS Service Catalog Terraform Reference Architecture](https://d1.awsstatic.com/whitepapers/DevOps/TerraformReferenceArchitecture-instructions.pdf). This reference architecture provides an example for using AWS Service Catalog products, an AWS CloudFormation custom resource, and Terraform to provision resources on AWS.
+
+# AppendixE
+
+How to get an IAM snapshot from the account:
+```
+aws iam get-account-authorization-details > iam_snapshot.json
+```
+
+## Enabling SageMaker proejcts programmatically
+To enable SageMaker projects you need first to enable SageMaker AWS Service Catalog portfolio and then to associate the Studio execution role with the portfolio using https://docs.aws.amazon.com/cli/latest/reference/servicecatalog/associate-principal-with-portfolio.html.
+
+In addition you need to make sure to create two roles (which otherwise get created through the console): `AmazonSageMakerServiceCatalogProductsUseRole` and `AmazonSageMakerServiceCatalogProductsLaunchRole`.
+
+Below a sample code_snippet for boto3 for the full workflow:
+  + `studio_role_arn` is the role which is associated with sagemaker studio
+  + `sc_client` is AWS Service Catalog boto3 client
+  + `client`: is SageMaker boto3 client
+
+```python
+def enable_projects(studio_role_arn):
+    # enable Project on account level (accepts portfolio share)
+    response = client.enable_sagemaker_servicecatalog_portfolio()
+
+    # associate studio role with portfolio
+    response = sc_client.list_accepted_portfolio_shares()
+
+    portfolio_id = ''
+    for portfolio in response['PortfolioDetails']:
+        if portfolio['ProviderName'] == 'Amazon SageMaker':
+            portfolio_id = portfolio['Id']
+
+    response = sc_client.associate_principal_with_portfolio(
+        PortfolioId=portfolio_id,
+        PrincipalARN=studio_role_arn,
+        PrincipalType='IAM'
+    )
 ```

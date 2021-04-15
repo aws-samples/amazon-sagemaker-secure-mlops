@@ -3,7 +3,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  Create an Service Catalog product for SageMaker and SageMaker MLOps project template
+  Create an Service Catalog products for Data Science Environment (SageMaker MLOps project templates)
 
 Parameters:
   EnvName:
@@ -15,12 +15,95 @@ Parameters:
     Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
     Type: String
     Default: dev
+  
+  SCMLOpsPortfolioPrincipalRoleArn:
+    Type: String 
+    Description: IAM role which will be granted access to Service Catalog MLOps products
 
-
-Conditions:
-  FalseCondition: !Equals [ 'true', 'false' ]
+  SCMLOpsProductLaunchRoleArn:
+    Type: String 
+    Description: IAM role that Service Catalog assumes when SageMaker Studio launches a product
 
 Resources:
-  NullResource:
-    Type: 'Custom::NullResource'
-    Condition: FalseCondition
+
+  DataScienceMLOpsPortfolio:
+    Type: 'AWS::ServiceCatalog::Portfolio'
+    Properties:
+      ProviderName: 'Data Science Administration Team'
+      Description: 'This portfolio is a collection of MLOps projects for SageMaker Studio'
+      DisplayName: !Sub 'Products for creating MLOps projects in ${EnvName}-${EnvType} data science environment'
+
+  DataScienceMLOpsModelBuildTrainProduct:
+    Type: 'AWS::ServiceCatalog::CloudFormationProduct'
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train v1.0'
+      Description: 'This template creates a CI/CD MLOps project which implements ML build-train-validate pipeline'
+      Owner: 'Data Science Administration Team'
+      ProvisioningArtifactParameters:
+        - Name: 'MLOps Model Build Train v1.0'
+          Description: 'CI/CD MLOps project to build, train, and validate an ML model using SageMaker pipelines'
+          Info:
+            LoadTemplateFromURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/project-model-build-train.yaml'
+      Tags:
+        - Key: 'sagemaker:studio-visibility'
+          Value: 'true'
+        - Key: 'EnvironmentName'
+          Value: !Ref EnvName
+        - Key: 'EnvironmentType'
+          Value: !Ref EnvType
+
+  DataScienceMLOpsModelDeployProduct:
+    Type: 'AWS::ServiceCatalog::CloudFormationProduct'
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType} MLOps Model Deploy v1.0'
+      Description: 'This template creates a CI/CD MLOps project which deploys an ML model to staging and production accounts'
+      Owner: 'Data Science Administration Team'
+      ProvisioningArtifactParameters:
+        - Name: 'MLOps Model Deploy v1.0'
+          Description: 'CI/CD MLOps project to deploy an ML model in staging and production accounts'
+          Info:
+            LoadTemplateFromURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/project-model-deploy.yaml'
+      Tags:
+        - Key: 'sagemaker:studio-visibility'
+          Value: 'true'
+        - Key: 'EnvironmentName'
+          Value: !Ref EnvName
+        - Key: 'EnvironmentType'
+          Value: !Ref EnvType
+
+  SCMLOpsPortfolioProductModelBuildTrainAssociation:
+    Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
+    Properties:
+      PortfolioId: !Ref DataScienceMLOpsPortfolio
+      ProductId: !Ref DataScienceMLOpsModelBuildTrainProduct
+
+  SCMLOpsPortfolioProductModelDeployAssociation:
+    Type: 'AWS::ServiceCatalog::PortfolioProductAssociation'
+    Properties:
+      PortfolioId: !Ref DataScienceMLOpsPortfolio
+      ProductId: !Ref DataScienceMLOpsModelDeployProduct
+
+  SCMLOpsPortfolioPrincipleAssociation:
+    Type: 'AWS::ServiceCatalog::PortfolioPrincipalAssociation'
+    Properties:
+      PortfolioId: !Ref DataScienceMLOpsPortfolio
+      PrincipalARN: !Ref SCMLOpsPortfolioPrincipalRoleArn
+      PrincipalType: IAM
+
+  SCMLOpsProductModelBuildTrainLaunchRoleConstraint:
+    Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
+    DependsOn: SCMLOpsPortfolioProductModelBuildTrainAssociation
+    Properties:
+      Description: !Sub 'AWS Service Catalog uses ${SCMLOpsProductLaunchRoleArn} to launch MLOps projects'
+      PortfolioId: !Ref DataScienceMLOpsPortfolio
+      ProductId: !Ref DataScienceMLOpsModelBuildTrainProduct
+      RoleArn: !Ref SCMLOpsProductLaunchRoleArn
+
+  SCMLOpsProductModelDeployLaunchRoleConstraint:
+    Type: 'AWS::ServiceCatalog::LaunchRoleConstraint'
+    DependsOn: SCMLOpsPortfolioProductModelDeployAssociation
+    Properties:
+      Description: !Sub 'AWS Service Catalog uses ${SCMLOpsProductLaunchRoleArn} to launch MLOps projects'
+      PortfolioId: !Ref DataScienceMLOpsPortfolio
+      ProductId: !Ref DataScienceMLOpsModelDeployProduct
+      RoleArn: !Ref SCMLOpsProductLaunchRoleArn

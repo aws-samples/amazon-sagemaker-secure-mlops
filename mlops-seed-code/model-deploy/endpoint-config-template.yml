@@ -1,0 +1,73 @@
+Description: This template will deploy a SageMaker Endpoint
+Parameters:
+  SageMakerProjectName:
+    Type: String
+    Description: Name of the project
+    MinLength: 1
+    MaxLength: 15
+    AllowedPattern: ^[a-zA-Z](-*[a-zA-Z0-9])*
+  SageMakerProjectId:
+    Type: String
+    Description: Service generated Id of the project.
+
+  ModelPackageName:
+    Type: String
+    Description: The trained Model Package Name
+
+  EndpointInstanceCount:
+    Type: Number
+    Description: Number of instances to launch for the endpoint.
+    MinValue: 1
+  EndpointInstanceType:
+    Type: String
+    Description: The ML compute instance type for the endpoint.
+  RoleName:
+    Type: String
+    Description: Name of the execution role
+  StageName:
+    Type: String
+
+Resources:
+  SageMakerModel:
+    Type: AWS::SageMaker::Model
+    Properties:
+      PrimaryContainer:
+        ModelPackageName: !Ref ModelPackageName
+      ExecutionRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${RoleName}
+      Tags:
+        - Key: sagemaker:deployment-stage
+          Value: !Ref StageName
+        - Key: sagemaker:project-id
+          Value: !Ref SageMakerProjectId
+        - Key: sagemaker:project-name
+          Value: !Ref SageMakerProjectName
+
+  SageMakerEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      ProductionVariants:
+        - InitialInstanceCount: !Ref EndpointInstanceCount
+          InitialVariantWeight: 1.0
+          InstanceType: !Ref EndpointInstanceType
+          ModelName: !GetAtt SageMakerModel.ModelName
+          VariantName: AllTraffic
+      Tags:
+        - Key: sagemaker:deployment-stage
+          Value: !Ref StageName
+        - Key: sagemaker:project-id
+          Value: !Ref SageMakerProjectId
+        - Key: sagemaker:project-name
+          Value: !Ref SageMakerProjectName
+
+  SageMakerEndpoint:
+    Type: AWS::SageMaker::Endpoint
+    Properties:
+      EndpointName: !Sub ${SageMakerProjectName}-${StageName}
+      EndpointConfigName: !GetAtt SageMakerEndpointConfig.EndpointConfigName
+      Tags:
+        - Key: sagemaker:deployment-stage
+          Value: !Ref StageName
+        - Key: sagemaker:project-id
+          Value: !Ref SageMakerProjectId
+        - Key: sagemaker:project-name
+          Value: !Ref SageMakerProjectName

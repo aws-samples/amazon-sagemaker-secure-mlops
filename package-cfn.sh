@@ -25,7 +25,9 @@ CFN_BUCKET_NAME=$1
 DEPLOYMENT_REGION=$2
 PROJECT_NAME="sagemaker-mlops"
 CFN_TEMPLATE_DIR="cfn_templates"
+SEED_CODE_DIR="mlops-seed-code"
 CFN_OUTPUT_DIR="build/${DEPLOYMENT_REGION}"
+SEED_CODE_OUTPUT_DIR="build/${DEPLOYMENT_REGION}/seed-code"
 
 # files that need to be scrubbed with sed to replace < S3 BUCKET LOCATION > with an actual S3 bucket name
 SELF_PACKAGE_LIST="core-sc-shared-portfolio.yaml env-sc-portfolio.yaml"
@@ -34,7 +36,7 @@ SELF_PACKAGE_LIST="core-sc-shared-portfolio.yaml env-sc-portfolio.yaml"
 AWS_PACKAGE_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml"
 
 # files that wont be uploaded by `aws cloudformation package`
-UPLOAD_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml" 
+UPLOAD_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml project-model-deploy.yaml project-model-build-train.yaml" 
 
 # Check that S3 bucket exists, if not create a new one
 if aws s3 ls s3://${CFN_BUCKET_NAME} 2>&1 | grep NoSuchBucket
@@ -46,13 +48,20 @@ echo "Preparing content for publication to Amazon S3 s3://${CFN_BUCKET_NAME}/${P
 
 ## clean away any previous builds of the CFN
 rm -fr ${CFN_OUTPUT_DIR}
+rm -fr ${SEED_CODE_OUTPUT_DIR}
 mkdir -p ${CFN_OUTPUT_DIR}
+mkdir -p ${SEED_CODE_OUTPUT_DIR}
 rm -f build/*-${DEPLOYMENT_REGION}.zip
 cp ${CFN_TEMPLATE_DIR}/*.yaml ${CFN_OUTPUT_DIR}
 
 ## Zip the templates
 echo "Zipping CloudFormation templates in ${CFN_OUTPUT_DIR}"
 zip -r build/cfn-templates-${DEPLOYMENT_REGION}.zip ${CFN_OUTPUT_DIR}/*.yaml
+
+## Zip the MLOps project seed code for
+echo "Zipping MLOps project seed code"
+(cd ${SEED_CODE_DIR}/model-deploy/ && zip -r ../../${SEED_CODE_OUTPUT_DIR}/mlops-model-deploy-v1.0.zip .)
+(cd ${SEED_CODE_DIR}/model-build-train/ && zip -r ../../${SEED_CODE_OUTPUT_DIR}/mlops-model-build-train-v1.0.zip .)
 
 ## publish materials to target AWS regions
 echo "Publishing CloudFormation to ${DEPLOYMENT_REGION}"
@@ -82,6 +91,19 @@ do
         --output-template-file ${fname}-packaged \
         --region ${DEPLOYMENT_REGION}
     popd
+done
+
+# copy all seed-code .zip files from ${SEED_CODE_OUTPUT_DIR} to S3
+aws s3 cp ${SEED_CODE_OUTPUT_DIR} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/seed-code/ --recursive
+
+# put an object tag servicecatalog:provisioning=true for AmazonSageMakerServiceCatalogProductsLaunchRole access
+for fname in ${SEED_CODE_OUTPUT_DIR}/*
+do
+    echo "Set servicecatalog:provisioning=true tag to object: ${fname}"
+    aws s3api put-object-tagging \
+        --bucket ${CFN_BUCKET_NAME} \
+        --key ${PROJECT_NAME}/seed-code/$(basename $fname) \
+        --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
 done
 
 # push files to S3, note this does not 'package' the templates
