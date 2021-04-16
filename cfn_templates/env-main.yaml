@@ -882,3 +882,17 @@ Resources:
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
+
+  # SSM parameters
+  PrivateSubnetsSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-subnets-ids"
+      Type: String
+      Value: !If 
+          - ExistingVPCCondition
+          - !Join
+            - ',' 
+            - !GetAtt GetNetworkConfiguration.SubnetIds
+          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+      Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvType} data science environment'

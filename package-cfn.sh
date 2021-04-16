@@ -36,7 +36,7 @@ SELF_PACKAGE_LIST="core-sc-shared-portfolio.yaml env-sc-portfolio.yaml"
 AWS_PACKAGE_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml"
 
 # files that wont be uploaded by `aws cloudformation package`
-UPLOAD_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml project-model-deploy.yaml project-model-build-train.yaml" 
+UPLOAD_LIST="core-main.yaml env-main.yaml data-science-environment-quickstart.yaml env-sc-portfolio.yaml project-model-deploy.yaml project-model-build-train.yaml" 
 
 # Check that S3 bucket exists, if not create a new one
 if aws s3 ls s3://${CFN_BUCKET_NAME} 2>&1 | grep NoSuchBucket

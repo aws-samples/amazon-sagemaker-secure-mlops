@@ -5,6 +5,19 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: |
   Create Amazon S3 buckets for Data Science Environment
 
+Outputs:
+  DataBucketName:
+    Description: Name of the Amazon S3 bucket for data
+    Value: !Ref DataBucketName
+    Export:
+      Name: !Sub ${EnvName}-${EnvType}-data-bucket-name
+
+  ModelBucketName:
+    Description: Name of the Amazon S3 bucket for models
+    Value: !Ref ModelBucketName
+    Export:
+      Name: !Sub ${EnvName}-${EnvType}-model-bucket-name
+
 Parameters:
   EnvName:
     Type: String
@@ -113,3 +126,20 @@ Resources:
             Condition:
               StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id
+
+  # SSM parameters
+  ModelBucketSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-model-bucket-name"
+      Type: String
+      Value: !Ref ModelBucketName
+      Description: !Sub 'Amazon S3 bucket to store models for ${EnvName}-${EnvType} data science environment'
+
+  DataBucketSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-data-bucket-name"
+      Type: String
+      Value: !Ref ModelBucketName
+      Description: !Sub 'Amazon S3 bucket to store data for ${EnvName}-${EnvType} data science environment'

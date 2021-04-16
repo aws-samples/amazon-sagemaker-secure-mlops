@@ -21,14 +21,181 @@ Parameters:
 
 Resources:
 
-  ModelDeployCodeCommitRepository:
+  GetEnvironmentConfiguration:
+    Type: Custom::GetEnvironmentConfiguration
+    Properties:
+      ServiceToken: !GetAtt GetEnvironmentConfigurationLambda.Arn
+      SageMakerProjectName: !Ref SageMakerProjectName
+
+  GetEnvironmentConfigurationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: GetEnvironmentConfiguration
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+
+          sm = boto3.client("sagemaker")
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["SageMakerDomainId"] = sm.describe_project(
+                          ProjectName=event["ResourceProperties"]["SageMakerProjectName"]
+                          )["CreatedBy"]["DomainId"]
+
+                  print(r)
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+      Description: Get data science environment configuration for MLOps project setup
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole'
+      Runtime: python3.8
+      Timeout: 60
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+
+  MlOpsArtifactsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub sagemaker-mlops-codepipeline-${SageMakerProjectId} # 58 chars max/ 64 allowed
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+
+  ModelBuildCodeCommitEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      # Max length allowed: 64
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-build # max: 10+33+15+5=63 chars
+      Description: "Rule to launch a pipeline run when ModelBuild CodeCommit repository is updated"
+      EventPattern:
+        source:
+          - "aws.codecommit"
+        detail-type:
+          - "CodeCommit Repository State Change"
+        resources:
+          - !GetAtt ModelBuildCodeCommitRepository.Arn
+        detail:
+          referenceType:
+            - "branch"
+          referenceName:
+            - "main"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn:
+            !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ModelBuildPipeline}'
+          RoleArn:
+            !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+          Id: !Sub codecommit-${SageMakerProjectName}-modelbuild
+
+  ModelBuildCodeCommitRepository:
     Type: AWS::CodeCommit::Repository
     Properties:
       # Max allowed length: 100 chars
       RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
-      RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+      RepositoryDescription: !Sub SageMaker Model building infrastructure as code for the project ${SageMakerProjectName}
       Code:
         S3:
           Bucket: !Ref SeedCodeS3BucketName 
           Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
         BranchName: main
+
+  ModelPipelineBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      # Max length: 255 chars
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modelbuild # max: 10+33+15+10=68
+      Description: Builds the model building workflow code repository, creates the SageMaker Pipeline and executes it
+      ServiceRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        EnvironmentVariables:
+         - Name: SAGEMAKER_PROJECT_NAME
+           Value: !Ref SageMakerProjectName
+         - Name: SAGEMAKER_PROJECT_ID
+           Value: !Ref SageMakerProjectId
+         - Name: ARTIFACT_BUCKET
+           Value: !Ref MlOpsArtifactsBucket
+         - Name: SAGEMAKER_PIPELINE_NAME
+           Value: !Sub sagemaker-${SageMakerProjectName}
+         - Name: SAGEMAKER_PIPELINE_ROLE_ARN
+           Value: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+         - Name: AWS_REGION
+           Value: !Ref AWS::Region
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      TimeoutInMinutes: 480
+
+  ModelBuildPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      # Max length: 100 chars
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modelbuild # max: 10+33+15+10=68
+      RoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      ArtifactStore:
+        Type: S3
+        Location:
+          !Ref MlOpsArtifactsBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: ModelBuildSource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                PollForSourceChanges: 'false'
+                RepositoryName: !GetAtt ModelBuildCodeCommitRepository.Name
+                BranchName: main
+              OutputArtifacts:
+                - Name: ModelBuildSourceArtifact
+
+        - Name: Build
+          Actions:
+            - Name: BuildAndExecuteSageMakerPipeline
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              InputArtifacts:
+                - Name: ModelBuildSourceArtifact
+              OutputArtifacts:
+                - Name: ModelBuildBuildArtifact
+              Configuration:
+                ProjectName: !Ref ModelPipelineBuildProject
+              RunOrder: 1
+

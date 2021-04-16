@@ -40,9 +40,12 @@ Resources:
               Service: 
                 - servicecatalog.amazonaws.com
                 - codepipeline.amazonaws.com
+                - lambda.amazonaws.com
             Action: "sts:AssumeRole"
       Path: "/service-role/"
       MaxSessionDuration: 3600
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Policies: 
         - PolicyName: AmazonSageMakerAdmin-ServiceCatalogProductsServiceRolePolicy
           PolicyDocument:
@@ -220,7 +223,7 @@ Resources:
                 Action:
                   - 'iam:PassRole'
                 Resource:
-                  - 'arn:aws:iam::*:role/service-role/AmazonSageMakerServiceCatalog*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalog*'
               - Effect: Allow
                 Action:
                   - 'lambda:AddPermission'
@@ -276,10 +279,8 @@ Resources:
                   - 'sagemaker:DeleteEndpointConfig'
                   - 'sagemaker:DeleteModel'
                   - 'sagemaker:DeleteWorkteam'
-                  - 'sagemaker:DescribeModel'
-                  - 'sagemaker:DescribeEndpointConfig'
-                  - 'sagemaker:DescribeEndpoint'
-                  - 'sagemaker:DescribeWorkteam'
+                  - 'sagemaker:Describe*'
+                  - 'sagemaker:List*'
                 Resource:
                   - 'arn:aws:sagemaker:*:*:*'
                 Effect: Allow
@@ -289,6 +290,11 @@ Resources:
                   - 'states:UpdateStateMachine'
                 Resource:
                   - 'arn:aws:states:*:*:stateMachine:sagemaker-*'
+                Effect: Allow
+              - Action:
+                  - 'ssm:GetParameters'
+                  - 'ssm:GetParameter'
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
                 Effect: Allow
 
   AmazonSageMakerServiceCatalogProductsUseRole:

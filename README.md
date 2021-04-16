@@ -345,6 +345,8 @@ This solution deploys two SageMaker projects as Service Catalog products:
 
 These products are visible as SageMaker projects in SageMaker Studio and only deployable from the Studio.
 
+![sm-mlops-projects](img/sm-mlops-projects.png)
+
 #### User profile for SageMaker Studio domain
 Each provisioning of a Data Science environment product creates a SageMaker Studio domain with a user profile. You can optionally manually (from AWS CLI or SageMaker console) create new user profiles:
 
@@ -373,13 +375,35 @@ This product is available for Data Scientist and Data Science Team Administrator
 
 # MLOps part
 
-## MLOps Project template to build, train, deploy the model
+## MLOps Project template to build, train, validate the model
+The solution is based on the [SageMaker project template](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) for model building, training, and deployment. You can find in-depth review of this MLOps project in the blog post [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
 
-![project template: build, train, deploy](img/mlops-project-build-train-deploy.png)
+![project template: build, train, validate](design/ml-ops-model-build-train.drawio.svg)
+
+This project provisions the following resources as part of MLOps pipeline:
+1. The MLOps template is made available through SageMaker projects is provided via an AWS Service Catalog portfolio 
+2. Seed code repository in AWS CodeCommit:
+  - This repository provides seed code to create a multi-step model building pipeline including the following steps: data processing, model training, model evaluation, and conditional model registration based on accuracy. As you can see in the `pipeline.py` file, this pipeline trains a linear regression model using the XGBoost algorithm on the well-known [UCI Abalone dataset](https://archive.ics.uci.edu/ml/datasets/abalone). This repository also includes a [build specification file](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html), used by AWS CodePipeline and AWS CodeBuild to run the pipeline automatically.
+3. CodePipeline pipeline
+
+
+
 
 ## Multi-account deployment
 
 ![multi-account deployment](img/multi-account-deployment.png)
+
+## Create a new MLOps project
+Sign in to the console with the data scientist account. On the SageMaker console, open SageMaker Studio with your user.
+1. Choose the **Components and registries**
+2. On the drop-down menu, choose **Projects**
+3. Choose **Create project**
+4. Choose **Organization templates**
+5. Choose a project template from the list
+
+![sm-mlops-create-project](img/sm-mlops-create-project.png)
+
+
 
 ## CodeCommit seed code
 Each of the delivered MLOps projects contains a seed code which is deployed as project's CodeCommit repository when a project instance created from SageMaker project template.  
@@ -388,16 +412,16 @@ The seed repository contains fully functional source code used by the CI/CD pipe
 
 You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code as part of the project template, please follow the steps:
 + Update existing or create your own version of the seed code
-+ Zip all files that should go into a project CodeCommit repository to a single `.zip` file
-+ Upload that `.zip` file to an Amazon S3 bucket of your choice. You must specify this S3 bucket name when you create a new project in SageMaker Studio
-+ Set a special tag on the uploaded file. This tag will enable access to the object by `AmazonSageMakerServiceCatalogProductsLaunchRole` IAM role: 
++ Zip all files that should go into a project CodeCommit repository into a single `.zip` file
++ Upload this `.zip` file to an Amazon S3 bucket of your choice. You must specify this S3 bucket name when you create a new project in SageMaker Studio
++ Set a special tag `servicecatalog:provisioning` on the uploaded file. This tag will enable access to the object by `AmazonSageMakerServiceCatalogProductsLaunchRole` IAM role: 
   ```bash
   aws s3api put-object-tagging \
           --bucket <your Amazon S3 bucket name> \
           --key <your project name>/seed-code/<zip-file name> \
           --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
   ```
-+ Update the `AWS::CodeCommit::Repository` resource in the correspoinding CloudFormation template with the CI/CD pipeline with the new zip-file name.
++ Update the `AWS::CodeCommit::Repository` resource in the CloudFormation template with the CI/CD pipeline for the corresponding MLOps project with the new zip-file name.
   
   Model deploy project:
   ```yaml
@@ -416,7 +440,7 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
 
   Model build, train, validate project:
   ```yaml
-    ModelDeployCodeCommitRepository:
+    ModelBuildCodeCommitRepository:
       Type: AWS::CodeCommit::Repository
       Properties:
         # Max allowed length: 100 chars
@@ -428,7 +452,34 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
             Key: <your project name>/seed-code/<zip-file name>
           BranchName: main
   ```
-+ Update Service Catalog CloudFormation stack with the updated templates
++ Update Service Catalog CloudFormation stack with the updated templates:
+  - Package the CloudFormation templates and upload everything to the Amazon S3 bucket:
+  ```bash
+  S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
+  make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+  ```
+  - Update the Service Catalog portfolio and product stack:
+  ```bash
+  STACK_NAME= # <generated EnvironmentSCPortfolio stack name>
+  PRINCIPAL_ROLE_ARN= # <SageMaker Execution Role ARN>
+  LAUNCH_ROLE_ARN= # <AmazonSageMakerServiceCatalogProductsLaunchRole ARN>
+
+  aws cloudformation update-stack \
+      --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml \
+      --region $AWS_DEFAULT_REGION \
+      --stack-name $STACK_NAME \
+      --parameters \
+          ParameterKey=EnvName,ParameterValue=sm-mlops \
+          ParameterKey=EnvType,ParameterValue=dev \
+          ParameterKey=SCMLOpsPortfolioPrincipalRoleArn,ParameterValue=$PRINCIPAL_ROLE_ARN \
+          ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
+  ```
+
+## Clean up 
+To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
+```bash
+aws sagemaker delete-project --project-name <your MLOps project name>
+```
 
 # Deployment
 
