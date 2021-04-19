@@ -141,5 +141,5 @@ Resources:
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-data-bucket-name"
       Type: String
-      Value: !Ref ModelBucketName
+      Value: !Ref DataBucketName
       Description: !Sub 'Amazon S3 bucket to store data for ${EnvName}-${EnvType} data science environment'

@@ -126,16 +126,17 @@ The following diagram shows the IAM roles for personas/users and execution roles
 
 ![PoC IAM overview](design/ml-ops-iam.drawio.svg)
 
+More information and examples about the best practices and security setup for multi-project and multi-team environments you can find in the blog post [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/) on [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
+
 ### IAM roles for Data Science personas
 For PoC there is an assumption we are going to use three development accounts to simulate DEV, TEST, and PROD environments.The following describes how the IAM roles should be mapped to the accounts:  
 
 #### IAM role to account mapping
 **DEV account**:
-  + All three roles must be created in the account: `DataScienceAdministratorRole`, `DataScienceProjectAdministratorRole`, `DataScientistRole`
+  + All three roles must be created in the development (data science) account: `DataScienceAdministratorRole`, `DataScienceProjectAdministratorRole`, `DataScientistRole`
  
 **TEST and PROD accounts**:
   + Only `DataScienceProjectAdministratorRole` must be created on these accounts.
-
 
 ### IAM execution roles
 IAM execution roles:
@@ -381,17 +382,39 @@ The solution is based on the [SageMaker project template](https://docs.aws.amazo
 ![project template: build, train, validate](design/ml-ops-model-build-train.drawio.svg)
 
 This project provisions the following resources as part of MLOps pipeline:
-1. The MLOps template is made available through SageMaker projects is provided via an AWS Service Catalog portfolio 
-2. Seed code repository in AWS CodeCommit:
-  - This repository provides seed code to create a multi-step model building pipeline including the following steps: data processing, model training, model evaluation, and conditional model registration based on accuracy. As you can see in the `pipeline.py` file, this pipeline trains a linear regression model using the XGBoost algorithm on the well-known [UCI Abalone dataset](https://archive.ics.uci.edu/ml/datasets/abalone). This repository also includes a [build specification file](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html), used by AWS CodePipeline and AWS CodeBuild to run the pipeline automatically.
-3. CodePipeline pipeline
+1. The MLOps template is made available through SageMaker projects and is provided via an AWS Service Catalog portfolio 
+2. CodePipeline pipeline with two stages - Source to get the source code and Build to build and execute the SageMaker pipeline
+3. Seed code repository in AWS CodeCommit:
+  - This repository provides seed code to create a multi-step model building pipeline including the following steps: data processing, model training, model evaluation, and conditional model registration based on accuracy. As you can see in the `pipeline.py` file, this pipeline trains a linear regression model using the XGBoost algorithm on the well-known [UCI Abalone dataset](https://archive.ics.uci.edu/ml/datasets/abalone). This repository also includes a [build specification file](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html), used by AWS CodePipeline and AWS CodeBuild to run the pipeline automatically
 
 
+## Multi-account model deployment
 
+![multi-account deployment](design/ml-ops-model-deploy.drawio.svg)
 
-## Multi-account deployment
+### Multi-account model deployment pre-requisites
+Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and productio account. For a proper functioning of the solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail:
 
-![multi-account deployment](img/multi-account-deployment.png)
++ Enabled AWS Organizations with the following OU structure:
+  + Root
+      - multi-account-deployment (OU)
+          * `111111111111` (data science development account with SageMaker Studio)
+          * staging (OU)
+              * `222222222222` (data science staging AWS account)
+          * production (OU)
+              * `333333333333` (data science production AWS account)
++ [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoings) in the staging and production accounts
++ SageMaker execution role in the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science account to deploy the endpoints in the target accounts and test them. To deploy the execution roles, use the `env-iam-cross-account-deployment-role.yaml` CloudFormation template. Run the deployment in the staging and production accounts:
+```bash
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-cross-account-deployment-role.yaml \
+                --stack-name env-iam-cross-account-deployment-role \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                EnvName=$ENV_NAME \
+                EnvType=dev \
+                PipelineExecutionRoleArn=arn:aws:iam::<DATA SCIENCE ACCOUNT ID>:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+```
 
 ## Create a new MLOps project
 Sign in to the console with the data scientist account. On the SageMaker console, open SageMaker Studio with your user.
@@ -445,11 +468,11 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
       Properties:
         # Max allowed length: 100 chars
         RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
-        RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+        RepositoryDescription: !Sub SageMaker Model building infrastructure as code for the project ${SageMakerProjectName}
         Code:
           S3:
             Bucket: !Ref SeedCodeS3BucketName 
-            Key: <your project name>/seed-code/<zip-file name>
+            Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
           BranchName: main
   ```
 + Update Service Catalog CloudFormation stack with the updated templates:
@@ -479,6 +502,12 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
 To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
 ```bash
 aws sagemaker delete-project --project-name <your MLOps project name>
+```
+
+To remove the MLOps project bucket:
+```bash
+aws s3 rm s3://<s3 bucket name> --recursive
+aws s3 rb s3://<s3 bucket name>
 ```
 
 # Deployment
@@ -525,7 +554,7 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 + SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles.
 
 ## Clean-up considerations
-The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. When you delete the data science enviroment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). Additional resources are created by SageMaker Studio and retained upon deletion together with the EFS file system:
+The deployment of Amazon SageMaker Studio creates a new EFS file system in your account. This EFS file system is shared with all users of Studio. When you delete the data science environment stack, the SageMaker Studio domain, user profile and Apps are also deleted. However, the EFS file system **will not be deleted** and kept "as is" in your account (EFS file system contains home directories for SageMaker Studio users and may contain your data). Additional resources are created by SageMaker Studio and retained upon deletion together with the EFS file system:
 - EFS mounting points in each private subnet of your VPC
 - ENI for each mounting point
 - Security groups for EFS inbound and outbound traffic
@@ -798,6 +827,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [R9]: [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/)
 - [R10]: [Best Practices for Organizational Units with AWS Organizations](https://aws.amazon.com/blogs/mt/best-practices-for-organizational-units-with-aws-organizations/)
 - [R11]: [Build a CI/CD pipeline for deploying custom machine learning models using AWS services](https://aws.amazon.com/blogs/machine-learning/build-a-ci-cd-pipeline-for-deploying-custom-machine-learning-models-using-aws-services/)
+- [R12]: [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)

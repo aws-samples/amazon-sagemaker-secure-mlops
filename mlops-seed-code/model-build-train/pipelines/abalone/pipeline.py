@@ -55,7 +55,7 @@ def get_session(region, default_bucket):
         default_bucket: the bucket to use for storing the artifacts
 
     Returns:
-        `sagemaker.session.Session instance
+        sagemaker.session.Session instance
     """
 
     boto_session = boto3.Session(region_name=region)
@@ -73,7 +73,8 @@ def get_session(region, default_bucket):
 def get_pipeline(
     region,
     role=None,
-    default_bucket=None,
+    data_bucket=None,
+    model_bucket=None,
     model_package_group_name="AbalonePackageGroup",
     pipeline_name="AbalonePipeline",
     base_job_prefix="Abalone",
@@ -83,12 +84,12 @@ def get_pipeline(
     Args:
         region: AWS region to create and run the pipeline.
         role: IAM role to create and run steps and pipeline.
-        default_bucket: the bucket to use for storing the artifacts
+        data_bucket: the bucket to use for storing the artifacts
 
     Returns:
         an instance of a pipeline
     """
-    sagemaker_session = get_session(region, default_bucket)
+    sagemaker_session = get_session(region, data_bucket)
     if role is None:
         role = sagemaker.session.get_execution_role(sagemaker_session)
 
@@ -105,7 +106,7 @@ def get_pipeline(
     )
     input_data = ParameterString(
         name="InputDataUrl",
-        default_value=f"s3://sagemaker-servicecatalog-seedcode-{region}/dataset/abalone-dataset.csv",
+        default_value=f"{sagemaker_session.default_bucket()}/datasets/abalone-dataset.csv",
     )
 
     # processing step for feature engineering

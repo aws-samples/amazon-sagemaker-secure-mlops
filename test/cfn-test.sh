@@ -287,7 +287,7 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
@@ -326,7 +326,7 @@ aws cloudformation update-stack \
 
 
 # Update SageMaker Service Catalog Project roles
-STACK_NAME="sm-mlops-core-IAMSCSageMakerProjectRoles-SKNNSSC2AIG2"
+STACK_NAME="sm-mlops-core-IAMSCSageMakerProjectRoles-136RA0IGCAFK7"
 
 aws s3 cp build/$AWS_DEFAULT_REGION/core-iam-sc-sm-projects-roles.yaml s3://$S3_BUCKET_NAME/sagemaker-mlops/core-iam-sc-sm-projects-roles.yaml
 
@@ -389,3 +389,8 @@ aws cloudformation update-stack \
     --parameters \
         ParameterKey=CodeCommitRepositoryArn,ParameterValue=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
         ParameterKey=NotificationArn,ParameterValue=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+
+
+# Delete Service Catalog SageMaker Project roles
+aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsLaunchRole
+aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole

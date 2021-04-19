@@ -19,6 +19,9 @@ Parameters:
     Type: String
     Description: S3 bucket name where the seed code for MLOps projects for CodeCommit repository is stored
 
+Conditions:
+  FalseCondition: !Equals [ 'true', 'false' ]
+
 Resources:
 
   GetEnvironmentConfiguration:
@@ -33,22 +36,43 @@ Resources:
       FunctionName: GetEnvironmentConfiguration
       Code:
         ZipFile: |
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
           import json
           import boto3
           import cfnresponse
           from botocore.exceptions import ClientError
 
           sm = boto3.client("sagemaker")
+          ssm = boto3.client("ssm")
 
+          def get_environment(project_name):
+              r = sm.describe_domain(
+                      DomainId=sm.describe_project(
+                          ProjectName=project_name
+                          )["CreatedBy"]["DomainId"]
+                  )
+              del r["ResponseMetadata"]
+
+              i = {
+                  **r,
+                  **{t["Key"]:t["Value"] 
+                      for t in sm.list_tags(ResourceArn=r["DomainArn"])["Tags"] 
+                      if t["Key"] in ["EnvironmentName", "EnvironmentType"]}
+              }
+
+              i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
+              i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
+
+              return i
+              
           def lambda_handler(event, context):
               try:
                   response_status = cfnresponse.SUCCESS
                   r = {}
 
                   if 'RequestType' in event and event['RequestType'] == 'Create':
-                      r["SageMakerDomainId"] = sm.describe_project(
-                          ProjectName=event["ResourceProperties"]["SageMakerProjectName"]
-                          )["CreatedBy"]["DomainId"]
+                      r = get_environment(event["ResourceProperties"]["SageMakerProjectName"])
 
                   print(r)
                   cfnresponse.send(event, context, response_status, r, '')
@@ -72,6 +96,7 @@ Resources:
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
+    Condition: FalseCondition
     UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub sagemaker-mlops-codepipeline-${SageMakerProjectId} # 58 chars max/ 64 allowed
@@ -125,6 +150,15 @@ Resources:
           Bucket: !Ref SeedCodeS3BucketName 
           Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
         BranchName: main
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
 
   ModelPipelineBuildProject:
     Type: AWS::CodeBuild::Project
@@ -140,22 +174,44 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
         EnvironmentVariables:
-         - Name: SAGEMAKER_PROJECT_NAME
-           Value: !Ref SageMakerProjectName
-         - Name: SAGEMAKER_PROJECT_ID
-           Value: !Ref SageMakerProjectId
-         - Name: ARTIFACT_BUCKET
-           Value: !Ref MlOpsArtifactsBucket
-         - Name: SAGEMAKER_PIPELINE_NAME
-           Value: !Sub sagemaker-${SageMakerProjectName}
-         - Name: SAGEMAKER_PIPELINE_ROLE_ARN
-           Value: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
-         - Name: AWS_REGION
-           Value: !Ref AWS::Region
+          - Name: SAGEMAKER_PROJECT_NAME
+            Value: !Ref SageMakerProjectName
+          - Name: SAGEMAKER_PROJECT_ID
+            Value: !Ref SageMakerProjectId
+          - Name: ENV_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+          - Name: ENV_TYPE
+            Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+          - Name: DATA_BUCKET
+            Value: !GetAtt GetEnvironmentConfiguration.DataBucketName
+          - Name: MODEL_BUCKET
+            Value: !GetAtt GetEnvironmentConfiguration.ModelBucketName
+          - Name: SAGEMAKER_PIPELINE_NAME
+            Value: !Sub sagemaker-${SageMakerProjectName}
+          - Name: SAGEMAKER_PIPELINE_ROLE_ARN
+            Value: !GetAtt GetEnvironmentConfiguration.DefaultUserSettings.ExecutionRole
+            # Value: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+          - Name: SAGEMAKER_SUBNET_IDS
+            Value: !GetAtt GetEnvironmentConfiguration.SubnetIds
+          - Name: SAGEMAKER_SECURITY_GROUPS
+            Value: !GetAtt GetEnvironmentConfiguration.DefaultUserSettings.SecurityGroups
+          - Name: SAGEMAKER_KMS_KEY_ID
+            Value: !GetAtt GetEnvironmentConfiguration.KmsKeyId
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
       Source:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
       TimeoutInMinutes: 480
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
 
   ModelBuildPipeline:
     Type: AWS::CodePipeline::Pipeline
@@ -166,7 +222,16 @@ Resources:
       ArtifactStore:
         Type: S3
         Location:
-          !Ref MlOpsArtifactsBucket
+          !GetAtt GetEnvironmentConfiguration.DataBucketName
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
       Stages:
         - Name: Source
           Actions:
