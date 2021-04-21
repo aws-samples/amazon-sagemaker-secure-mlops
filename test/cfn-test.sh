@@ -390,7 +390,12 @@ aws cloudformation update-stack \
         ParameterKey=CodeCommitRepositoryArn,ParameterValue=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
         ParameterKey=NotificationArn,ParameterValue=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 
+# Delete SageMaker project
+aws sagemaker delete-project --project-name <your MLOps project name>
 
 # Delete Service Catalog SageMaker Project roles
 aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsLaunchRole
 aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
+
+# Delete SageMaker EFS
+functions/pipeline/clean-up-efs-cli.py d-k78alrnfd8jv

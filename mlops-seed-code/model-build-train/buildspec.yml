@@ -12,7 +12,7 @@ phases:
       - export PYTHONUNBUFFERED=TRUE
       - export SAGEMAKER_PROJECT_NAME_ID="${SAGEMAKER_PROJECT_NAME}-${SAGEMAKER_PROJECT_ID}"
       - echo "Copying the dataset to ${DATA_BUCKET} data bucket"
-      - aws s3 cp dataset/abalone-dataset.csv s3://${DATA_BUCKET}/datasets
+      - aws s3 cp dataset/abalone-dataset.csv s3://${DATA_BUCKET}/datasets/abalone-dataset.csv
       - |
         run-pipeline \
           --module-name pipelines.abalone.pipeline \

@@ -433,6 +433,7 @@ Each of the delivered MLOps projects contains a seed code which is deployed as p
 
 The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating or for multi-project model deployment. Please see `README.md` for each of the available projects.
 
+### Develop and deploy seed code
 You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code as part of the project template, please follow the steps:
 + Update existing or create your own version of the seed code
 + Zip all files that should go into a project CodeCommit repository into a single `.zip` file
@@ -444,9 +445,9 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
           --key <your project name>/seed-code/<zip-file name> \
           --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
   ```
-+ Update the `AWS::CodeCommit::Repository` resource in the CloudFormation template with the CI/CD pipeline for the corresponding MLOps project with the new zip-file name.
++ Update the `AWS::CodeCommit::Repository` resource in the CloudFormation template with the CI/CD pipeline for the corresponding MLOps project (`project-model-build-train.yaml` or `proejct-model-deploy.yaml`) with the new zip-file name.
   
-  Model deploy project:
+  Model deploy project `proejct-model-deploy.yaml`:
   ```yaml
     ModelDeployCodeCommitRepository:
       Type: AWS::CodeCommit::Repository
@@ -461,7 +462,7 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
           BranchName: main
   ```
 
-  Model build, train, validate project:
+  Model build, train, validate project `project-model-build-train.yaml`:
   ```yaml
     ModelBuildCodeCommitRepository:
       Type: AWS::CodeCommit::Repository
@@ -475,6 +476,18 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
             Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
           BranchName: main
   ```
++ Update the CloudFormation template file `env-sc-portfolio.yaml` with a new version of Service Catalog Product:
+  ```yaml
+    DataScienceMLOpsModelBuildTrainProduct:
+        Type: 'AWS::ServiceCatalog::CloudFormationProduct'
+        Properties:
+          Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train <NEW VERSION>'
+          Description: 'This template creates a CI/CD MLOps project which implements ML build-train-validate pipeline'
+          Owner: 'Data Science Administration Team'
+          ProvisioningArtifactParameters:
+            - Name: 'MLOps Model Build Train <NEW VERSION>'
+  ```
++ Package and upload all changed CloudFormation template to the distribution S3 bucket
 + Update Service Catalog CloudFormation stack with the updated templates:
   - Package the CloudFormation templates and upload everything to the Amazon S3 bucket:
   ```bash
@@ -497,6 +510,7 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
           ParameterKey=SCMLOpsPortfolioPrincipalRoleArn,ParameterValue=$PRINCIPAL_ROLE_ARN \
           ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
   ```
++ Restart the SageMaker Studio (close the browser window with Studio and open again via AWS console)
 
 ## Clean up 
 To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
@@ -504,7 +518,7 @@ To remove a SageMaker project, run the following command from the command line. 
 aws sagemaker delete-project --project-name <your MLOps project name>
 ```
 
-To remove the MLOps project bucket:
+To remove the MLOps CodePipeline artifact bucket:
 ```bash
 aws s3 rm s3://<s3 bucket name> --recursive
 aws s3 rb s3://<s3 bucket name>

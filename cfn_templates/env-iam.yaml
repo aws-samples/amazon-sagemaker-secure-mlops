@@ -277,6 +277,11 @@ Resources:
                 'sagemaker:VpcSubnets': 'true'
           - 
             Action:
+              - sagemaker:ListTags
+            Resource: '*'
+            Effect: Allow
+          - 
+            Action:
               - 'codecommit:BatchGetRepositories'
               - 'codecommit:GitPull'
               - 'codecommit:GitPush'

@@ -73,6 +73,7 @@ def main():  # pragma: no cover
     tags = convert_struct(args.tags)
 
     try:
+        print(f"###### Get the pipeline defintion from {args.module_name}")
         pipeline = get_pipeline_driver(args.module_name, args.kwargs)
         print("###### Creating/updating a SageMaker Pipeline with the following definition:")
         parsed = json.loads(pipeline.definition())
@@ -94,7 +95,7 @@ def main():  # pragma: no cover
         print(execution.list_steps())
         # Todo print the status?
     except Exception as e:  # pylint: disable=W0703
-        print(f"Exception: {e}")
+        print(f"Exception in pipelines.run_pipeline:main: {e}")
         sys.exit(1)
 
 

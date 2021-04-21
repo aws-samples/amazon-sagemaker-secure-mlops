@@ -118,6 +118,22 @@ Parameters:
       - 'NO'
     Default: 'YES'
 
+  CreateCodePipelineVPCEndpoint:
+    Description: Set to NO to disable creation of a CodePipeline VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeBuildVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeBuild VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
   CreateECRAPIVPCEndpoint:
     Description: Set to NO to disable creation of an ECR API VPC endpoint
     Type: String
@@ -194,6 +210,8 @@ Conditions:
   STSVPCEndpointCondition: !Equals [!Ref 'CreateSTSVPCEndpoint', 'YES']
   CodeCommitVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitVPCEndpoint', 'YES']
   CodeCommitAPIVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitAPIVPCEndpoint', 'YES']
+  CodePipelineVPCEndpointCondition: !Equals [!Ref 'CreateCodePipelineVPCEndpoint', 'YES']
+  CodeBuildVPCEndpointCondition: !Equals [!Ref 'CreateCodeBuildVPCEndpoint', 'YES']
   ECRAPIVPCEndpointCondition: !Equals [!Ref 'CreateECRAPIVPCEndpoint', 'YES']
   ECRVPCEndpointCondition: !Equals [!Ref 'CreateECRVPCEndpoint', 'YES']
   ServiceCatalogPCEndpointCondition: !Equals [!Ref 'CreateServiceCatalogVPCEndpoint', 'YES']
@@ -319,6 +337,30 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codecommit'
       VpcId: !Ref VPCId
 
+  VPCEndpointCodePipeline:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodePipelineVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointsSecurityGroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codepipeline'
+      VpcId: !Ref VPCId
+
+  VPCEndpointCodeBuild:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeBuildVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointsSecurityGroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codebuild'
+      VpcId: !Ref VPCId
+
   VPCEndpointECRAPI:
     Type: 'AWS::EC2::VPCEndpoint'
     Condition: ECRAPIVPCEndpointCondition
@@ -386,13 +428,25 @@ Resources:
             "Action":[
               "s3:GetObject",
               "s3:PutObject",
-              "s3:ListBucket"
+              "s3:DeleteObject",
+              "s3:ListBucket",
+              "s3:CreateBucket",
+              "s3:GetBucketAcl",
+              "s3:GetBucketCors",
+              "s3:ListBucketMultipartUploads",
+              "s3:PutBucketCors",
+              "s3:GetObjectVersion",
+              "s3:AbortMultipartUpload",
+              "s3:GetBucketLocation",
+              "s3:GetBucketTagging"
             ], 
             "Resource":[
-              "arn:aws:s3:::${ModelBucketName}*",
-              "arn:aws:s3:::${DataBucketName}*",
-              "arn:aws:s3:::${ModelBucketName}/*",
-              "arn:aws:s3:::${DataBucketName}/*"
+              "arn:aws:s3:::*${ModelBucketName}*",
+              "arn:aws:s3:::*${DataBucketName}*",
+              "arn:aws:s3:::*sagemaker*",
+              "arn:aws:s3:::*SageMaker*",
+              "arn:aws:s3:::*Sagemaker*",
+              "arn:aws:s3:::*aws-glue*"
               ]
           },
           {
@@ -407,6 +461,19 @@ Resources:
                   "s3:ExistingObjectTag/SageMaker": "true"
                 }
               }
+            },
+            {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                    "s3:GetObject"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "StringEquals": {
+                        "s3:ExistingObjectTag/servicecatalog:provisioning": "true"
+                    }
+                }
             }
           ]
         }

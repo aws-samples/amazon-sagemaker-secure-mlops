@@ -89,6 +89,7 @@ def get_pipeline(
     Returns:
         an instance of a pipeline
     """
+    print(f"Creating the pipeline '{pipeline_name}': {region}/{role}/{data_bucket}/{model_bucket}/{model_package_group_name}")
     sagemaker_session = get_session(region, data_bucket)
     if role is None:
         role = sagemaker.session.get_execution_role(sagemaker_session)
@@ -106,7 +107,7 @@ def get_pipeline(
     )
     input_data = ParameterString(
         name="InputDataUrl",
-        default_value=f"{sagemaker_session.default_bucket()}/datasets/abalone-dataset.csv",
+        default_value=f"s3://{sagemaker_session.default_bucket()}/datasets/abalone-dataset.csv",
     )
 
     # processing step for feature engineering

@@ -47,6 +47,8 @@ Metadata:
           - CreateSTSVPCEndpoint
           - CreateCodeCommitVPCEndpoint
           - CreateCodeCommitAPIVPCEndpoint
+          - CreateCodePipelineVPCEndpoint
+          - CreateCodeBuildVPCEndpoint
           - CreateECRAPIVPCEndpoint
           - CreateECRVPCEndpoint
       - Label:
@@ -109,6 +111,10 @@ Metadata:
         default: Create CodeCommit VPC endpoint
       CreateCodeCommitAPIVPCEndpoint:
         default: Create CodeCommit API VPC endpoint
+      CreateCodePipelineVPCEndpoint:
+        default: Create CodePipeline VPC endpoint
+      CreateCodeBuildVPCEndpoint:
+        default: Create CodeBuild VPC endpoint
       CreateECRAPIVPCEndpoint:
         default: Create ECR API VPC endpoint
       CreateECRVPCEndpoint:
@@ -311,6 +317,22 @@ Parameters:
 
   CreateCodeCommitAPIVPCEndpoint:
     Description: Set to NO to disable creation of a CodeCommit API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodePipelineVPCEndpoint:
+    Description: Set to NO to disable creation of a CodePipeline VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeBuildVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeBuild VPC endpoint
     Type: String
     AllowedValues:
       - 'YES'
@@ -652,6 +674,8 @@ Resources:
         CreateSTSVPCEndpoint: !Ref CreateSTSVPCEndpoint
         CreateCodeCommitVPCEndpoint: !Ref CreateCodeCommitVPCEndpoint
         CreateCodeCommitAPIVPCEndpoint: !Ref CreateCodeCommitAPIVPCEndpoint
+        CreateCodePipelineVPCEndpoint: !Ref CreateCodePipelineVPCEndpoint
+        CreateCodeBuildVPCEndpoint: !Ref CreateCodeBuildVPCEndpoint
         CreateECRAPIVPCEndpoint: !Ref CreateECRAPIVPCEndpoint
         CreateECRVPCEndpoint: !Ref CreateECRVPCEndpoint
         ExistingS3VPCEndpointId: !Ref ExistingS3VPCEndpointId

@@ -46,6 +46,7 @@ Resources:
       MaxSessionDuration: 3600
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+        - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
       Policies: 
         - PolicyName: AmazonSageMakerAdmin-ServiceCatalogProductsServiceRolePolicy
           PolicyDocument:
@@ -225,6 +226,7 @@ Resources:
                   - 'iam:PassRole'
                 Resource:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalog*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/*SageMakerExecutionRole*'
               - Effect: Allow
                 Action:
                   - 'lambda:AddPermission'
@@ -309,6 +311,8 @@ Resources:
       Description: "SageMaker role created from the SageMaker AWS Management Console. This role has the permissions required to use the Amazon SageMaker portfolio of products from AWS ServiceCatalog."
       Path: "/service-role/"
       MaxSessionDuration: 3600 
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -381,6 +385,20 @@ Resources:
                 Effect: Allow
               - 
                 Action:
+                  - codebuild:ListCuratedEnvironmentImages
+                Resource: '*'
+                Effect: Allow
+              -
+                Action:
+                  - codebuild:CreateReportGroup
+                  - codebuild:CreateReport
+                  - codebuild:UpdateReport
+                  - codebuild:BatchPutTestCases
+                  - codebuild:BatchPutCodeCoverages
+                Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/sagemaker*'
+                Effect: Allow
+              - 
+                Action:
                   - codecommit:CancelUploadArchive
                   - codecommit:GetBranch
                   - codecommit:GetCommit
@@ -395,14 +413,21 @@ Resources:
                 Effect: Allow
               - 
                 Action:
-                  - ec2:DescribeRouteTables
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
                 Resource: "*"
+                Effect: Allow
+              - 
+                Action:
+                  - ec2:CreateNetworkInterfacePermission
+                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
                 Effect: Allow
               - 
                 Action:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:BatchGetImage
                   - ecr:Describe*
+                  - ecr:ListImages
                   - ecr:GetAuthorizationToken
                   - ecr:GetDownloadUrlForLayer
                 Resource: "*"
@@ -470,7 +495,8 @@ Resources:
                 Action:
                   - iam:PassRole
                 Resource:
-                  - arn:aws:iam::*:role/service-role/AmazonSageMakerServiceCatalogProductsUse*
+                  - arn:aws:iam::*:role/service-role/AmazonSageMakerServiceCatalog*
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/*SageMakerExecutionRole*'
                 Effect: Allow
               - 
                 Effect: Allow

@@ -3,7 +3,6 @@
 import json
 import boto3
 import cfnresponse
-from botocore.exceptions import ClientError
 
 sm = boto3.client("sagemaker")
 ssm = boto3.client("ssm")
@@ -15,6 +14,10 @@ def get_environment(project_name):
                 )["CreatedBy"]["DomainId"]
         )
     del r["ResponseMetadata"]
+    del r["CreationTime"]
+    del r["LastModifiedTime"]
+    r = {**r, **r["DefaultUserSettings"]}
+    del r["DefaultUserSettings"]
 
     i = {
         **r,
@@ -25,6 +28,7 @@ def get_environment(project_name):
 
     i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
     i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
+    i["S3VPCEId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-s3-vpce-id")["Parameter"]["Value"]
 
     return i
     
@@ -39,6 +43,6 @@ def lambda_handler(event, context):
         print(r)
         cfnresponse.send(event, context, response_status, r, '')
 
-    except ClientError as exception:
+    except Exception as exception:
         print(exception)
         cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))

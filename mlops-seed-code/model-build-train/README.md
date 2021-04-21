@@ -12,6 +12,8 @@ A description of some of the artifacts is provided below.
 The template provides a starting point for bringing your SageMaker Pipeline development to production.
 
 ```
+|-- dataset
+|   `-- abalone-dataset.csv
 |-- buildspec.yml
 |-- CONTRIBUTING.md
 |-- pipelines
@@ -35,9 +37,9 @@ The template provides a starting point for bringing your SageMaker Pipeline deve
 ```
 
 ## Start here
-This is a sample code repository that demonstrates how you can organize your code for an ML business solution. This code repository is created as part of creating a Project in SageMaker. 
+This is a sample code repository that demonstrates how you can organize your code for an MLOps. This code repository is created as part of creating a Project in SageMaker and customized for your specific Data Science environment
 
-In this example, we are solving the abalone age prediction problem using the abalone dataset (see below for more on the dataset). The following section provides an overview of how the code is organized and what you need to modify. In particular, `pipelines/pipelines.py` contains the core of the business logic for this problem. It has the code to express the ML steps involved in generating an ML model. You will also find the code for that supports preprocessing and evaluation steps in `preprocess.py` and `evaluate.py` files respectively.
+In this example, we are solving the abalone age prediction problem using the abalone dataset (see below for more on the dataset). The following section provides an overview of how the code is organized and what you need to modify. In particular, `pipelines/abalone/pipelines.py` contains the core of the business logic for this problem. It has the code to use [SageMaker pipelines](https://aws.amazon.com/sagemaker/pipelines/) to create an automated ML pipeline to build, train, validate, and register the ML model. You will also find the code for that is used in the pipeline's preprocessing and evaluation steps in `pipelines/abalone/preprocess.py` and `pipelines/abalone/evaluate.py` files respectively.
 
 Once you understand the code structure described below, you can inspect the code and you can start customizing it for your own business case. This is only sample code, and you own this repository for your business use case. Please go ahead, modify the files, commit them and see the changes kicking off the SageMaker pipelines in the CICD system.
 
@@ -45,14 +47,20 @@ You can also use the `sagemaker-pipelines-project.ipynb` notebook to experiement
 
 A description of some of the artifacts is provided below:
 <br/><br/>
-Your codebuild execution instructions. This file contains the instructions needed to kick off an execution of the SageMaker Pipeline in the CICD system (via CodePipeline). You will see that this file has the fields definined for naming the Pipeline, ModelPackageGroup etc. You can customize them as required.
+Your codebuild execution instructions. This file contains the instructions needed to kick off an execution of the SageMaker Pipeline in the CICD system (via CodePipeline). You will see that this file uses the environment variables for the Execution Role, Pipeline, ModelPackageGroup etc. The values for these environment variables is initially set by the deployment of SageMaker project. You can customize them or add your own variables as required directly in CodePipeline pipeline.
 
 ```
 |-- buildspec.yml
 ```
 
 <br/><br/>
-Your pipeline artifacts, which includes a pipeline module defining the required `get_pipeline` method that returns an instance of a SageMaker pipeline, a preprocessing script that is used in feature engineering, and a model evaluation script to measure the Mean Squared Error of the model that's trained by the pipeline. This is the core business logic, and if you want to create your own folder, you can do so, and implement the `get_pipeline` interface as illustrated here.
+
+The implementation of the pipeline steps, which includes:
++ a `pipeline.py` module defining the required `get_pipeline` method that returns an instance of a SageMaker pipeline
++ a preprocessing script `preprocess.py` that is used in feature engineering
++ a model evaluation script `evaluate.py` to measure the Mean Squared Error of the model that's trained by the pipeline
+
+This is the core business logic, and if you want to create your own folder for your own business problem, you can do so, and implement the `get_pipeline` interface as illustrated here.
 
 ```
 |-- pipelines
@@ -64,7 +72,8 @@ Your pipeline artifacts, which includes a pipeline module defining the required 
 
 ```
 <br/><br/>
-Utility modules for getting pipeline definition jsons and running pipelines (you do not typically need to modify these):
+
+Utility modules for getting pipeline definition jsons (`_utils.py`) and running pipelines (`run_pipeline.py`). You do not typically need to modify these:
 
 ```
 |-- pipelines
@@ -100,6 +109,28 @@ The dataset contains several features - length (longest shell measurement), diam
 
 The number of rings turns out to be a good approximation for age (age is rings + 1.5). However, to obtain this number requires cutting the shell through the cone, staining the section, and counting the number of rings through a microscope -- a time-consuming task. However, the other physical measurements are easier to determine. We use the dataset to build a predictive model of the variable rings through these other physical measurements.
 
-We'll upload the data to a bucket we own. But first we gather some constants we can use later throughout the notebook.
+The dataset is delivered as part of the seed code repository and copied to your pre-configured Amazon S3 data bucket (as provisioned by the deployment of the data science environment). 
 
 [1] Dua, D. and Graff, C. (2019). [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml). Irvine, CA: University of California, School of Information and Computer Science.
+
+## Security considerations for SageMaker pipeline
+
+
+- Secure setup of SageMaker processing and training jobs
+- VPC endpoint setup for CodeBuild, CodePipeline, CodeCommit
+- Access to Amazon S3 bucket via VPC endpoint
+- S3 VPC endpoint policy
+- Preventiv controls in IAM for SageMaker execution role:
+```yaml
+Action:
+  - 'sagemaker:CreateNotebookInstance'
+  - 'sagemaker:CreateHyperParameterTuningJob'
+  - 'sagemaker:CreateProcessingJob'
+  - 'sagemaker:CreateTrainingJob'
+  - 'sagemaker:CreateModel'
+Resource: '*'
+Effect: Deny
+Condition:
+  'Null':
+    'sagemaker:VpcSubnets': 'true'
+```

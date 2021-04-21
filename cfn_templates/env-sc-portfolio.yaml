@@ -36,11 +36,11 @@ Resources:
   DataScienceMLOpsModelBuildTrainProduct:
     Type: 'AWS::ServiceCatalog::CloudFormationProduct'
     Properties:
-      Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train v1.0'
+      Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train v1.2'
       Description: 'This template creates a CI/CD MLOps project which implements ML build-train-validate pipeline'
       Owner: 'Data Science Administration Team'
       ProvisioningArtifactParameters:
-        - Name: 'MLOps Model Build Train v1.0'
+        - Name: 'MLOps Model Build Train v1.2'
           Description: 'CI/CD MLOps project to build, train, and validate an ML model using SageMaker pipelines'
           Info:
             LoadTemplateFromURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/project-model-build-train.yaml'

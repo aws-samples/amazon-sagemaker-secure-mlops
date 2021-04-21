@@ -41,7 +41,6 @@ Resources:
           import json
           import boto3
           import cfnresponse
-          from botocore.exceptions import ClientError
 
           sm = boto3.client("sagemaker")
           ssm = boto3.client("ssm")
@@ -53,6 +52,10 @@ Resources:
                           )["CreatedBy"]["DomainId"]
                   )
               del r["ResponseMetadata"]
+              del r["CreationTime"]
+              del r["LastModifiedTime"]
+              r = {**r, **r["DefaultUserSettings"]}
+              del r["DefaultUserSettings"]
 
               i = {
                   **r,
@@ -63,6 +66,7 @@ Resources:
 
               i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
               i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
+              i["S3VPCEId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-s3-vpce-id")["Parameter"]["Value"]
 
               return i
               
@@ -77,7 +81,7 @@ Resources:
                   print(r)
                   cfnresponse.send(event, context, response_status, r, '')
 
-              except ClientError as exception:
+              except Exception as exception:
                   print(exception)
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
 
@@ -95,8 +99,8 @@ Resources:
 
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
     Condition: FalseCondition
+    DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub sagemaker-mlops-codepipeline-${SageMakerProjectId} # 58 chars max/ 64 allowed
@@ -111,6 +115,10 @@ Resources:
           Value: !Ref SageMakerProjectName
         - Key: SageMakerProjectId
           Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
 
   ModelBuildCodeCommitEventRule:
     Type: AWS::Events::Rule
@@ -189,12 +197,15 @@ Resources:
           - Name: SAGEMAKER_PIPELINE_NAME
             Value: !Sub sagemaker-${SageMakerProjectName}
           - Name: SAGEMAKER_PIPELINE_ROLE_ARN
-            Value: !GetAtt GetEnvironmentConfiguration.DefaultUserSettings.ExecutionRole
-            # Value: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+            Value: !GetAtt GetEnvironmentConfiguration.ExecutionRole
           - Name: SAGEMAKER_SUBNET_IDS
-            Value: !GetAtt GetEnvironmentConfiguration.SubnetIds
+            Value: !Join
+              - ',' 
+              - !GetAtt GetEnvironmentConfiguration.SubnetIds
           - Name: SAGEMAKER_SECURITY_GROUPS
-            Value: !GetAtt GetEnvironmentConfiguration.DefaultUserSettings.SecurityGroups
+            Value: !Join
+              - ',' 
+              - !GetAtt GetEnvironmentConfiguration.SecurityGroups
           - Name: SAGEMAKER_KMS_KEY_ID
             Value: !GetAtt GetEnvironmentConfiguration.KmsKeyId
           - Name: AWS_REGION
@@ -203,6 +214,10 @@ Resources:
         Type: CODEPIPELINE
         BuildSpec: buildspec.yml
       TimeoutInMinutes: 480
+      VpcConfig:
+        SecurityGroupIds: !GetAtt GetEnvironmentConfiguration.SecurityGroups
+        Subnets: !GetAtt GetEnvironmentConfiguration.SubnetIds
+        VpcId: !GetAtt GetEnvironmentConfiguration.VpcId
       Tags:
         - Key: SageMakerProjectName
           Value: !Ref SageMakerProjectName
@@ -221,8 +236,9 @@ Resources:
       RoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
       ArtifactStore:
         Type: S3
-        Location:
-          !GetAtt GetEnvironmentConfiguration.DataBucketName
+        Location: !GetAtt GetEnvironmentConfiguration.DataBucketName
+          #!Ref MlOpsArtifactsBucket
+
       Tags:
         - Key: SageMakerProjectName
           Value: !Ref SageMakerProjectName
