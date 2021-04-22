@@ -42,6 +42,7 @@ from sagemaker.workflow.steps import (
     TrainingStep,
 )
 from sagemaker.workflow.step_collections import RegisterModel
+from sagemaker.network import NetworkConfig
 
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -72,12 +73,15 @@ def get_session(region, default_bucket):
 
 def get_pipeline(
     region,
+    security_group_ids,
+    subnets,
     role=None,
     data_bucket=None,
     model_bucket=None,
     model_package_group_name="AbalonePackageGroup",
     pipeline_name="AbalonePipeline",
     base_job_prefix="Abalone",
+
 ):
     """Gets a SageMaker ML Pipeline instance working with on abalone data.
 
@@ -89,7 +93,7 @@ def get_pipeline(
     Returns:
         an instance of a pipeline
     """
-    print(f"Creating the pipeline '{pipeline_name}': {region}/{role}/{data_bucket}/{model_bucket}/{model_package_group_name}")
+    print(f"Creating the pipeline '{pipeline_name}': {region}/{security_group_ids}/{subnets}/{role}/{data_bucket}/{model_bucket}/{model_package_group_name}")
     sagemaker_session = get_session(region, data_bucket)
     if role is None:
         role = sagemaker.session.get_execution_role(sagemaker_session)
@@ -110,6 +114,15 @@ def get_pipeline(
         default_value=f"s3://{sagemaker_session.default_bucket()}/datasets/abalone-dataset.csv",
     )
 
+    # configure network for encryption, network isolation and VPC configuration
+    # Since the preprocessor job takes the data from S3, enable_network_isolation must be set to False
+    # see https://github.com/aws/amazon-sagemaker-examples/issues/1689
+    network_config = NetworkConfig(
+        enable_network_isolation=False, 
+        security_group_ids=security_group_ids.split(","),
+        subnets=subnets.split(","),
+        encrypt_inter_container_traffic=True)
+    
     # processing step for feature engineering
     sklearn_processor = SKLearnProcessor(
         framework_version="0.23-1",
@@ -118,7 +131,9 @@ def get_pipeline(
         base_job_name=f"{base_job_prefix}/sklearn-abalone-preprocess",
         sagemaker_session=sagemaker_session,
         role=role,
+        network_config=network_config
     )
+    
     step_process = ProcessingStep(
         name="PreprocessAbaloneData",
         processor=sklearn_processor,
@@ -148,6 +163,10 @@ def get_pipeline(
         base_job_name=f"{base_job_prefix}/abalone-train",
         sagemaker_session=sagemaker_session,
         role=role,
+        subnets=network_config.subnets,
+        security_group_ids=network_config.security_group_ids,
+        encrypt_inter_container_traffic=True,
+        enable_network_isolation=False
     )
     xgb_train.set_hyperparameters(
         objective="reg:linear",
@@ -159,6 +178,7 @@ def get_pipeline(
         subsample=0.7,
         silent=0,
     )
+    
     step_train = TrainingStep(
         name="TrainAbaloneModel",
         estimator=xgb_train,
@@ -187,7 +207,9 @@ def get_pipeline(
         base_job_name=f"{base_job_prefix}/script-abalone-eval",
         sagemaker_session=sagemaker_session,
         role=role,
+        network_config=network_config
     )
+    
     evaluation_report = PropertyFile(
         name="AbaloneEvaluationReport",
         output_name="evaluation",

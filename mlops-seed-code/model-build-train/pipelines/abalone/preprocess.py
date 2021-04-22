@@ -54,7 +54,7 @@ def merge_two_dicts(x, y):
 
 
 if __name__ == "__main__":
-    logger.debug("Starting preprocessing.")
+    logger.info("Starting preprocessing.")
     parser = argparse.ArgumentParser()
     parser.add_argument("--input-data", type=str, required=True)
     args = parser.parse_args()
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     s3 = boto3.resource("s3")
     s3.Bucket(bucket).download_file(key, fn)
 
-    logger.debug("Reading downloaded data.")
+    logger.info("Reading downloaded data.")
     df = pd.read_csv(
         fn,
         header=None,
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     )
     os.unlink(fn)
 
-    logger.debug("Defining transformers.")
+    logger.info("Defining transformers.")
     numeric_features = list(feature_columns_names)
     numeric_features.remove("sex")
     numeric_transformer = Pipeline(

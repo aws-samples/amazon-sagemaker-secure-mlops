@@ -99,7 +99,7 @@ Resources:
 
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
-    Condition: FalseCondition
+#    Condition: FalseCondition
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:

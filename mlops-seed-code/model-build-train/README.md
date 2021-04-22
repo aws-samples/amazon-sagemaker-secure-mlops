@@ -43,7 +43,7 @@ In this example, we are solving the abalone age prediction problem using the aba
 
 Once you understand the code structure described below, you can inspect the code and you can start customizing it for your own business case. This is only sample code, and you own this repository for your business use case. Please go ahead, modify the files, commit them and see the changes kicking off the SageMaker pipelines in the CICD system.
 
-You can also use the `sagemaker-pipelines-project.ipynb` notebook to experiement right from the Studio instance before you are ready to checkin your code.
+The delivered `sagemaker-pipelines-project.ipynb` notebook provides more detail on implementation of the pipelinea and security controls. You can also use the notebook to experiement right from the Studio instance before you are ready to checkin your code.
 
 A description of some of the artifacts is provided below:
 <br/><br/>
@@ -114,23 +114,14 @@ The dataset is delivered as part of the seed code repository and copied to your 
 [1] Dua, D. and Graff, C. (2019). [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml). Irvine, CA: University of California, School of Information and Computer Science.
 
 ## Security considerations for SageMaker pipeline
+This MLOps project implements end-to-end security within the provisioned data science environment.
+The specific security controls used by the project are the following:
 
+- Secure network setup of SageMaker processing and training jobs [using network configuration parameters](https://sagemaker.readthedocs.io/en/stable/api/utility/network.html#sagemaker.network.NetworkConfig) of SageMaker API
+- VPC endpoint setup for [CodeBuild](https://docs.aws.amazon.com/codebuild/), [CodePipeline](https://docs.aws.amazon.com/codepipeline/), [CodeCommit](https://docs.aws.amazon.com/codecommit/) for secure HTTPS communication without traversing public internet
+- Running CodeBuild in the private VPC
+- Access to Amazon S3 buckets via the configured VPC endpoint only
+- S3 VPC endpoint policy which controls access to specified Amazon S3 buckets only
+- Preventive controls to enforce usage of the secure network configuration in IAM for SageMaker execution role
 
-- Secure setup of SageMaker processing and training jobs
-- VPC endpoint setup for CodeBuild, CodePipeline, CodeCommit
-- Access to Amazon S3 bucket via VPC endpoint
-- S3 VPC endpoint policy
-- Preventiv controls in IAM for SageMaker execution role:
-```yaml
-Action:
-  - 'sagemaker:CreateNotebookInstance'
-  - 'sagemaker:CreateHyperParameterTuningJob'
-  - 'sagemaker:CreateProcessingJob'
-  - 'sagemaker:CreateTrainingJob'
-  - 'sagemaker:CreateModel'
-Resource: '*'
-Effect: Deny
-Condition:
-  'Null':
-    'sagemaker:VpcSubnets': 'true'
-```
+For the implementation details please look into the delivered `sagemaker-pipelines-project.ipynb` notebook in this repository.
