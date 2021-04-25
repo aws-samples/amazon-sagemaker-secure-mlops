@@ -298,7 +298,7 @@ Resources:
               - Action:
                   - 'ssm:GetParameters'
                   - 'ssm:GetParameter'
-                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
+                Resource: !Sub 'arn:aws:ssm:*:${AWS::AccountId}:parameter/*'
                 Effect: Allow
 
   AmazonSageMakerServiceCatalogProductsUseRole:
@@ -395,7 +395,7 @@ Resources:
                   - codebuild:UpdateReport
                   - codebuild:BatchPutTestCases
                   - codebuild:BatchPutCodeCoverages
-                Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/sagemaker*'
+                Resource: !Sub 'arn:aws:codebuild:*:${AWS::AccountId}:report-group/sagemaker*'
                 Effect: Allow
               - 
                 Action:
@@ -420,7 +420,7 @@ Resources:
               - 
                 Action:
                   - ec2:CreateNetworkInterfacePermission
-                Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+                Resource: !Sub "arn:aws:ec2:*:${AWS::AccountId}:network-interface/*"
                 Effect: Allow
               - 
                 Action:
