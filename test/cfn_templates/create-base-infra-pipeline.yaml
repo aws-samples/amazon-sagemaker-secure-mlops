@@ -282,6 +282,7 @@ Resources:
                   - 's3:GetBucketAcl'
                   - 's3:GetBucketLocation'
                   - 's3:ListBucket'
+                  - 's3:PutObjectTagging'
                 Resource: 
                   - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*'
                   - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*/*'
