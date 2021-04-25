@@ -749,11 +749,10 @@ Resources:
                       "TestVPCRegion":"${AWS::Region}",
                       "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
                       "DataScientistRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DataScientistRoleArn"]}, 
-                      "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},
+                      "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},"SageMakerPipelineExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerPipelineExecutionRoleArn"]},
                       "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
                       "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
-                      "VPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},
-                      "S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]}
+                      "VPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},"S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]}
                     }'
                 RunOrder: 2
 

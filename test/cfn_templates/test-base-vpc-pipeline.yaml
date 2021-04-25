@@ -61,7 +61,11 @@ Parameters:
     Type: String
 
   SageMakerExecutionRoleArn:
-    Description: The ARN of the SageMaker Execution - must be created outside the stack. 
+    Description: The ARN of the SageMaker Execution role - must be created outside the stack. 
+    Type: String
+
+  SageMakerPipelineExecutionRoleArn:
+    Description: The ARN of the SageMaker Pipeline Execution role - must be created outside the stack. 
     Type: String
 
   SetupLambdaExecutionRoleArn:
@@ -183,6 +187,7 @@ Resources:
                   "DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}",
                   "DataScientistRoleArn":"${DataScientistRoleArn}",
                   "SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}",
+                  "SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}",
                   "SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}",
                   "SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}",
                   "AvailabilityZones":"${TestVPCRegion}a,${TestVPCRegion}b",

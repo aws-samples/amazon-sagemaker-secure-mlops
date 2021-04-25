@@ -279,20 +279,17 @@ Resources:
               - ecr:PutImage
             Resource: 'arn:aws:ecr:*:*:repository/*sagemaker*'
             Effect: Allow
-
-        {
-            "Action": [
-                "ecr:BatchCheckLayerAvailability",
-                "ecr:BatchGetImage",
-                "ecr:CreateRepository",
-                "ecr:Describe*",
-                "ecr:GetAuthorizationToken",
-                "ecr:GetDownloadUrlForLayer",
-                "ecr:StartImageScan"
-            ],
-            "Resource": "*",
-            "Effect": "Allow"
-        },
+          -
+            Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:CreateRepository
+              - ecr:Describe*
+              - ecr:GetAuthorizationToken
+              - ecr:GetDownloadUrlForLayer
+              - ecr:StartImageScan
+            Resource: '*'
+            Effect: Allow
 
   SageMakerPipelineExecutionRole:
       Type: 'AWS::IAM::Role'
