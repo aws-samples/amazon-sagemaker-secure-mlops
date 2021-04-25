@@ -373,7 +373,6 @@ This product is available for Data Scientist and Data Science Team Administrator
 
 ## Reusability between ML projects
 
-
 # MLOps part
 
 ## MLOps Project template to build, train, validate the model
@@ -523,6 +522,28 @@ To remove the MLOps CodePipeline artifact bucket:
 aws s3 rm s3://<s3 bucket name> --recursive
 aws s3 rb s3://<s3 bucket name>
 ```
+
+## Test secure S3 access
+
+```sh
+aws s3 ls
+```
+![aws s3 ls](img/s3-ls-access-denied.png)
+
+```sh
+aws s3 ls s3://<sagemaker deployment data bucket>
+```
+![aws s3 ls allowed](img/s3-ls-access-allowed.png)
+
+```sh
+aws s3 mb s3://<any available bucket name>
+```
+![aws s3 mb](img/s3-mb-access-denied.png)
+
+```sh
+aws sts get-caller-identity
+```
+![get role](img/sagemaker-execution-role.png)
 
 # Deployment
 
@@ -860,6 +881,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [S10]: [Control root access to Amazon SageMaker notebook instances](https://aws.amazon.com/blogs/machine-learning/control-root-access-to-amazon-sagemaker-notebook-instances/)  
 - [S11]: [7 ways to improve security of your machine learning workflows](https://aws.amazon.com/blogs/security/7-ways-to-improve-security-of-your-machine-learning-workflows/)
 - [S12]: [PySparkProcessor - Unable to locate credentials for boto3 call in AppMaster](https://github.com/aws/amazon-sagemaker-examples/issues/1689)
+- [S13]: [Private package installation in Amazon SageMaker running in internet-free mode](https://aws.amazon.com/blogs/machine-learning/private-package-installation-in-amazon-sagemaker-running-in-internet-free-mode/)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
@@ -884,20 +906,6 @@ Second, do the steps from **Clean-up considerations** section.
 - [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/latest/)
 - [MLflow and PyTorch — Where Cutting Edge AI meets MLOps](https://medium.com/pytorch/mlflow-and-pytorch-where-cutting-edge-ai-meets-mlops-1985cf8aa789)
 - [5 Lessons Learned Building an Open Source MLOps Platform](https://towardsdatascience.com/5-lessons-learned-building-an-open-source-mlops-platform-624574a44c09)
-
-## Internal
-- [I1]: [AWS Answers: How to integrate Terraform with CI/CD for SageMaker endpoints?](https://answers.amazon.com/posts/172062)
-- [I2]: [AWS Answers: Enabling SageMaker projects programatically](https://answers.amazon.com/posts/175683)
-- [I3]: [Event Engine SageMaker Studio Module](https://gitlab.aws.dev/anamarto/event-engine-sagemaker-studio-module/-/blob/master/cf.yaml)
-- [I4]: [AWS Answers: Simplifying deployment of SageMaker Training and Hosting within a VPC](https://answers.amazon.com/posts/70288)
-- [I5]: [AWS Answers: SageMaker and Network Isolation Mode](https://answers.amazon.com/posts/180757)
-- [I6]: [AWS AI/ML FSI SageMaker Reference Architectures](https://aws.highspot.com/items/5dbcc8e3429d7b513bfdfd58?lfrm=srp.0#19)
-- [I7]: [Secure SageMaker Notebook CDK](https://code.amazon.com/packages/SecureSagemakerNotebookCDK)
-
-
-https://amazon.awsapps.com/workdocs/index.html#/folder/b0b6fc4f9f318f97efce607ae05c737122be0614b0597718f2c25a5d217e9c2a
-
-https://amazon.awsapps.com/workdocs/index.html#/folder/b8703c8450b10af9c4e8c3ba746426a9a72406572266ef534225bddc22f0dc2b
 
 # AppendixA
 

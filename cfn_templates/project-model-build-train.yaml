@@ -67,6 +67,8 @@ Resources:
               i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
               i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
               i["S3VPCEId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-s3-vpce-id")["Parameter"]["Value"]
+              i["S3KmsKeyId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-kms-s3-key-arn")["Parameter"]["Value"].split("/")[-1]
+              i["PipelineExecutionRole"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-sm-pipeline-execution-role-arn")["Parameter"]["Value"]
 
               return i
               
@@ -99,7 +101,7 @@ Resources:
 
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
-#    Condition: FalseCondition
+    #Condition: FalseCondition
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
@@ -110,6 +112,11 @@ Resources:
         BlockPublicPolicy: TRUE
         IgnorePublicAcls: TRUE
         RestrictPublicBuckets: TRUE
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !GetAtt GetEnvironmentConfiguration.S3KmsKeyId
       Tags:
         - Key: SageMakerProjectName
           Value: !Ref SageMakerProjectName
@@ -197,6 +204,10 @@ Resources:
           - Name: SAGEMAKER_PIPELINE_NAME
             Value: !Sub sagemaker-${SageMakerProjectName}
           - Name: SAGEMAKER_PIPELINE_ROLE_ARN
+            Value: !GetAtt GetEnvironmentConfiguration.PipelineExecutionRole
+          - Name: SAGEMAKER_PROCESSING_ROLE_ARN
+            Value: !GetAtt GetEnvironmentConfiguration.ExecutionRole
+          - Name: SAGEMAKER_TRAINING_ROLE_ARN
             Value: !GetAtt GetEnvironmentConfiguration.ExecutionRole
           - Name: SAGEMAKER_SUBNET_IDS
             Value: !Join
@@ -236,8 +247,8 @@ Resources:
       RoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
       ArtifactStore:
         Type: S3
-        Location: !GetAtt GetEnvironmentConfiguration.DataBucketName
-          #!Ref MlOpsArtifactsBucket
+        Location: !Ref MlOpsArtifactsBucket
+        #!GetAtt GetEnvironmentConfiguration.DataBucketName
 
       Tags:
         - Key: SageMakerProjectName

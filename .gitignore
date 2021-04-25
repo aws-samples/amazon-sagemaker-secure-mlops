@@ -145,3 +145,5 @@ samconfig.*
 .gp2/*
 *.pdf
 *snapshot.json
+
+internal-resources.md

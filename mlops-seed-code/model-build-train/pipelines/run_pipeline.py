@@ -79,6 +79,7 @@ def main():  # pragma: no cover
         parsed = json.loads(pipeline.definition())
         print(json.dumps(parsed, indent=2, sort_keys=True))
 
+        print(f'##### Pipeline execution role arn: {args.role_arn}')
         upsert_response = pipeline.upsert(
             role_arn=args.role_arn, description=args.description, tags=tags
         )

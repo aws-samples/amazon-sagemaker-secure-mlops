@@ -398,4 +398,8 @@ aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsLaunchRole
 aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
 
 # Delete SageMaker EFS
-functions/pipeline/clean-up-efs-cli.py d-k78alrnfd8jv
+python3 functions/pipeline/clean-up-efs-cli.py d-i9ewwcscvdp0
+
+# Delete S3 buckets
+aws s3 rm s3://<s3 bucket name> --recursive
+aws s3 rb s3://<s3 bucket name> --force

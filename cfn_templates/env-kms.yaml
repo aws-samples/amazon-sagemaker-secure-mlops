@@ -27,6 +27,10 @@ Parameters:
   SageMakerExecutionRoleArn:
     Description: The ARN of the SageMaker Execution role
     Type: String
+
+  SageMakerPipelineExecutionRoleArn:
+    Description: The ARN of the SageMaker Pipeline Execution role
+    Type: String
   
   SCLaunchRoleArn:
     Description: Service Catalog Launch role ARN
@@ -162,6 +166,7 @@ Resources:
             Principal:
               AWS: 
                 - !Ref SageMakerExecutionRoleArn
+                - !Ref SageMakerPipelineExecutionRoleArn
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
                 - !Ref SCLaunchRoleArn
@@ -177,6 +182,7 @@ Resources:
             Principal:
               AWS: 
                 - !Ref SageMakerExecutionRoleArn
+                - !Ref SageMakerPipelineExecutionRoleArn
                 - !Ref DSTeamAdministratorRoleArn
                 - !Ref DataScientistRoleArn
                 - !Ref SCLaunchRoleArn
@@ -224,40 +230,24 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action: 'kms:*'
             Resource: '*'
-          - Sid: Allow access for Key Administrators
+          - Sid: Allow use of the key
             Effect: Allow
             Principal:
-              AWS: !Ref DSTeamAdministratorRoleArn
+              AWS: 
+                - !Ref SageMakerExecutionRoleArn
+                - !Ref SCLaunchRoleArn
             Action:
-              - 'kms:Create*'
-              - 'kms:Describe*'
-              - 'kms:Enable*'
-              - 'kms:List*'
-              - 'kms:Put*'
-              - 'kms:Update*'
-              - 'kms:Revoke*'
-              - 'kms:Disable*'
-              - 'kms:Get*'
-              - 'kms:Delete*'
-              - 'kms:TagResource'
-              - 'kms:UntagResource'
-              - 'kms:ScheduleKeyDeletion'
-              - 'kms:CancelKeyDeletion'
-            Resource: '*'
-          - Sid: Allow access for Key Users
-            Effect: Allow
-            Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action:
-              - 'kms:Encrypt'
-              - 'kms:Decrypt'
-              - 'kms:ReEncrypt'
-              - 'kms:GenerateDataKey'
-              - 'kms:DescribeKey'
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt
+              - kms:GenerateDataKey
+              - kms:DescribeKey
             Resource: '*'
             Condition:
-              StringNotEquals:
+              StringEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id
+              Bool:
+                'aws:ViaAWSService': 'true' #Allow connection from CodeCommit to copy artifacts
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName

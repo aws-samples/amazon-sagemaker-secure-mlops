@@ -29,6 +29,8 @@ def get_environment(project_name):
     i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
     i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
     i["S3VPCEId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-s3-vpce-id")["Parameter"]["Value"]
+    i["S3KmsKeyId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-kms-s3-key-arn")["Parameter"]["Value"].split("/")[-1]
+    i["PipelineExecutionRole"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-sm-pipeline-execution-role-arn")["Parameter"]["Value"]
 
     return i
     

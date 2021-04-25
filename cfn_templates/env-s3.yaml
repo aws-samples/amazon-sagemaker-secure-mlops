@@ -106,8 +106,11 @@ Resources:
             Principal: '*'
             Condition:
               StringNotEquals:
-                'aws:sourceVpce': !Ref VPCEndpointS3Id
-
+                'aws:sourceVpce': !Ref VPCEndpointS3Id #Allow access only via S3 VPC endpoint
+                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
+              Bool:
+                'aws:ViaAWSService': 'false' #Exception for SageMaker execution role (for RegisterModel step)
+                
   ModelBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
@@ -126,6 +129,9 @@ Resources:
             Condition:
               StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id
+                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
+              Bool:
+                'aws:ViaAWSService': 'false' #Exception for - #### Check if this exception is needed ####
 
   # SSM parameters
   ModelBucketSSM:

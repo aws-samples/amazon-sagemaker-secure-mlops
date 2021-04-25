@@ -18,6 +18,6 @@ phases:
           --module-name pipelines.abalone.pipeline \
           --role-arn $SAGEMAKER_PIPELINE_ROLE_ARN \
           --tags "[{\"Key\":\"sagemaker:project-name\", \"Value\":\"${SAGEMAKER_PROJECT_NAME}\"}, {\"Key\":\"sagemaker:project-id\", \"Value\":\"${SAGEMAKER_PROJECT_ID}\"}, {\"Key\":\"EnvironmentName\", \"Value\":\"${ENV_NAME}\"}, {\"Key\":\"EnvironmenType\", \"Value\":\"${ENV_TYPE}\"}]" \
-          --kwargs "{\"region\":\"${AWS_REGION}\",\"security_group_ids\":\"${SAGEMAKER_SECURITY_GROUPS}\",\"subnets\":\"${SAGEMAKER_SUBNET_IDS}\",\"role\":\"${SAGEMAKER_PIPELINE_ROLE_ARN}\",\"data_bucket\":\"${DATA_BUCKET}\",\"model_bucket\":\"${MODEL_BUCKET}\",\"pipeline_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"model_package_group_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"base_job_prefix\":\"${SAGEMAKER_PROJECT_NAME_ID}\"}"
+          --kwargs "{\"region\":\"${AWS_REGION}\",\"security_group_ids\":\"${SAGEMAKER_SECURITY_GROUPS}\",\"subnets\":\"${SAGEMAKER_SUBNET_IDS}\",\"processing_role\":\"${SAGEMAKER_PROCESSING_ROLE_ARN}\",\"training_role\":\"${SAGEMAKER_TRAINING_ROLE_ARN}\",\"data_bucket\":\"${DATA_BUCKET}\",\"model_bucket\":\"${MODEL_BUCKET}\",\"pipeline_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"model_package_group_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"base_job_prefix\":\"${SAGEMAKER_PROJECT_NAME_ID}\"}"
 
       - echo "Create/Update of the SageMaker Pipeline and execution completed."

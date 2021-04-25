@@ -113,7 +113,7 @@ The dataset is delivered as part of the seed code repository and copied to your 
 
 [1] Dua, D. and Graff, C. (2019). [UCI Machine Learning Repository](http://archive.ics.uci.edu/ml). Irvine, CA: University of California, School of Information and Computer Science.
 
-## Security considerations for SageMaker pipeline
+## Security considerations for Amazon CodePipeline CI/CD and SageMaker pipelines
 This MLOps project implements end-to-end security within the provisioned data science environment.
 The specific security controls used by the project are the following:
 

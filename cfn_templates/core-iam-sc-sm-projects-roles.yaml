@@ -226,7 +226,7 @@ Resources:
                   - 'iam:PassRole'
                 Resource:
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalog*'
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/*SageMakerExecutionRole*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*SageMakerExecutionRole*'
               - Effect: Allow
                 Action:
                   - 'lambda:AddPermission'
@@ -496,7 +496,8 @@ Resources:
                   - iam:PassRole
                 Resource:
                   - arn:aws:iam::*:role/service-role/AmazonSageMakerServiceCatalog*
-                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/*SageMakerExecutionRole*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*SageMakerExecutionRole*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*SageMakerPipeline*'
                 Effect: Allow
               - 
                 Effect: Allow

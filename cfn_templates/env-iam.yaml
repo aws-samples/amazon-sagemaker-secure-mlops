@@ -68,6 +68,10 @@ Outputs:
     Description: The ARN of the SageMaker execution role
     Value: !GetAtt SageMakerExecutionRole.Arn
 
+  SageMakerPipelineExecutionRoleArn:
+    Description: The ARN of the SageMaker execution role
+    Value: !GetAtt SageMakerPipelineExecutionRole.Arn
+
   SCProjectLaunchRoleArn:
     Description: The ARN of the ServiceCatalog product launch role
     Value: !GetAtt SCProjectLaunchRole.Arn
@@ -228,7 +232,69 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
-  SageMakerExecutionRole:
+  SageMakerPipelineExecutionPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy for SageMaker pipeline execution role
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - 
+            Action:
+              - iam:PassRole
+            Resource:
+              - !GetAtt SageMakerExecutionRole.Arn
+            Effect: Allow
+          - 
+            Action:
+              - sagemaker:Create*
+              - sagemaker:Describe*
+              - sagemaker:List*
+              - sagemaker:Start*
+              - sagemaker:StopPipelineExecution
+              - sagemaker:UpdatePipeline
+              - sagemaker:UpdatePipelineExecution
+            Resource: '*'
+            Effect: Allow
+          - 
+            Action:
+              - s3:GetObject
+              - s3:HeadObject
+            Resource:
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*/*'
+              - 'arn:aws:s3:::*sagemaker*/*'
+            Effect: Allow
+          - 
+            Action:
+              - ecr:SetRepositoryPolicy
+              - ecr:CompleteLayerUpload
+              - ecr:BatchDeleteImage
+              - ecr:UploadLayerPart
+              - ecr:DeleteRepositoryPolicy
+              - ecr:InitiateLayerUpload
+              - ecr:DeleteRepository
+              - ecr:PutImage
+            Resource: 'arn:aws:ecr:*:*:repository/*sagemaker*'
+            Effect: Allow
+
+        {
+            "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:CreateRepository",
+                "ecr:Describe*",
+                "ecr:GetAuthorizationToken",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:StartImageScan"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+
+  SageMakerPipelineExecutionRole:
       Type: 'AWS::IAM::Role'
       Properties:
         AssumeRolePolicyDocument:
@@ -240,16 +306,16 @@ Resources:
                   - sagemaker.amazonaws.com
               Action:
                 - 'sts:AssumeRole'
-        Path: /service-role/
+        Path: /
         ManagedPolicyArns:
-          - !Ref SageMakerExecutionPolicy
-          - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
-          - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+          - !Ref SageMakerPipelineExecutionPolicy
         Tags:
           - Key: EnvironmentName
             Value: !Ref EnvName
           - Key: EnvironmentType
             Value: !Ref EnvType
+          - Key: Principal
+            Value: 'sagemaker-pipeline-role'  #Need this tag for aws:ViaAWSService condition key for S3 bucket policies
 
   SageMakerExecutionPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
@@ -316,6 +382,7 @@ Resources:
               - 's3:GetObject'
               - 's3:PutObject'
               - 's3:DeleteObject'
+              - s3:HeadObject
               - s3:GetBucketAcl
               - s3:GetBucketCors
               - s3:ListBucketMultipartUploads
@@ -336,6 +403,29 @@ Resources:
               - 's3:ListAllMyBuckets'
             Resource: '*'
             Effect: Allow
+
+  SageMakerExecutionRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - sagemaker.amazonaws.com
+              Action:
+                - 'sts:AssumeRole'
+        Path: /
+        ManagedPolicyArns:
+          - !Ref SageMakerExecutionPolicy
+          - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        Tags:
+          - Key: EnvironmentName
+            Value: !Ref EnvName
+          - Key: EnvironmentType
+            Value: !Ref EnvType
 
   SCProjectLaunchRole:
       Type: 'AWS::IAM::Role'
@@ -518,3 +608,13 @@ Resources:
               - iam:PassRole
               - iam:GetRole
             Resource: !GetAtt SageMakerExecutionRole.Arn
+
+  # SSM parameters
+  SageMakerPipelineExecutionRoleSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-sm-pipeline-execution-role-arn"
+      Type: String
+      Value: !GetAtt SageMakerPipelineExecutionRole.Arn
+      Description: !Sub 'SageMaker pipeline execution role ${EnvName}-${EnvType} data science environment'
+

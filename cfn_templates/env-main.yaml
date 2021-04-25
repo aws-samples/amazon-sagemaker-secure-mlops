@@ -27,6 +27,7 @@ Metadata:
           - DSTeamAdministratorRoleArn
           - DataScientistRoleArn
           - SageMakerExecutionRoleArn
+          - SageMakerPipelineExecutionRoleArn
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
       - Label:
@@ -129,6 +130,8 @@ Metadata:
         default: Data Scientist role ARN
       SageMakerExecutionRoleArn:
         default: SageMaker and SageMaker Notebook execution role ARN
+      SageMakerPipelineExecutionRoleArn:
+        default: SageMaker pipeline execution role ARN
       SetupLambdaExecutionRoleArn:
         default: Execution role ARN for Lambda function for setup script
       SCProjectLaunchRoleArn:
@@ -386,6 +389,11 @@ Parameters:
     Type: String
     Default: ''
 
+  SageMakerPipelineExecutionRoleArn:
+    Description: The ARN of the SageMaker Pipeline Execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
   SetupLambdaExecutionRoleArn:
     Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup
     Type: String
@@ -589,6 +597,7 @@ Rules:
           - !Not [ !Equals [ !Ref DSTeamAdministratorRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SageMakerPipelineExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
         AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
@@ -722,6 +731,10 @@ Resources:
           - !GetAtt EnvironmentIAMRoles.Outputs.DataScientistRoleArn
           - !Ref DataScientistRoleArn 
         VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
+        SageMakerPipelineExecutionRoleArn: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerPipelineExecutionRoleArn
+          - !Ref SageMakerPipelineExecutionRoleArn
         SageMakerExecutionRoleArn: !If
           - IAMRolesCondition
           - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn

@@ -75,7 +75,8 @@ def get_pipeline(
     region,
     security_group_ids,
     subnets,
-    role=None,
+    processing_role=None,
+    training_role=None,
     data_bucket=None,
     model_bucket=None,
     model_package_group_name="AbalonePackageGroup",
@@ -87,16 +88,24 @@ def get_pipeline(
 
     Args:
         region: AWS region to create and run the pipeline.
-        role: IAM role to create and run steps and pipeline.
+        processing_role: IAM role to create and run processing steps
+        training_role: IAM role to create and run training steps
         data_bucket: the bucket to use for storing the artifacts
 
     Returns:
         an instance of a pipeline
     """
-    print(f"Creating the pipeline '{pipeline_name}': {region}/{security_group_ids}/{subnets}/{role}/{data_bucket}/{model_bucket}/{model_package_group_name}")
     sagemaker_session = get_session(region, data_bucket)
-    if role is None:
-        role = sagemaker.session.get_execution_role(sagemaker_session)
+
+    if processing_role is None:
+        processing_role = sagemaker.session.get_execution_role(sagemaker_session)
+    if training_role is None:
+        training_role = sagemaker.session.get_execution_role(sagemaker_session)
+
+    print(f"Creating the pipeline '{pipeline_name}':")
+    print(f"Parameters:{region}\n{security_group_ids}\n{subnets}\n{processing_role}\n\
+    {training_role}\n{data_bucket}\n{model_bucket}\n{model_package_group_name}\n\
+    {pipeline_name}\n{base_job_prefix}")
 
     # parameters for pipeline execution
     processing_instance_count = ParameterInteger(name="ProcessingInstanceCount", default_value=1)
@@ -130,7 +139,7 @@ def get_pipeline(
         instance_count=processing_instance_count,
         base_job_name=f"{base_job_prefix}/sklearn-abalone-preprocess",
         sagemaker_session=sagemaker_session,
-        role=role,
+        role=processing_role,
         network_config=network_config
     )
     
@@ -162,7 +171,7 @@ def get_pipeline(
         output_path=model_path,
         base_job_name=f"{base_job_prefix}/abalone-train",
         sagemaker_session=sagemaker_session,
-        role=role,
+        role=training_role,
         subnets=network_config.subnets,
         security_group_ids=network_config.security_group_ids,
         encrypt_inter_container_traffic=True,
@@ -206,7 +215,7 @@ def get_pipeline(
         instance_count=1,
         base_job_name=f"{base_job_prefix}/script-abalone-eval",
         sagemaker_session=sagemaker_session,
-        role=role,
+        role=processing_role,
         network_config=network_config
     )
     
@@ -246,6 +255,26 @@ def get_pipeline(
             content_type="application/json"
         )
     )
+
+    """
+    There is a bug in RegisterModel implementation
+    The RegisterModel step is implemented in the SDK as two steps, a _RepackModelStep and a _RegisterModelStep. 
+    The _RepackModelStep runs a SKLearn training step in order to repack the model.tar.gz to include any custom inference code in the archive. 
+    The _RegisterModelStep then registers the repacked model.
+    
+    The problem is that the _RepackModelStep does not propagate VPC configuration from the Estimator object:
+    https://github.com/aws/sagemaker-python-sdk/blob/cdb633b3ab02398c3b77f5ecd2c03cdf41049c78/src/sagemaker/workflow/_utils.py#L88
+
+    This cause the AccessDenied exception because repacker cannot access S3 bucket (all access which is not via VPC endpoint is bloked by the bucket policy)
+    
+    The issue is opened against SageMaker python SDK: https://github.com/aws/sagemaker-python-sdk/issues/2302
+    """
+
+    vpc_config = {
+        "Subnets":network_config.subnets,
+        "SecurityGroupIds":network_config.security_group_ids
+    }
+
     step_register = RegisterModel(
         name="RegisterAbaloneModel",
         estimator=xgb_train,
@@ -257,6 +286,7 @@ def get_pipeline(
         model_package_group_name=model_package_group_name,
         approval_status=model_approval_status,
         model_metrics=model_metrics,
+        vpc_config_override=vpc_config
     )
 
     # condition step for evaluating model quality and branching execution
