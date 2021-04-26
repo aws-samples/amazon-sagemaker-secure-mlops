@@ -9,9 +9,8 @@
 S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
-PROJECT_NAME=sm-mlops
-
 # one-off Amazon S3 bucket creation
+PROJECT_NAME=sm-mlops
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-$AWS_DEFAULT_REGION --region $AWS_DEFAULT_REGION
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
@@ -19,14 +18,16 @@ aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
 # Deploy a new CI/CD stack
 S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
+REPOSITORY_ARN=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops
+SNS_NOTIFICATION_ARN=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \
                 --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
                 --s3-bucket $S3_BUCKET_NAME \
                 --parameter-overrides \
-                CodeCommitRepositoryArn=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
-                NotificationArn=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+                CodeCommitRepositoryArn=$REPOSITORY_ARN \
+                NotificationArn=$SNS_NOTIFICATION_ARN
 
 # Clean up
 # Delete stack under a role other than it has been created

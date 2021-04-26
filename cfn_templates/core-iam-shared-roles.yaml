@@ -74,6 +74,23 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       RoleName: !Ref DSAdministratorRoleName
+      Policies:
+        - PolicyName: DataScienceAdministratorRoleInlinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - 
+                Action: 
+                  - lambda:CreateFunction
+                  - lambda:InvokeFunction
+                Resource: "*"
+                Effect: Allow
+              - 
+                Action: 
+                  - iam:PassRole
+                Resource: 
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole'
+                Effect: Allow
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
         - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'

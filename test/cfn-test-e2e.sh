@@ -58,23 +58,28 @@ aws cloudformation describe-stacks \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
+test2-us-west-1
+p-eqbvujro2oxm
+
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
-MLOPS_PROJECT_NAME="test"
-MLOPS_PROJECT_ID=""
-SM_DOMAIN_ID="d-clsn9nzd0okv"
+MLOPS_PROJECT_NAME="test1-us-west-1"
+MLOPS_PROJECT_ID="p-jithco41lsxh"
+SM_DOMAIN_ID="d-qjy11uccb9al"
 
 # Delete SageMaker project(s)
 aws sagemaker delete-project --project-name $MLOPS_PROJECT_NAME
 
 # Remove VPC-only access policy from the data S3 bucket
-aws s3 delete-bucket-policy --bucket sm-mlops-dev-$AWS_DEFAULT_REGION-data
+aws s3api delete-bucket-policy --bucket sm-mlops-dev-${AWS_DEFAULT_REGION}-data
 
 # Empty data S3 bucket
 aws s3 rm s3://sm-mlops-dev-$AWS_DEFAULT_REGION-data --recursive
 
 # Delete MLOps project pipeline S3 bucket
 aws s3 rb s3://sagemaker-mlops-codepipeline-$MLOPS_PROJECT_ID --force
+
+# Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 
 # Delete data science stack
 aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
