@@ -693,8 +693,8 @@ Resources:
                   TemplatePath: 'BuildArtifact::env-iam.yaml'
                   OutputFileName: 'iam-out.json'
                   TemplateConfiguration: 'BuildArtifact::env-iam.json'
-                  ParameterOverrides: '{
-                      "EnvName":"base"
+                  ParameterOverrides: !Sub '{
+                      "EnvName":"${ProjectName}"
                   }'
                 RunOrder: 1
 

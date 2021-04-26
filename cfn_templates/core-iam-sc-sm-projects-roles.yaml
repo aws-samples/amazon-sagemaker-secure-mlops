@@ -4,6 +4,21 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Create SageMaker Project templates IAM Roles (AmazonSageMakerServiceCatalogProductsLaunchRole and AmazonSageMakerServiceCatalogProductsUseRole)
 
+Outputs:
+  AmazonSageMakerServiceCatalogProductsLaunchRoleArn:
+    Description: AmazonSageMakerServiceCatalogProductsLaunchRole ARN
+    Value: !If
+      - AmazonSageMakerServiceCatalogProductsLaunchRoleCondition
+      - !GetAtt AmazonSageMakerServiceCatalogProductsLaunchRole.Arn
+      - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole'
+
+  AmazonSageMakerServiceCatalogProductsUseRoleArn:
+    Description: AmazonSageMakerServiceCatalogProductsUseRole ARN
+    Value: !If
+      - AmazonSageMakerServiceCatalogProductsUseRoleCondition
+      - !GetAtt AmazonSageMakerServiceCatalogProductsUseRole.Arn
+      - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+
 Parameters:
   AmazonSageMakerServiceCatalogProductsLaunchRoleName:
     Description: AmazonSageMakerServiceCatalogProductsLaunchRole Name
@@ -48,7 +63,7 @@ Resources:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
         - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
       Policies: 
-        - PolicyName: AmazonSageMakerAdmin-ServiceCatalogProductsServiceRolePolicy
+        - PolicyName: AmazonSageMakerServiceCatalogProductsLaunchRolePolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -331,7 +346,7 @@ Resources:
                 - "firehose.amazonaws.com"
             Action: "sts:AssumeRole"
       Policies: 
-        - PolicyName: AmazonSageMakerServiceCatalogProductsUseRole
+        - PolicyName: AmazonSageMakerServiceCatalogProductsUseRolePolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:

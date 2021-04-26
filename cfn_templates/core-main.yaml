@@ -94,6 +94,12 @@ Outputs:
       - !GetAtt SharedServiceCatalogPortfolio.Outputs.ProvisioningArtifactNames
       - ''
 
+  GetEnvironmentConfigurationLambdaArn:
+    Description: Lambda function to retrieve the data science enviroment configuration 
+    Value: !GetAtt GetEnvironmentConfigurationLambda.Arn
+    Export:
+      Name: 'ds-get-environment-configuration-lambda-arn'
+
 Parameters:
   StackSetName:
     Type: String 
@@ -155,7 +161,76 @@ Rules:
 
 Resources:
 
-  CheckLambdaExecutionRole:
+  GetEnvironmentConfigurationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
+          import json
+          import boto3
+          import cfnresponse
+
+          sm = boto3.client("sagemaker")
+          ssm = boto3.client("ssm")
+
+          def get_environment(project_name):
+              r = sm.describe_domain(
+                      DomainId=sm.describe_project(
+                          ProjectName=project_name
+                          )["CreatedBy"]["DomainId"]
+                  )
+              del r["ResponseMetadata"]
+              del r["CreationTime"]
+              del r["LastModifiedTime"]
+              r = {**r, **r["DefaultUserSettings"]}
+              del r["DefaultUserSettings"]
+
+              i = {
+                  **r,
+                  **{t["Key"]:t["Value"] 
+                      for t in sm.list_tags(ResourceArn=r["DomainArn"])["Tags"] 
+                      if t["Key"] in ["EnvironmentName", "EnvironmentType"]}
+              }
+
+              i["DataBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-data-bucket-name")["Parameter"]["Value"]
+              i["ModelBucketName"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-model-bucket-name")["Parameter"]["Value"]
+              i["S3VPCEId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-s3-vpce-id")["Parameter"]["Value"]
+              i["S3KmsKeyId"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-kms-s3-key-arn")["Parameter"]["Value"].split("/")[-1]
+              i["PipelineExecutionRole"]=ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-sm-pipeline-execution-role-arn")["Parameter"]["Value"]
+
+              return i
+              
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r = get_environment(event["ResourceProperties"]["SageMakerProjectName"])
+
+                  print(r)
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except Exception as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+      Description: Get data science environment configuration for MLOps project setup
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !If
+          - IAMRolesCondition
+          - !GetAtt IAMSCSageMakerProjectRoles.Outputs.AmazonSageMakerServiceCatalogProductsLaunchRoleArn
+          - !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole'
+      Runtime: python3.8
+      Timeout: 60
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
+
+  LambdaExecutionRole:
     Type: 'AWS::IAM::Role'
     Condition: IAMRolesCondition
     Properties:
@@ -181,12 +256,14 @@ Resources:
                 Resource: '*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   CheckIfIAMRolesExistLambda:
     Type: AWS::Lambda::Function
     Condition: IAMRolesCondition
     Properties:
-      FunctionName: CheckIfIAMRolesExist
       Code:
         ZipFile: |
           import json
@@ -223,9 +300,12 @@ Resources:
       Description: Checks if specified IAM roles exist
       Handler: index.lambda_handler
       MemorySize: 128
-      Role: !GetAtt CheckLambdaExecutionRole.Arn
+      Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: python3.8
       Timeout: 60
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   CheckIfSageMakerSCProductsRolesExist:
     Type: Custom::CheckIfIAMRolesExist
@@ -247,6 +327,9 @@ Resources:
         AmazonSageMakerServiceCatalogProductsUseRoleName: 
           !GetAtt CheckIfSageMakerSCProductsRolesExist.AmazonSageMakerServiceCatalogProductsUseRole
       TemplateURL: core-iam-sc-sm-projects-roles.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   # Shared IAM roles for personas and services
   IAMSharedRoles:
@@ -258,6 +341,9 @@ Resources:
         SageMakerDetectiveControlExecutionRoleName: !Sub '${StackSetName}-${AWS::Region}-DSSageMakerDetectiveControlRole'
         SCLaunchRoleName: !Sub '${StackSetName}-${AWS::Region}-DSServiceCatalogLaunchRole'
       TemplateURL: core-iam-shared-roles.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   # Shared services VPC and related network resources
   SharedServicesNetwork:
@@ -267,6 +353,9 @@ Resources:
       Parameters:
         StackSetName: !Ref StackSetName
       TemplateURL: core-shared-services-network.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   # Private PyPi mirror
   SharedServicePyPIMirror:
@@ -277,6 +366,9 @@ Resources:
       Parameters:
         StackSetName: !Ref StackSetName
       TemplateURL: core-shared-services-ecs.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   # Service Catalog with a Data Science product  
   SharedServiceCatalogPortfolio:
@@ -294,6 +386,9 @@ Resources:
           - !GetAtt IAMSharedRoles.Outputs.SCLaunchRoleArn
           - !Ref SCLaunchRoleArn
       TemplateURL: core-sc-shared-portfolio.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
 
   # Security controls for the Data Science environment
   DSSecurityControls:
@@ -306,4 +401,8 @@ Resources:
           - !GetAtt IAMSharedRoles.Outputs.SageMakerDetectiveControlExecutionRoleArn
           - !Ref SecurityControlExecutionRoleArn
       TemplateURL: core-security-controls.yaml
+      Tags:
+        - Key: DataScienceStackName
+          Value: !Ref StackSetName
+
 
