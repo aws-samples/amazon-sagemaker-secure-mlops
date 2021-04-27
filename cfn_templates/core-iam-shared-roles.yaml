@@ -82,8 +82,9 @@ Resources:
               - 
                 Action: 
                   - lambda:CreateFunction
-                  - lambda:InvokeFunction
-                Resource: "*"
+                  - lambda:DeleteFunction
+                Resource: 
+                  - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*GetEnvironmentConfiguration*'
                 Effect: Allow
               - 
                 Action: 

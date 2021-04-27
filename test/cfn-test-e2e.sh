@@ -58,42 +58,41 @@ aws cloudformation describe-stacks \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
-test2-us-west-1
-p-eqbvujro2oxm
-
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
+ENV_NAME="sm-mlops-dev"
 MLOPS_PROJECT_NAME="test1-us-west-1"
 MLOPS_PROJECT_ID="p-jithco41lsxh"
 SM_DOMAIN_ID="d-qjy11uccb9al"
 
-# Delete SageMaker project(s)
+echo "Delete SageMaker project(s)"
 aws sagemaker delete-project --project-name $MLOPS_PROJECT_NAME
 
-# Remove VPC-only access policy from the data S3 bucket
-aws s3api delete-bucket-policy --bucket sm-mlops-dev-${AWS_DEFAULT_REGION}-data
+echo "Remove VPC-only access policy from the data S3 bucket"
+aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
 
-# Empty data S3 bucket
-aws s3 rm s3://sm-mlops-dev-$AWS_DEFAULT_REGION-data --recursive
+echo "Empty data S3 bucket"
+aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
 
-# Delete MLOps project pipeline S3 bucket
+echo "Delete MLOps project pipeline S3 bucket"
 aws s3 rb s3://sagemaker-mlops-codepipeline-$MLOPS_PROJECT_ID --force
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 
-# Delete data science stack
+# The following commands are only for manual test (not with CI/CD pipelines)
+echo "Delete data science stack"
 aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 
 # wait till stack deletion
 # ...
 
-# Delete SageMaker EFS
+echo "Delete SageMaker EFS"
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
-# Delete core stack
+echo "Delete core stack"
 aws cloudformation delete-stack --stack-name $CORE_STACK_NAME
 
-# Delete Service Catalog SageMaker Project roles
+echo "Delete Service Catalog SageMaker Project roles"
 aws iam detach-role-policy \
     --role-name AmazonSageMakerServiceCatalogProductsLaunchRole \
     --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
