@@ -476,7 +476,7 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
 + Update Service Catalog CloudFormation stack with the updated templates:
   - Package the CloudFormation templates and upload everything to the Amazon S3 bucket:
   ```bash
-  S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
+  S3_BUCKET_NAME=<YOUR S3 BUCKET NAME>
   make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
   ```
   - Update the Service Catalog portfolio and product stack:

@@ -10,8 +10,8 @@ make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 ###############################################################
 # MLOps project product portfolio for Service Catalog
 STACK_NAME="sm-mlops-env-EnvironmentSCPortfolio-VX5MO02HEF0T"
-PRINCIPAL_ROLE_ARN="arn:aws:iam::949335012047:role/service-role/sm-mlops-env-EnvironmentIAM-SageMakerExecutionRole-13FVOLBBPRXNC"
-LAUNCH_ROLE_ARN="arn:aws:iam::949335012047:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole"
+PRINCIPAL_ROLE_ARN="arn:aws:iam::ACCOUNT_ID:role/service-role/sm-mlops-env-EnvironmentIAM-SageMakerExecutionRole-13FVOLBBPRXNC"
+LAUNCH_ROLE_ARN="arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsLaunchRole"
 
 aws cloudformation update-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml \

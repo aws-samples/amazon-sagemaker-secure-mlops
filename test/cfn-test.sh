@@ -165,7 +165,7 @@ aws cloudformation deploy \
                 --parameter-overrides \
                 EnvName=$ENV_NAME \
                 EnvType=dev \
-                PipelineExecutionRoleArn=arn:aws:iam::949335012047:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+                PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
 
 # Get IAM role ARNs
 aws cloudformation describe-stacks \
@@ -185,9 +185,9 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME \
         ParameterKey=CreateIAMRoles,ParameterValue=NO \
-        ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DataScienceAdministrator \
-        ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
-        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/ds-team-us-east-2-DSServiceCatalogLaunchRole
+        ParameterKey=DSAdministratorRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/ds-team-us-east-2-DataScienceAdministrator \
+        ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/ds-team-us-east-2-DSSageMakerDetectiveControlRole \
+        ParameterKey=SCLaunchRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/ds-team-us-east-2-DSServiceCatalogLaunchRole
 
 # show the assume DSAdministrator role link
 aws cloudformation describe-stacks \
@@ -222,11 +222,11 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=CreateEnvironmentIAMRoles,ParameterValue=NO \
         ParameterKey=CreateS3VPCEndpoint,ParameterValue=NO \
-        ParameterKey=DSTeamAdministratorRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
-        ParameterKey=DataScientistRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-DataScientistRole-PFIMUCN7IZ95  \
-        ParameterKey=SageMakerExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/service-role/env-iam-roles-SageMakerExecutionRole-9CYD7UX2KG8D \
-        ParameterKey=SetupLambdaExecutionRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SetupLambdaExecutionRole-4G8FY4ULHFPN  \
-        ParameterKey=SCProjectLaunchRoleArn,ParameterValue=arn:aws:iam::949335012047:role/env-iam-roles-SCProjectLaunchRole-1XKZQDT1TG067 \
+        ParameterKey=DSTeamAdministratorRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/env-iam-roles-DataScienceTeamAdministratorRole-15CC4YYDTNY04 \
+        ParameterKey=DataScientistRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/env-iam-roles-DataScientistRole-PFIMUCN7IZ95  \
+        ParameterKey=SageMakerExecutionRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/service-role/env-iam-roles-SageMakerExecutionRole-9CYD7UX2KG8D \
+        ParameterKey=SetupLambdaExecutionRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/env-iam-roles-SetupLambdaExecutionRole-4G8FY4ULHFPN  \
+        ParameterKey=SCProjectLaunchRoleArn,ParameterValue=arn:aws:iam::ACCOUNT_ID:role/env-iam-roles-SCProjectLaunchRole-1XKZQDT1TG067 \
         ParameterKey=CreateVPC,ParameterValue=NO \
         ParameterKey=CreateNATGateways,ParameterValue=NO \
         ParameterKey=ExistingVPCId,ParameterValue=vpc-0b1a38a31305c97d1 \

@@ -18,8 +18,8 @@ aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
 # Deploy a new CI/CD stack
 S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
-REPOSITORY_ARN=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops
-SNS_NOTIFICATION_ARN=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+REPOSITORY_ARN=arn:aws:codecommit:$AWS_DEFAULT_REGION:ACCOUNT_ID:sagemaker-secure-mlops
+SNS_NOTIFICATION_ARN=arn:aws:sns:$AWS_DEFAULT_REGION:ACCOUNT_ID:ilyiny-demo-us-east-1-code-pipeline-sns
 aws cloudformation deploy \
                 --template-file test/cfn_templates/create-base-infra-pipeline.yaml \
                 --stack-name base-infra-$AWS_DEFAULT_REGION \
@@ -34,7 +34,7 @@ aws cloudformation deploy \
 STACK_NAME=
 aws cloudformation delete-stack \
     --stack-name $STACK_NAME \
-    --role-arn arn:aws:iam::949335012047:role/sagemaker-secure-mlops-codepipeline-deploy-role
+    --role-arn arn:aws:iam::ACCOUNT_ID:role/sagemaker-secure-mlops-codepipeline-deploy-role
              
 
 aws cloudformation delete-stack --stack-name base-env-iam-cross-account-deployment-role
@@ -60,5 +60,5 @@ aws cloudformation update-stack \
     --stack-name base-infra-$AWS_DEFAULT_REGION \
     --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
-        ParameterKey=CodeCommitRepositoryArn,ParameterValue=arn:aws:codecommit:$AWS_DEFAULT_REGION:949335012047:sagemaker-secure-mlops \
-        ParameterKey=NotificationArn,ParameterValue=arn:aws:sns:$AWS_DEFAULT_REGION:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns
+        ParameterKey=CodeCommitRepositoryArn,ParameterValue=arn:aws:codecommit:$AWS_DEFAULT_REGION:ACCOUNT_ID:sagemaker-secure-mlops \
+        ParameterKey=NotificationArn,ParameterValue=arn:aws:sns:$AWS_DEFAULT_REGION:ACCOUNT_ID:ilyiny-demo-us-east-1-code-pipeline-sns
