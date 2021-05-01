@@ -861,28 +861,6 @@ Second, do the steps from **Clean-up considerations** section.
 
 # AppendixA
 
-## SageMaker default network mode
-
-> In a default SageMaker implementation (without network isolation or VPC ENIs), processing jobs, training jobs, notebooks, etc can reach the internet. The image below shows how this works for training jobs. The jobs themselves run in an AWS-owned account, inside an AWS-owned VPC. These instances access the data in an S3 bucket in the Customer account through the internet [I5].
-
-[SageMaker Developer Guide](https://docs.aws.amazon.com/sagemaker/latest/dg/train-vpc.html)
-
-![sagemaker-default-network-mode](img/sagemaker-default-network-mode.png)
-
-## SageMaker VPC deployment
-When you specify the subnets and security groups, SageMaker creates elastic network interfaces that are associated with your security groups in one of the subnets. Network interfaces allow your training containers to connect to resources in your VPC [Source](https://docs.aws.amazon.com/sagemaker/latest/dg/train-vpc.html).
-
-![sagemaker-vpc-network-mode](img/sagemaker-vpc-network-mode.png)
-
-> Note that you need to add a VPC Endpoint to your VPC to access some AWS services like S3. In this case, network isolation is disabled so there is still the ability for egress over public connectivity and pulling packages from external sources. Having connectivity run through the customer VPC might be enough security for your customer depending on what they are trying to achieve [I5].
-
-### Network isolation mode
-
-![sagemaker-vpc-network-isolation-mode](img/sagemaker-vpc-network-isolation-mode.png)
-
-### SageMaker Studio Domain
-![SageMaker studio domain](img/sagemaker-studio-domain.png)
-
 # AppendixB
 
 ## Deployment into an existing VPC and with pre-provisioned IAM resources
