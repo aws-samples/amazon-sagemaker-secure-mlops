@@ -540,8 +540,8 @@ You must also install [SAM CLI](https://docs.aws.amazon.com/serverless-applicati
 
 To follow along with the deployment instructions, run the following commands in your terminal (all commands are for MacOS/Linux)
 ```bash
-git clone <git repository url>
-cd sagemaker-secure-mlops
+git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
+cd amazon-sagemaker-secure-mlops
 
 S3_BUCKET_NAME=<your S3 bucket name>
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
