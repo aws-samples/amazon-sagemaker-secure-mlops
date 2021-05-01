@@ -12,6 +12,13 @@ Outputs:
     - S3VPCEndpointCondition
     - !Ref VPCEndpointS3
     - !Ref ExistingS3VPCEndpointId
+  
+  VPCEndpointKMSId:
+    Description: Id of the S3 VPC endpoint
+    Value: !If
+    - KMSVPCEndpointCondition
+    - !Ref VPCEndpointKMS
+    - ''
 
   PyPIMirrorEndpointDNS:
     Description: DNS entries for the PyPI mirror VPC endpoint 
@@ -157,6 +164,14 @@ Parameters:
       - 'YES'
       - 'NO'
     Default: 'YES'
+  
+  CreateKMSVPCEndpoint:
+    Description: Set to NO to disable creation of a KMS VPC endpoint. This VPC endpoint is needed for all KMS API calls
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
 
   PrivateSubnetIds:
     Description: List of the subnet ids where Data Science environment deployed to
@@ -214,7 +229,8 @@ Conditions:
   CodeBuildVPCEndpointCondition: !Equals [!Ref 'CreateCodeBuildVPCEndpoint', 'YES']
   ECRAPIVPCEndpointCondition: !Equals [!Ref 'CreateECRAPIVPCEndpoint', 'YES']
   ECRVPCEndpointCondition: !Equals [!Ref 'CreateECRVPCEndpoint', 'YES']
-  ServiceCatalogPCEndpointCondition: !Equals [!Ref 'CreateServiceCatalogVPCEndpoint', 'YES']
+  ServiceCatalogVPCEndpointCondition: !Equals [!Ref 'CreateServiceCatalogVPCEndpoint', 'YES']
+  KMSVPCEndpointCondition: !Equals [!Ref 'CreateKMSVPCEndpoint', 'YES']
 
 Rules:
   S3VPCEndpoint:
@@ -387,7 +403,7 @@ Resources:
 
   VPCEndpointServiceCatalog:
     Type: 'AWS::EC2::VPCEndpoint'
-    Condition: ServiceCatalogPCEndpointCondition
+    Condition: ServiceCatalogVPCEndpointCondition
     Properties:
       VpcEndpointType: Interface
       PrivateDnsEnabled: true
@@ -478,6 +494,25 @@ Resources:
           ]
         }
       RouteTableIds: !Ref PrivateRouteTableIds
+
+  VPCEndpointKMS:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: KMSVPCEndpointCondition
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !Ref PrivateSubnetIds
+      SecurityGroupIds:
+        - !Ref VPCEndpointsSecurityGroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
+      VpcId: !Ref VPCId
 
   # SSM parameter
   VPCEndpointS3IdSSM:

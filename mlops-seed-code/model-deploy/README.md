@@ -54,3 +54,7 @@ Your Organizations structure should look like the following:
             * `222222222222` (data science staging AWS account)
         * production (OU)
             * `333333333333` (data science production AWS account)
+
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0

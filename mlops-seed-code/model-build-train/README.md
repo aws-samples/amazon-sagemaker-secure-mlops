@@ -130,3 +130,6 @@ The specific security controls used by the project are the following:
 - Preventive controls to enforce usage of the secure network configuration in IAM for SageMaker execution role
 
 For the implementation details please look into the delivered [`sagemaker-pipelines-project.ipynb`](sagemaker-pipelines-project.ipynb) notebook in this repository.
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0

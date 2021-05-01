@@ -36,8 +36,8 @@ Parameters:
     Description: Service Catalog Launch role ARN
     Type: String
 
-  VPCEndpointS3Id:
-    Description: Id of the S3 VPC endpoint
+  VPCEndpointKMSId:
+    Description: Id of the KMS VPC endpoint
     Type: String
 
 Outputs:
@@ -235,6 +235,7 @@ Resources:
             Principal:
               AWS: 
                 - !Ref SageMakerExecutionRoleArn
+                - !Ref SageMakerPipelineExecutionRoleArn
                 - !Ref SCLaunchRoleArn
             Action:
               - kms:Encrypt
@@ -245,7 +246,7 @@ Resources:
             Resource: '*'
             Condition:
               StringEquals:
-                'aws:sourceVpce': !Ref VPCEndpointS3Id
+                'aws:sourceVpce': !Ref VPCEndpointKMSId
               Bool:
                 'aws:ViaAWSService': 'true' #Allow connection from CodeCommit to copy artifacts
       Tags:

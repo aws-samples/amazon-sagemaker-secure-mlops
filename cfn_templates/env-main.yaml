@@ -52,6 +52,7 @@ Metadata:
           - CreateCodeBuildVPCEndpoint
           - CreateECRAPIVPCEndpoint
           - CreateECRVPCEndpoint
+          - CreateKMSVPCEndpoint
       - Label:
           default: Network Configuration
         Parameters:
@@ -120,6 +121,8 @@ Metadata:
         default: Create ECR API VPC endpoint
       CreateECRVPCEndpoint:
         default: Create ECR VPC endpoint
+      CreateKMSVPCEndpoint:
+        default: Create KMS VPC endpoint
       CreateSageMakerStudioDomain:
         default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
@@ -352,6 +355,14 @@ Parameters:
 
   CreateECRVPCEndpoint:
     Description: Set to NO to disable creation of a ECR VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateKMSVPCEndpoint:
+    Description: Set to NO to disable creation of a KMS VPC endpoint
     Type: String
     AllowedValues:
       - 'YES'
@@ -687,6 +698,7 @@ Resources:
         CreateCodeBuildVPCEndpoint: !Ref CreateCodeBuildVPCEndpoint
         CreateECRAPIVPCEndpoint: !Ref CreateECRAPIVPCEndpoint
         CreateECRVPCEndpoint: !Ref CreateECRVPCEndpoint
+        CreateKMSVPCEndpoint: !Ref CreateKMSVPCEndpoint
         ExistingS3VPCEndpointId: !Ref ExistingS3VPCEndpointId
         PrivateSubnetIds: !If 
           - ExistingVPCCondition
@@ -730,7 +742,6 @@ Resources:
           - IAMRolesCondition
           - !GetAtt EnvironmentIAMRoles.Outputs.DataScientistRoleArn
           - !Ref DataScientistRoleArn 
-        VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
         SageMakerPipelineExecutionRoleArn: !If
           - IAMRolesCondition
           - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerPipelineExecutionRoleArn
@@ -740,6 +751,7 @@ Resources:
           - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn
           - !Ref SageMakerExecutionRoleArn
         SCLaunchRoleArn: !ImportValue 'ds-service-catalog-launch-role-arn'
+        VPCEndpointKMSId: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointKMSId
       TemplateURL: env-kms.yaml
       Tags:
         - Key: EnvironmentName
