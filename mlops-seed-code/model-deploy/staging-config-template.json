@@ -1,5 +1,5 @@
 [
-    { "ParameterKey": "StageName", "ParameterValue": "staging"},
+    { "ParameterKey": "EnvType", "ParameterValue": "staging"},
     { "ParameterKey": "EndpointInstanceCount", "ParameterValue": "1"},
     { "ParameterKey": "EndpointInstanceType", "ParameterValue": "ml.t2.medium"}
 ]

@@ -709,15 +709,15 @@ Resources:
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
-                  - Name: EnvIAMCrossAccountDeploymentRoleOutput
+                  - Name: EnvIAMModelDeploymentRoleOutput
                 Configuration:
                   ActionMode: 'REPLACE_ON_FAILURE'
-                  StackName: 'base-env-iam-cross-account-deployment-role'
+                  StackName: 'base-env-iam-sm-endpoint-deployment-role'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
-                  TemplatePath: 'BuildArtifact::env-iam-cross-account-deployment-role.yaml'
-                  OutputFileName: 'env-iam-cross-account-deployment-role-output.json'
-                  TemplateConfiguration: 'BuildArtifact::env-iam-cross-account-deployment-role.json'
+                  TemplatePath: 'BuildArtifact::env-iam-sm-endpoint-deployment-role.yaml'
+                  OutputFileName: 'env-iam-sm-endpoint-deployment-role-output.json'
+                  TemplateConfiguration: 'BuildArtifact::env-iam-sm-endpoint-deployment-role.json'
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}",
                       "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" 
@@ -794,7 +794,7 @@ Resources:
                 Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'base-env-iam-cross-account-deployment-role'
+                  StackName: 'base-env-iam-sm-endpoint-deployment-role'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
 

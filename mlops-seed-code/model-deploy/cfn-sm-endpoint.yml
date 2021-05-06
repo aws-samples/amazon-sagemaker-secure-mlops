@@ -1,11 +1,17 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 Description: This template will deploy a SageMaker Endpoint
+
 Parameters:
+
   SageMakerProjectName:
     Type: String
     Description: Name of the project
     MinLength: 1
     MaxLength: 15
     AllowedPattern: ^[a-zA-Z](-*[a-zA-Z0-9])*
+
   SageMakerProjectId:
     Type: String
     Description: Service generated Id of the project.
@@ -18,14 +24,24 @@ Parameters:
     Type: Number
     Description: Number of instances to launch for the endpoint.
     MinValue: 1
+
   EndpointInstanceType:
     Type: String
     Description: The ML compute instance type for the endpoint.
-  RoleName:
+
+  ExecutionRoleName:
     Type: String
-    Description: Name of the execution role
-  StageName:
+    Description: Name of the execution role to run the model
+
+  EnvName:
     Type: String
+    AllowedPattern: '[a-z0-9\-]*'
+    Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+
+  EnvType:
+    Description: System Environment (e.g. dev, staging, prod). Used as a suffix for environment resource names.
+    Type: String
+    Default: dev
 
 Resources:
   SageMakerModel:
@@ -33,14 +49,18 @@ Resources:
     Properties:
       PrimaryContainer:
         ModelPackageName: !Ref ModelPackageName
-      ExecutionRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/${RoleName}
+      ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ExecutionRoleName}'
       Tags:
         - Key: sagemaker:deployment-stage
-          Value: !Ref StageName
+          Value: !Ref EnvType
         - Key: sagemaker:project-id
           Value: !Ref SageMakerProjectId
         - Key: sagemaker:project-name
           Value: !Ref SageMakerProjectName
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
 
   SageMakerEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
@@ -53,21 +73,29 @@ Resources:
           VariantName: AllTraffic
       Tags:
         - Key: sagemaker:deployment-stage
-          Value: !Ref StageName
+          Value: !Ref EnvType
         - Key: sagemaker:project-id
           Value: !Ref SageMakerProjectId
         - Key: sagemaker:project-name
           Value: !Ref SageMakerProjectName
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
 
   SageMakerEndpoint:
     Type: AWS::SageMaker::Endpoint
     Properties:
-      EndpointName: !Sub ${SageMakerProjectName}-${StageName}
+      EndpointName: !Sub '${SageMakerProjectName}-${SageMakerProjectId}-${EnvType}'
       EndpointConfigName: !GetAtt SageMakerEndpointConfig.EndpointConfigName
       Tags:
         - Key: sagemaker:deployment-stage
-          Value: !Ref StageName
+          Value: !Ref EnvType
         - Key: sagemaker:project-id
           Value: !Ref SageMakerProjectId
         - Key: sagemaker:project-name
           Value: !Ref SageMakerProjectName
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType

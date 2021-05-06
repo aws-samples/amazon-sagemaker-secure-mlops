@@ -19,7 +19,128 @@ Parameters:
     Type: String
     Description: S3 bucket name where the seed code for MLOps projects for CodeCommit repository is stored
 
+  ModelPackageGroupName:
+    Type: String
+    Description: Model package group name to monitor for model package state changes. Leave empty to auto generate.
+    Default: ''
+
+Conditions:
+  MLOpsArtifactBucketCondition: !Equals [ 'true', 'true' ]
+  GenerateModelPackageNameCondition: !Equals [ !Ref ModelPackageGroupName, '' ]
+
 Resources:
+
+  GetEnvironmentConfiguration:
+    Type: Custom::GetEnvironmentConfiguration
+    Properties:
+      ServiceToken: !ImportValue 'ds-get-environment-configuration-lambda-arn'
+      SageMakerProjectName: !Ref SageMakerProjectName
+      SSMParams:
+        - 
+          VariableName: 'DataBucketName'
+          ParameterName: 'data-bucket-name'
+        - 
+          VariableName: 'ModelBucketName'
+          ParameterName: 'model-bucket-name'
+        - 
+          VariableName: 'S3VPCEId'
+          ParameterName: 's3-vpce-id"'
+        - 
+          VariableName: 'S3KmsKeyId'
+          ParameterName: 'kms-s3-key-arn'
+        - 
+          VariableName: 'PipelineExecutionRole'
+          ParameterName: 'sm-pipeline-execution-role-arn'
+        - 
+          VariableName: 'OUStagingId'
+          ParameterName: 'ou-staging-id'
+        - 
+          VariableName: 'OUProdId'
+          ParameterName: 'ou-prod-id'
+        - 
+          VariableName: 'ModelDeploymentRole'
+          ParameterName: 'sm-model-deployment-role-name'
+
+  MlOpsArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Condition: MLOpsArtifactBucketCondition
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub sm-mlops-cp-${SageMakerProjectName}-${SageMakerProjectId} # 12+32+15=59 chars max/ 63 allowed
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: TRUE
+        BlockPublicPolicy: TRUE
+        IgnorePublicAcls: TRUE
+        RestrictPublicBuckets: TRUE
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !GetAtt GetEnvironmentConfiguration.S3KmsKeyId
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+
+  ModelDeployRegistryEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      # Max length allowed: 64
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model # max: 10+33+15+5=63 chars
+      Description: "Rule to trigger a deployment when SageMaker Model registry is updated with a new model package. For example, a new model package is registered with Registry"
+      EventPattern:
+        source:
+          - "aws.sagemaker"
+        detail-type:
+          - "SageMaker Model Package State Change"
+        detail:
+          ModelPackageGroupName: 
+            - !If 
+              - GenerateModelPackageNameCondition
+              - !Sub '${SageMakerProjectName}-${SageMakerProjectId}'
+              - !Ref ModelPackageGroupName
+      State: "ENABLED"
+      Targets:
+        -
+          Arn:
+            !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ModelDeployPipeline}'
+          RoleArn:
+            !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+          Id: !Sub sagemaker-${SageMakerProjectName}-trigger
+
+  ModelDeployCodeCommitEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      # Max length allowed: 64
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-code # max: 10+33+15+5=63 chars
+      Description: "Rule to launch a pipeline run when ModelDeploy CodeCommit repository is updated"
+      EventPattern:
+        source:
+          - "aws.codecommit"
+        detail-type:
+          - "CodeCommit Repository State Change"
+        resources:
+          - !GetAtt ModelDeployCodeCommitRepository.Arn
+        detail:
+          referenceType:
+            - "branch"
+          referenceName:
+            - "main"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn:
+            !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ModelDeployPipeline}'
+          RoleArn:
+            !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+          Id: !Sub codecommit-${SageMakerProjectName}-modelbuild
 
   ModelDeployCodeCommitRepository:
     Type: AWS::CodeCommit::Repository
@@ -32,3 +153,83 @@ Resources:
           Bucket: !Ref SeedCodeS3BucketName 
           Key: sagemaker-mlops/seed-code/mlops-model-deploy-v1.0.zip
         BranchName: main
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+
+  ModelDeployBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      # Max length: 255 chars
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modeldeploy # max: 10+33+15+10=68
+      Description: Pulls the code from Model Deploy CodeCommit repository, builds the CloudFormation templates with the endpoint and deploys them
+      ServiceRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        EnvironmentVariables:
+          - Name: SAGEMAKER_PROJECT_NAME
+            Value: !Ref SageMakerProjectName
+          - Name: SAGEMAKER_PROJECT_ID
+            Value: !Ref SageMakerProjectId
+          - Name: ENV_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+          - Name: ENV_TYPE
+            Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+          - Name: ARTIFACT_BUCKET
+            Value: !If 
+              - MLOpsArtifactBucketCondition
+              - !Ref MlOpsArtifactsBucket
+              - !GetAtt GetEnvironmentConfiguration.DataBucketName
+          - Name: DATA_BUCKET
+            Value: !GetAtt GetEnvironmentConfiguration.DataBucketName
+          - Name: MODEL_BUCKET
+            Value: !GetAtt GetEnvironmentConfiguration.ModelBucketName
+          - Name: SOURCE_MODEL_PACKAGE_GROUP_NAME
+            Value: !If 
+              - GenerateModelPackageNameCondition
+              - !Sub '${SageMakerProjectName}-${SageMakerProjectId}'
+              - !Ref ModelPackageGroupName
+          - Name: AWS_REGION
+            Value: !Ref AWS::Region
+          - Name: ORGANIZATIONAL_UNIT_STAGING_ID
+            Value: !GetAtt GetEnvironmentConfiguration.OUStagingId
+          - Name: ORGANIZATIONAL_UNIT_PROD_ID
+            Value: !GetAtt GetEnvironmentConfiguration.OUProdId
+          - Name: STAGING_CONFIG_NAME
+            Value: 'staging-config'
+          - Name: PROD_CONFIG_NAME
+            Value: 'prod-config'
+          - Name: CFN_TEMPLATE_NAME
+            Value: 'cfn-sm-endpoint'      
+          - Name: SAGEMAKER_EXECUTION_ROLE_STAGING_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.ModelDeploymentRole
+          - Name: SAGEMAKER_EXECUTION_ROLE_PROD_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.ModelDeploymentRole
+
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec.yml
+      TimeoutInMinutes: 15
+      VpcConfig:
+        SecurityGroupIds: !GetAtt GetEnvironmentConfiguration.SecurityGroups
+        Subnets: !GetAtt GetEnvironmentConfiguration.SubnetIds
+        VpcId: !GetAtt GetEnvironmentConfiguration.VpcId
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType

@@ -31,6 +31,11 @@ Metadata:
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
       - Label:
+          default: Organizational Unit Ids for multi-account model deployment
+        Parameters:
+          - OrganizationalUnitStagingId
+          - OrganizationalUnitProdId
+      - Label:
           default: Availability Zone Configuration
         Parameters:
           - AvailabilityZones
@@ -139,6 +144,10 @@ Metadata:
         default: Execution role ARN for Lambda function for setup script
       SCProjectLaunchRoleArn:
         default: Service Catalog Project Launch role ARN
+      OrganizationalUnitStagingId:
+        default: OU Id for the organizational unit with data science staging account. Leave empty for single-account deployment
+      OrganizationalUnitProdId:
+        default: OU Id for the organizational unit with data science production account. Leave empty for single-account deployment
       AvailabilityZones:
         default: Availability Zones
       NumberOfAZs:
@@ -414,6 +423,16 @@ Parameters:
     Description: The ARN of the Service Catalog Project launch role role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
+  
+  OrganizationalUnitStagingId:
+    Type: String
+    Description: OU Id of the organizational unit that holds the data science staging account
+    Default: ''
+
+  OrganizationalUnitProdId:
+    Type: String
+    Description: OU Id of the organizational unit that holds the data science production account   
+    Default: ''
 
   AvailabilityZones:
     Description: 'List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.'
@@ -618,6 +637,18 @@ Rules:
     Assertions:
       - Assert: !Equals [ !Ref CreateVPCFlowLogsRole, 'NO' ] 
         AssertDescription: Create VPC Flow Logs execution role cannot be set to YES if Create environemtn IAM Roles is set NO
+  
+  OrganizationalUnitStagingId: 
+    RuleCondition: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
+    Assertions:
+      - Assert: !Equals [ !Ref OrganizationalUnitProdId, '' ]
+        AssertDescription: OU Ids for both staging and production OU must be provided if one (staging or production) id is provided
+
+  OrganizationalUnitProdId: 
+    RuleCondition: !Equals [ !Ref OrganizationalUnitProdId, '' ]
+    Assertions:
+      - Assert: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
+        AssertDescription: OU Ids for both staging and production OU must be provided if one (staging or production) id is provided
 
 Resources:
 
@@ -631,6 +662,22 @@ Resources:
         EnvType: !Ref EnvType
         CreateVPCFlowLogsRole: !Ref CreateVPCFlowLogsRole
       TemplateURL: env-iam.yaml
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+  
+  # This role is used to deploy a model in SageMaker MLOps CI/CD pipeline (assumed by AmazonSageMakerServiceCatalogProductsUseRole)
+  CrossAccountModelDeploymentRole:
+    Type: AWS::CloudFormation::Stack
+    Condition: IAMRolesCondition
+    Properties:
+      Parameters:
+        EnvName: !Ref EnvName
+        EnvType: !Ref EnvType
+        PipelineExecutionRoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      TemplateURL: env-iam-sm-endpoint-deployment-role.yaml
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName
@@ -945,3 +992,19 @@ Resources:
             - !GetAtt GetNetworkConfiguration.SubnetIds
           - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
       Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvType} data science environment'
+
+  OrganizationalUnitStagingIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType}-ou-staging-id'
+      Type: String
+      Value: !Ref OrganizationalUnitStagingId
+      Description: !Sub 'OU Id of the organizational unit that holds the data science staging account for ${EnvName}-${EnvType} data science environment'
+
+  OrganizationalUnitProdIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType}-ou-prod-id'
+      Type: String
+      Value: !Ref OrganizationalUnitProdId
+      Description: !Sub 'OU Id of the organizational unit that holds the data science production account for ${EnvName}-${EnvType} data science environment'

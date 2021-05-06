@@ -58,37 +58,39 @@ def get_approved_package(model_package_group_name):
         raise Exception(error_message)
 
 
-def extend_config(args, model_package_arn, stage_config):
+def prepare_config(args, model_package_arn, execution_role, config_name):
     """
     Extend the stage configuration with additional parameters and tags based.
     """
-    # Verify that config has parameters and tags sections
-    missing_param=True
-    for param in stage_config:
-        if param.get('ParameterKey') == 'StageName' and param.get('ParameterValue') is not None:
-            missing_param=False
-    if missing_param:
-        raise Exception("Configuration file must include StageName parameter")
+    # Read the config template
+    with open(f"{config_name}-template.json", "r") as f:
+        config = json.load(f)
 
-    # Create new params
-    stage_config.append({ "ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name })
-    stage_config.append({ "ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id })
-    stage_config.append({ "ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn })
+    # Optional: Add validation of config parameters if needed
 
-    return stage_config
+    # Add deployment-time parameters
+    config.append({"ParameterKey": "ExecutionRoleName", "ParameterValue": execution_role})
+    config.append({"ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name})
+    config.append({"ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id})
+    config.append({"ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn})
+    config.append({"ParameterKey": "EnvironmentName", "ParameterValue": args.env_name})
+
+    logger.debug(f"Saving CodePipeline CFN template configuration file: {json.dumps(config, indent=2)}")
+    with open(f"{config_name}.json", "w") as f:
+        json.dump(config, f, indent=2)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-level", type=str, default=os.environ.get("LOGLEVEL", "INFO").upper())
-    parser.add_argument("--model-package-group-name", type=str, required=True)
     parser.add_argument("--sagemaker-project-id", type=str, required=True)
     parser.add_argument("--sagemaker-project-name", type=str, required=True)
-    parser.add_argument("--import-staging-config", type=str, default="staging-config.json")
-    parser.add_argument("--import-prod-config", type=str, default="prod-config.json")
-    parser.add_argument("--export-staging-config", type=str, default="staging-config-export.json")
-    parser.add_argument("--export-prod-config", type=str, default="prod-config-export.json")
+    parser.add_argument("--model-package-group-name", type=str, required=True)
+    parser.add_argument("--staging-config-name", type=str, default="staging-config")
+    parser.add_argument("--prod-config-name", type=str, default="prod-config")
     parser.add_argument("--sagemaker-execution-role-staging-name", type=str, required=True)
     parser.add_argument("--sagemaker-execution-role-prod-name", type=str, required=True)
+    parser.add_argument("--env-name", type=str, required=True)
     args, _ = parser.parse_known_args()
 
     # Configure logging to output the line number and message
@@ -98,20 +100,7 @@ if __name__ == "__main__":
     # Get the latest approved package
     model_package_arn = get_approved_package(args.model_package_group_name)
 
-    # Write the staging config
-    with open(args.import_staging_config, "r") as f:
-        staging_config = extend_config(args, model_package_arn, json.load(f))
-        staging_config.append({"ParameterKey": "RoleName", "ParameterValue": args.sagemaker_execution_role_staging_name})
-
-    logger.debug("Staging config: {}".format(json.dumps(staging_config, indent=4)))
-    with open(args.export_staging_config, "w") as f:
-        json.dump(staging_config, f, indent=4)
-
-    # Write the prod config
-    with open(args.import_prod_config, "r") as f:
-        prod_config = extend_config(args, model_package_arn, json.load(f))
-        prod_config.append({"ParameterKey": "RoleName", "ParameterValue": args.sagemaker_execution_role_prod_name})
-
-    logger.debug("Prod config: {}".format(json.dumps(prod_config, indent=4)))
-    with open(args.export_prod_config, "w") as f:
-        json.dump(prod_config, f, indent=4)
+    # Write the staging and prod template configuration files for CodePipeline
+    for r, n in {args.sagemaker_execution_role_staging_name:args.staging_config_name, 
+                 args.sagemaker_execution_role_prod_name:args.prod_config_name}.items():
+        prepare_config(args, model_package_arn, r, n)

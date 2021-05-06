@@ -354,7 +354,7 @@ Resources:
                 Action:
                   - sts:AssumeRole
                 Resource:
-                  - 'arn:aws:iam::*:role/*SageMakerCrossAccountDeploymentRole*'
+                  - 'arn:aws:iam::*:role/*SageMakerModelDeploymentRole*'
                 Effect: Allow
               - 
                 Action:

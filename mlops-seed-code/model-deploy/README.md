@@ -13,7 +13,7 @@ Upon triggering a deployment:
 
 The following diagram shows this CI/CD Model Deployment pipeline in the context of the whole MLOps Data Science solution.
 
-![CI/CD model deployment](ml-ops-architecture-model-deploy.png)
+![CI/CD model deployment](img/ml-ops-architecture-model-deploy.png)
 
 You own this seed code and you can modify this template to reflect your environment, MLOps guidelines, and project governance. You can also add additional tests for your custom validation to the TestStaging step.
 

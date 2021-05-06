@@ -29,14 +29,23 @@ Resources:
     Properties:
       ServiceToken: !ImportValue 'ds-get-environment-configuration-lambda-arn'
       SageMakerProjectName: !Ref SageMakerProjectName
-
+      SSMParams:
+        - VariableName: 'DataBucketName'
+          ParameterName: 'data-bucket-name'
+        - VariableName: 'ModelBucketName'
+          ParameterName: 'model-bucket-name'
+        - VariableName: 'S3KmsKeyId'
+          ParameterName: 'kms-s3-key-arn'
+        - VariableName: 'PipelineExecutionRole'
+          ParameterName: 'sm-pipeline-execution-role-arn'
+      
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
     Condition: MLOpsArtifactBucketCondition
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
     Properties:
-      BucketName: !Sub sagemaker-mlops-codepipeline-${SageMakerProjectId} # 58 chars max/ 64 allowed
+      BucketName: !Sub sm-mlops-cp-${SageMakerProjectName}-${SageMakerProjectId} # 12+32+15=59 chars max/ 63 allowed
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: TRUE
@@ -111,7 +120,7 @@ Resources:
     Properties:
       # Max length: 255 chars
       Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modelbuild # max: 10+33+15+10=68
-      Description: Builds the model building workflow code repository, creates the SageMaker Pipeline and executes it
+      Description: Pulls the code from Model Build CodeCommit repository, creates the SageMaker Pipeline, and executes it
       ServiceRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
       Artifacts:
         Type: CODEPIPELINE
