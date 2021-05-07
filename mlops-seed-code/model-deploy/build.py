@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 import argparse
 import json
 import logging
@@ -58,7 +60,7 @@ def get_approved_package(model_package_group_name):
         raise Exception(error_message)
 
 
-def prepare_config(args, model_package_arn, execution_role, config_name):
+def prepare_config(args, model_package_arn, execution_role, config_name, ou_id):
     """
     Extend the stage configuration with additional parameters and tags based.
     """
@@ -69,11 +71,12 @@ def prepare_config(args, model_package_arn, execution_role, config_name):
     # Optional: Add validation of config parameters if needed
 
     # Add deployment-time parameters
+    config.append({"ParameterKey": "OrgUnitId", "ParameterValue": ou_id})
     config.append({"ParameterKey": "ExecutionRoleName", "ParameterValue": execution_role})
     config.append({"ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name})
     config.append({"ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id})
     config.append({"ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn})
-    config.append({"ParameterKey": "EnvironmentName", "ParameterValue": args.env_name})
+    config.append({"ParameterKey": "EnvName", "ParameterValue": args.env_name})
 
     logger.debug(f"Saving CodePipeline CFN template configuration file: {json.dumps(config, indent=2)}")
     with open(f"{config_name}.json", "w") as f:
@@ -90,6 +93,9 @@ if __name__ == "__main__":
     parser.add_argument("--prod-config-name", type=str, default="prod-config")
     parser.add_argument("--sagemaker-execution-role-staging-name", type=str, required=True)
     parser.add_argument("--sagemaker-execution-role-prod-name", type=str, required=True)
+    parser.add_argument("--organizational-unit-staging-id", type=str, required=True)
+    parser.add_argument("--organizational-unit-prod-id", type=str, required=True)
+
     parser.add_argument("--env-name", type=str, required=True)
     args, _ = parser.parse_known_args()
 
@@ -101,6 +107,7 @@ if __name__ == "__main__":
     model_package_arn = get_approved_package(args.model_package_group_name)
 
     # Write the staging and prod template configuration files for CodePipeline
-    for r, n in {args.sagemaker_execution_role_staging_name:args.staging_config_name, 
-                 args.sagemaker_execution_role_prod_name:args.prod_config_name}.items():
-        prepare_config(args, model_package_arn, r, n)
+    for k, v in {args.sagemaker_execution_role_staging_name:{"ConfigName":args.staging_config_name, "OUId":args.organizational_unit_staging_id}, 
+                 args.sagemaker_execution_role_prod_name:{"ConfigName":args.prod_config_name, "OUId":args.organizational_unit_prod_id}
+                 }.items():
+        prepare_config(args, model_package_arn, k, v["ConfigName"], v["OUId"])

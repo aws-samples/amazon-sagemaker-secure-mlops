@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 import argparse
 import json
 import logging
@@ -12,7 +14,7 @@ def invoke_endpoint(endpoint_name, sm_client):
     """
     Add custom logic here to invoke the endpoint and validate reponse
     """
-    return {"endpoint_name": endpoint_name, "success": True}
+    return {"EndpointName": endpoint_name, "Success": True}
 
 
 def test_endpoint(endpoint_name, sm_client):
@@ -35,8 +37,9 @@ def test_endpoint(endpoint_name, sm_client):
         if "DataCaptureConfig" in response and response["DataCaptureConfig"]["EnableCapture"]:
             logger.info(f"data capture enabled for endpoint config {endpoint_config_name}")
 
-        # Call endpoint to handle
+        # Do tests
         return invoke_endpoint(endpoint_name, sm_client)
+
     except ClientError as e:
         error_message = e.response["Error"]["Message"]
         logger.error(error_message)
@@ -46,10 +49,8 @@ def test_endpoint(endpoint_name, sm_client):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--log-level", type=str, default=os.environ.get("LOGLEVEL", "INFO").upper())
-    parser.add_argument("--import-build-config", type=str, required=True)
-    parser.add_argument("--export-test-results", type=str, required=True)
-    parser.add_argument("--sagemaker-execution-role-name", type=str, required=True)
-    parser.add_argument("--organizational-unit-id", type=str, required=True)
+    parser.add_argument("--build-config", type=str, required=True)
+    parser.add_argument("--test-results-output", type=str, required=True)
     args, _ = parser.parse_known_args()
 
     # Configure logging to output the line number and message
@@ -57,39 +58,42 @@ if __name__ == "__main__":
     logging.basicConfig(format=log_format, level=args.log_level)
 
     # Load the build config
-    with open(args.import_build_config, "r") as f:
+    with open(args.build_config, "r") as f:
         config = {param['ParameterKey']:param['ParameterValue'] for param in json.load(f)}
 
     boto_sts=boto3.client('sts')
 
-    account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=args.organizational_unit_id)['Accounts']]
-    # Request to assume the role like this, the ARN is the Role's ARN from
-    # the other account you wish to assume. Not your current ARN.
+    if config["OrgUnitId"]:
+        account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=config["OrgUnitId"])['Accounts']]
+    else:
+        # using the caller account if OU id is not specified
+        accounts_ids = [boto_sts.get_caller_identity()["Account"]] 
+
+    # Test the endpoint in each account of the target organizational unit
     for account_id in account_ids:
+        # Request to assume the specified role in the target account
         stsresponse = boto_sts.assume_role(
-            RoleArn="arn:aws:iam::{}:role/{}".format(account_id, args.sagemaker_execution_role_name),
+            RoleArn=f"arn:aws:iam::{account_id}:role/{config['ExecutionRoleName']}",
             RoleSessionName='newsession'
         )
 
-        # Save the details from assumed role into vars
-        newsession_id = stsresponse["Credentials"]["AccessKeyId"]
-        newsession_key = stsresponse["Credentials"]["SecretAccessKey"]
-        newsession_token = stsresponse["Credentials"]["SessionToken"]
-        sm_client = boto3.client(
-            'sagemaker',
-            aws_access_key_id=newsession_id,
-            aws_secret_access_key=newsession_key,
-            aws_session_token=newsession_token
-        )
+        results = {
+            "AccountId": account_id,
+            "EnvironmentName": config['EnvName'],
+            "EnvironmentType": config['EnvType'],
+            "SageMakerProjectName": config['SageMakerProjectName'],
+            "SageMakerProjectId": config['SageMakerProjectId'],
+            "TestResults": test_endpoint(
+                f"{config['SageMakerProjectName']}-{config['SageMakerProjectId']}-{config['EnvType']}",
+                boto3.client(
+                'sagemaker',
+                aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
+                aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
+                aws_session_token=stsresponse["Credentials"]["SessionToken"])
+            )
+        }
 
-        # Get the endpoint name from sagemaker project name
-        
-        endpoint_name = "{}-{}".format(
-            config["SageMakerProjectName"], config["StageName"]
-        )
-        results = test_endpoint(endpoint_name, sm_client)
-
-        # Print results and write to file
-        logger.debug(json.dumps(results, indent=4))
-        with open(args.export_test_results, "a") as f:
-            json.dump(results, f, indent=4)
+        # Output results and save to the file
+        logger.debug(json.dumps(results, indent=2))
+        with open(args.test_results_output, "a") as f:
+            json.dump(results, f, indent=2)

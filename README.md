@@ -401,11 +401,11 @@ Multi-account model deployment uses the AWS Organizations setup to deploy model 
           * production (OU)
               * `333333333333` (data science production AWS account)
 + [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoings) in the staging and production accounts
-+ SageMaker execution role for model deployment into the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science account to deploy the endpoints in the target accounts and test them. To deploy the execution roles, use the `env-iam-sm-endpoint-deployment-role.yaml` CloudFormation template. Run the deployment in the staging and production accounts:
++ SageMaker execution role for model deployment into the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science account to deploy the endpoints in the target accounts and test them. To deploy the execution roles, use the `env-iam-sm-model-execution-role.yaml` CloudFormation template. Run the deployment in the staging and production accounts:
 ```bash
 aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-endpoint-deployment-role.yaml \
-                --stack-name env-iam-sm-endpoint-deployment-role \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-model-execution-role.yaml \
+                --stack-name env-iam-sm-model-execution-role \
                 --capabilities CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
                 EnvName=$ENV_NAME \
@@ -825,6 +825,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [R11]: [Build a CI/CD pipeline for deploying custom machine learning models using AWS services](https://aws.amazon.com/blogs/machine-learning/build-a-ci-cd-pipeline-for-deploying-custom-machine-learning-models-using-aws-services/)
 - [R12]: [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/)
 - [R13]: [Enable feature reuse across accounts and teams using Amazon SageMaker Feature Store](https://aws.amazon.com/blogs/machine-learning/enable-feature-reuse-across-accounts-and-teams-using-amazon-sagemaker-feature-store/)
+- [R14]: [How Genworth built a serverless ML pipeline on AWS using Amazon SageMaker and AWS Glue](https://aws.amazon.com/blogs/machine-learning/how-genworth-built-a-serverless-ml-pipeline-on-aws-using-amazon-sagemaker-and-aws-glue/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
@@ -944,8 +945,8 @@ aws cloudformation deploy \
 Deploy SageMaker model deployment roles in development, staging, and production AWS accounts:
 ```bash
 aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-endpoint-deployment-role.yaml \
-    --stack-name env-iam-sm-endpoint-deployment-role \
+    --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-model-execution-role.yaml \
+    --stack-name env-iam-sm-model-execution-role \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
     EnvName=$ENV_NAME \
@@ -1045,7 +1046,7 @@ aws cloudformation create-stack \
 ```bash
 aws cloudformation delete-stack --stack-name ds-team-env
 aws cloudformation delete-stack --stack-name ds-team-core
-aws cloudformation delete-stack --stack-name env-iam-sm-endpoint-deployment-role
+aws cloudformation delete-stack --stack-name env-iam-sm-model-execution-role
 aws cloudformation delete-stack --stack-name env-iam-roles
 aws cloudformation delete-stack --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name ds-team-vpc

@@ -159,8 +159,8 @@ aws cloudformation deploy \
 
 # IAM model deployment roles - must be deployed in each dev, stating, production AWS accounts
 aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-endpoint-deployment-role.yaml \
-                --stack-name env-iam-sm-endpoint-deployment-role \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-model-execution-role.yaml \
+                --stack-name env-iam-sm-model-execution-role \
                 --capabilities CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
                 EnvName=$ENV_NAME \
@@ -243,7 +243,7 @@ aws cloudformation create-stack \
 # Clean up
 aws cloudformation delete-stack --stack-name ds-team-env
 aws cloudformation delete-stack --stack-name ds-team-core
-aws cloudformation delete-stack --stack-name env-iam-sm-endpoint-deployment-role
+aws cloudformation delete-stack --stack-name env-iam-sm-model-execution-role
 aws cloudformation delete-stack --stack-name env-iam-roles
 aws cloudformation delete-stack --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name ds-team-vpc

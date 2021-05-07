@@ -18,12 +18,12 @@ Parameters:
     Description: CI/CD execution role in the development account (AmazonSageMakerServiceCatalogProductsUseRole)
 
 Outputs:
-  SageMakerModelDeploymentRoleArn:
+  SageMakerModelExecutionRoleArn:
     Description: The ARN of the SageMaker model deployment role 
-    Value: !GetAtt SageMakerModelDeploymentRole.Arn
+    Value: !GetAtt SageMakerModelExecutionRole.Arn
 
 Resources:
-  SageMakerModelDeploymentRole:
+  SageMakerModelExecutionRole:
     Type: AWS::IAM::Role
     Properties:
         AssumeRolePolicyDocument:
@@ -47,7 +47,7 @@ Resources:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess # S3 should be limited to specific buckets in a real production setup
         Policies: 
           -
-            PolicyName: !Sub "${EnvName}-${EnvType}-${AWS::Region}-sagemaker-model-deployment-policy"
+            PolicyName: !Sub "${EnvName}-${EnvType}-${AWS::Region}-sagemaker-model-execution-policy"
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
@@ -66,12 +66,3 @@ Resources:
             Value: !Ref EnvName
           - Key: EnvironmentType
             Value: !Ref EnvType
-
-  # SSM parameters
-  SageMakerModelDeploymentRoleSSM:
-    Type: 'AWS::SSM::Parameter'
-    Properties:
-      Name: !Sub "${EnvName}-${EnvType}-sm-model-deployment-role-name"
-      Type: String
-      Value: !Ref SageMakerModelDeploymentRole
-      Description: !Sub 'SageMaker model deployment role for CodePipeline in ${EnvName}-${EnvType} data science environment'

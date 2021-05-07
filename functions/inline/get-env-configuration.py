@@ -27,7 +27,10 @@ def get_environment(project_name, ssm_params):
     }
 
     for p in ssm_params:
-        i[p["VariableName"]] = ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-{p['ParameterName']}")["Parameter"]["Value"]
+        try:
+            i[p["VariableName"]] = ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-{p['ParameterName']}")["Parameter"]["Value"]
+        except:
+            i[p["VariableName"]] = ""
 
     return i
     

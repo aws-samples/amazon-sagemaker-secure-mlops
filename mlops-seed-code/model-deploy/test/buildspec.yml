@@ -7,10 +7,10 @@ phases:
   build:
     commands:
       # Call the test python code
-      - python test/test.py --import-build-config $CODEBUILD_SRC_DIR_BuildArtifact/staging-config-export.json --export-test-results $EXPORT_TEST_RESULTS --sagemaker-execution-role-name "$SAGEMAKER_EXECUTION_ROLE_NAME" --organizational-unit-id "$ORGANIZATIONAL_UNIT_ID"
+      - python test/test.py --build-config $CODEBUILD_SRC_DIR_BuildArtifact/${BUILD_CONFIG}.json --test-results-output ${TEST_RESULTS}.json
       # Show the test results file
-      - cat $EXPORT_TEST_RESULTS
+      - cat ${TEST_RESULTS}.json
 
 artifacts:
   files:
-    - $EXPORT_TEST_RESULTS
+    - ${TEST_RESULTS}.json

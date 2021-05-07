@@ -21,18 +21,18 @@ A description of some of the artifacts is provided below.
 
 ## Organization of the SageMaker model deploy seed code
 `buildspec.yml`
- - this file is used by the CodePipeline's Build stage to package a CloudFormation template for `endpoint-config-template.yml`.
+ - this file is used by the CodePipeline's Build stage to package a CloudFormation template for `cfn-sm-endpoint-template.yml`.
 
 `build.py`
  - this python file contains code to get the latest approve package arn and exports staging and configuration files.
 
-`endpoint-config-template.yml`
+`cfn-sm-endpoint-template.yml`
  - this CloudFormation file is packaged by the build step into a CloudFormation template file and is deployed to `staging` and `production` stages.
 
-`staging-config.json`
+`staging-config-template.json`
  - this configuration files is used to customize staging stage in the pipeline.
 
-`prod-config.json`
+`prod-config-template.json`
  - this configuration files is used to customize production stage in the pipeline.
 
 `test\buildspec.yml`
@@ -40,6 +40,7 @@ A description of some of the artifacts is provided below.
 
 `test\test.py`
   - this python file contains code to describe and invoke the staging endpoint.
+  - **Add your custom endpoing test logic to this file**
 
 ## AWS Organizations setup for MLOps model deploy
 You must have a proper AWS Orgainzations setup with the data science account and the two additional accounts for a proper functioning of this MLOps model deployment project.

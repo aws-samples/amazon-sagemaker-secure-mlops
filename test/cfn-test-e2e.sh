@@ -63,7 +63,7 @@ CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
 MLOPS_PROJECT_NAME="test1-us-west-1"
 MLOPS_PROJECT_ID="p-jithco41lsxh"
-SM_DOMAIN_ID="d-qjy11uccb9al"
+SM_DOMAIN_ID="d-gy9lhkpcdjtb"
 
 echo "Delete SageMaker project(s)"
 aws sagemaker delete-project --project-name $MLOPS_PROJECT_NAME
@@ -87,6 +87,7 @@ aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 # ...
 
 echo "Delete SageMaker EFS"
+pipenv shell
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
 echo "Delete core stack"

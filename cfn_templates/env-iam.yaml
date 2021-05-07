@@ -606,12 +606,3 @@ Resources:
               - iam:GetRole
             Resource: !GetAtt SageMakerExecutionRole.Arn
 
-  # SSM parameters
-  SageMakerPipelineExecutionRoleSSM:
-    Type: 'AWS::SSM::Parameter'
-    Properties:
-      Name: !Sub "${EnvName}-${EnvType}-sm-pipeline-execution-role-arn"
-      Type: String
-      Value: !GetAtt SageMakerPipelineExecutionRole.Arn
-      Description: !Sub 'SageMaker pipeline execution role ${EnvName}-${EnvType} data science environment'
-

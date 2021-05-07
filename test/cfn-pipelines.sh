@@ -36,7 +36,7 @@ aws cloudformation delete-stack \
     --stack-name $STACK_NAME \
     --role-arn arn:aws:iam::ACCOUNT_ID:role/sagemaker-secure-mlops-codepipeline-deploy-role
              
-aws cloudformation delete-stack --stack-name base-env-iam-sm-endpoint-deployment-role
+aws cloudformation delete-stack --stack-name base-env-iam-sm-model-execution-role
 aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
 aws cloudformation delete-stack --stack-name base-env-iam-roles
 aws cloudformation delete-stack --stack-name sm-mlops-$AWS_DEFAULT_REGION-VPC-pipeline

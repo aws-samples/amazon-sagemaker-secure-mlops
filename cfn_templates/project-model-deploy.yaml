@@ -23,10 +23,19 @@ Parameters:
     Type: String
     Description: Model package group name to monitor for model package state changes. Leave empty to auto generate.
     Default: ''
+  
+  MultiAccountDeployment:
+    Type: String
+    Description: Enable multi-account deployment of the model. The staging and production OU Ids must be set in the environment.
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
 
 Conditions:
   MLOpsArtifactBucketCondition: !Equals [ 'true', 'true' ]
   GenerateModelPackageNameCondition: !Equals [ !Ref ModelPackageGroupName, '' ]
+  MultiAccountDeploymentCondition: !Equals [ !Ref MultiAccountDeployment, 'YES' ]
 
 Resources:
 
@@ -58,8 +67,8 @@ Resources:
           VariableName: 'OUProdId'
           ParameterName: 'ou-prod-id'
         - 
-          VariableName: 'ModelDeploymentRole'
-          ParameterName: 'sm-model-deployment-role-name'
+          VariableName: 'ModelExecutionRole'
+          ParameterName: 'sm-model-execution-role-name'
 
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
@@ -212,9 +221,9 @@ Resources:
           - Name: CFN_TEMPLATE_NAME
             Value: 'cfn-sm-endpoint'      
           - Name: SAGEMAKER_EXECUTION_ROLE_STAGING_NAME
-            Value: !GetAtt GetEnvironmentConfiguration.ModelDeploymentRole
+            Value: !GetAtt GetEnvironmentConfiguration.ModelExecutionRole
           - Name: SAGEMAKER_EXECUTION_ROLE_PROD_NAME
-            Value: !GetAtt GetEnvironmentConfiguration.ModelDeploymentRole
+            Value: !GetAtt GetEnvironmentConfiguration.ModelExecutionRole
 
       Source:
         Type: CODEPIPELINE
@@ -233,3 +242,195 @@ Resources:
           Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
         - Key: EnvironmentType
           Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+
+  ModelDeployTestProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      # Max length: 255 chars
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modeldeploy-test # max: 10+33+15+7=65
+      Description: Test the deployment endpoint in the staging account
+      ServiceRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: "aws/codebuild/amazonlinux2-x86_64-standard:3.0"
+        EnvironmentVariables:
+          - Name: AWS_REGION
+            Value: !Ref "AWS::Region"
+          - Name: BUILD_CONFIG
+            Value: 'staging-config'
+          - Name: TEST_RESULTS
+            Value: 'test-results'
+
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: test/buildspec.yml
+      TimeoutInMinutes: 30
+      VpcConfig:
+        SecurityGroupIds: !GetAtt GetEnvironmentConfiguration.SecurityGroups
+        Subnets: !GetAtt GetEnvironmentConfiguration.SubnetIds
+        VpcId: !GetAtt GetEnvironmentConfiguration.VpcId
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+
+  ModelDeployPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      # Max length: 100 chars
+      Name: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modeldeploy # max: 10+33+15+11=69
+      RoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+      ArtifactStore:
+        Type: S3
+        Location: !If 
+          - MLOpsArtifactBucketCondition
+          - !Ref MlOpsArtifactsBucket
+          - !GetAtt GetEnvironmentConfiguration.DataBucketName
+      
+      Tags:
+        - Key: SageMakerProjectName
+          Value: !Ref SageMakerProjectName
+        - Key: SageMakerProjectId
+          Value: !Ref SageMakerProjectId
+        - Key: EnvironmentName
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentName
+        - Key: EnvironmentType
+          Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
+
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: ModelDeploySource
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: '1'
+              Configuration:
+                PollForSourceChanges: false
+                RepositoryName: !GetAtt ModelDeployCodeCommitRepository.Name
+                BranchName: main
+              OutputArtifacts:
+                - Name: ModelDeploySourceArtifact
+
+        # Stage: Build CFN Template for model deployment
+        - Name: Build
+          Actions:
+            - Name: BuildEndpointDeploymentTemplate
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              InputArtifacts:
+                - Name: ModelDeploySourceArtifact
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Ref ModelDeployBuildProject
+              RunOrder: 1
+
+        # Stage: Deploy and test into the staging accounts
+        - Name: DeployModelStaging
+          Actions:
+
+            # Action 1
+            - Name: DeployStaging 
+              InputArtifacts:
+                - Name: BuildArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: CloudFormationStackSet
+              Configuration:
+                StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-staging  #10+33+15+14=72 out of 128 max
+                Description: 'SageMaker endpoint in the staging target OU'
+                TemplatePath: BuildArtifact::cfn-sm-endpoint.yml
+                Parameters: BuildArtifact::staging-config.json
+                Capabilities: CAPABILITY_NAMED_IAM
+                PermissionModel: !If 
+                  - MultiAccountDeploymentCondition
+                  - SERVICE_MANAGED
+                  - SELF_MANAGED
+                OrganizationsAutoDeployment: Disabled    
+                DeploymentTargets: !If 
+                  - MultiAccountDeploymentCondition
+                  - !GetAtt GetEnvironmentConfiguration.OUStagingId
+                  - !Ref 'AWS::AccountId'
+                Regions: !Ref 'AWS::Region'
+              RunOrder: 1
+
+            # Action 2
+            - Name: TestStaging
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              InputArtifacts:
+                - Name: ModelDeploySourceArtifact
+                - Name: BuildArtifact
+              OutputArtifacts:
+                - Name: TestArtifact
+              Configuration:
+                ProjectName: !Ref ModelDeployTestProject
+                PrimarySource: ModelDeploySourceArtifact
+              RunOrder: 2
+
+            # Action 3
+            - Name: ApproveDeployment
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: '1'
+                Provider: Manual
+              Configuration:
+                CustomData: !Sub 
+                  - "Model ${ModelPackageGroupName} for the project ${SageMakerProjectName} is deployed to the staging accounts for OU ${OUStagingId}"
+                  - ModelPackageGroupName: !If 
+                      - GenerateModelPackageNameCondition
+                      - !Sub '${SageMakerProjectName}-${SageMakerProjectId}'
+                      - !Ref ModelPackageGroupName
+                    SageMakerProjectName: !Ref SageMakerProjectName
+                    OUStagingId: !GetAtt GetEnvironmentConfiguration.OUStagingId
+                ExternalEntityLink: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines/sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modeldeploy/view?region=${AWS::Region}'
+              RunOrder: 3
+
+        # Stage: Deploy into the production accounts
+        - Name: DeployModelProd
+          Actions:
+            - Name: DeployProd
+              InputArtifacts:
+                - Name: BuildArtifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: CloudFormationStackSet
+              Configuration:
+                StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-prod  #10+33+15+14=72 out of 128 max
+                Description: 'SageMaker endpoint in the production target OU'
+                Parameters: BuildArtifact::prod-config.json
+                TemplatePath: BuildArtifact::cfn-sm-endpoint.yml
+                Capabilities: CAPABILITY_NAMED_IAM
+                PermissionModel: !If 
+                  - MultiAccountDeploymentCondition
+                  - SERVICE_MANAGED
+                  - SELF_MANAGED
+                OrganizationsAutoDeployment: Disabled
+                DeploymentTargets: !If 
+                  - MultiAccountDeploymentCondition
+                  - !GetAtt GetEnvironmentConfiguration.OUProdId
+                  - !Ref 'AWS::AccountId'
+                Regions: !Ref 'AWS::Region'
+              RunOrder: 1
+

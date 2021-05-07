@@ -28,6 +28,7 @@ Metadata:
           - DataScientistRoleArn
           - SageMakerExecutionRoleArn
           - SageMakerPipelineExecutionRoleArn
+          - SageMakerModelExecutionRoleArn
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
       - Label:
@@ -140,6 +141,8 @@ Metadata:
         default: SageMaker and SageMaker Notebook execution role ARN
       SageMakerPipelineExecutionRoleArn:
         default: SageMaker pipeline execution role ARN
+      SageMakerModelExecutionRoleArn:
+        default: SageMaker model endpoint execution role ARN
       SetupLambdaExecutionRoleArn:
         default: Execution role ARN for Lambda function for setup script
       SCProjectLaunchRoleArn:
@@ -243,7 +246,7 @@ Parameters:
     Default: 'NO'
 
   CreateEnvironmentIAMRoles:
-    Description: Select YES if you want to create an IAM Roles for Data Science environment
+    Description: If YES, all IAM Roles for Data Science environment will be automatically provisioned. If NO, you have to provide the IAM roles
     Type: String
     AllowedValues:
       - 'YES'
@@ -411,6 +414,11 @@ Parameters:
 
   SageMakerPipelineExecutionRoleArn:
     Description: The ARN of the SageMaker Pipeline Execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  SageMakerModelExecutionRoleArn:
+    Description: The ARN of the SageMaker model endpoint execution role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
 
@@ -618,6 +626,9 @@ Conditions:
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
   SageMakerStudioDomainCondition: !Equals [ !Ref CreateSageMakerStudioDomain, 'YES' ]
+  MultiAccountDeploymentCondition: !And
+    - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
+    - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
 
 Rules:
   IAMRoles:
@@ -628,6 +639,7 @@ Rules:
           - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerPipelineExecutionRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SageMakerModelExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
         AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
@@ -668,8 +680,9 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
   
-  # This role is used to deploy a model in SageMaker MLOps CI/CD pipeline (assumed by AmazonSageMakerServiceCatalogProductsUseRole)
-  CrossAccountModelDeploymentRole:
+  # This role is used to run a model endpoint and to test the model in SageMaker MLOps CI/CD pipeline
+  # Assumed by AmazonSageMakerServiceCatalogProductsUseRole
+  SageMakerModelExecutionRole:
     Type: AWS::CloudFormation::Stack
     Condition: IAMRolesCondition
     Properties:
@@ -677,7 +690,7 @@ Resources:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         PipelineExecutionRoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
-      TemplateURL: env-iam-sm-endpoint-deployment-role.yaml
+      TemplateURL: env-iam-sm-model-execution-role.yaml
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName
@@ -1008,3 +1021,31 @@ Resources:
       Type: String
       Value: !Ref OrganizationalUnitProdId
       Description: !Sub 'OU Id of the organizational unit that holds the data science production account for ${EnvName}-${EnvType} data science environment'
+
+  SageMakerPipelineExecutionRoleSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-sm-pipeline-execution-role-arn"
+      Type: String
+      Value: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerPipelineExecutionRoleArn
+          - !Ref SageMakerPipelineExecutionRoleArn
+      Description: !Sub 'SageMaker pipeline execution role ${EnvName}-${EnvType} data science environment'
+
+  SageMakerModelExecutionRoleSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-sm-model-execution-role-name"
+      Type: String
+      Value: !If
+          - IAMRolesCondition
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt SageMakerModelExecutionRole.Outputs.SageMakerModelExecutionRoleArn ]]]]
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref SageMakerModelExecutionRoleArn ]]]]
+
+      Description: !Sub 'SageMaker model execution role for ${EnvName}-${EnvType} data science environment'
+
+
+
+
+      
