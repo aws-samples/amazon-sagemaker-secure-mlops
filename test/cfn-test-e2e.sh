@@ -10,7 +10,7 @@
 #############################################################################################
 # Package templates
 S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
-make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
 
 # core-main.yaml
 STACK_NAME="sm-mlops-core"
@@ -58,12 +58,19 @@ aws cloudformation describe-stacks \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
+aws cloudformation describe-stacks \
+    --stack-name sm-mlops-env  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+
+pipenv shell
+
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME="test1-us-west-1"
-MLOPS_PROJECT_ID="p-jithco41lsxh"
-SM_DOMAIN_ID="d-gy9lhkpcdjtb"
+MLOPS_PROJECT_NAME="test38"
+MLOPS_PROJECT_ID="p-jrlwvpb9ukeo"
+SM_DOMAIN_ID="d-fkup4t4etdtv"
 
 echo "Delete SageMaker project(s)"
 aws sagemaker delete-project --project-name $MLOPS_PROJECT_NAME
@@ -75,7 +82,7 @@ echo "Empty data S3 bucket"
 aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
 
 echo "Delete MLOps project pipeline S3 bucket"
-aws s3 rb s3://sagemaker-mlops-codepipeline-$MLOPS_PROJECT_ID --force
+aws s3 rb s3://sm-mlops-cp-$MLOPS_PROJECT_NAME-$MLOPS_PROJECT_ID --force
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 
@@ -87,7 +94,6 @@ aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 # ...
 
 echo "Delete SageMaker EFS"
-pipenv shell
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
 echo "Delete core stack"

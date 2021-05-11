@@ -43,6 +43,11 @@ Parameters:
     Type: String
     Default: dev
 
+  OrgUnitId:
+    Description: Organizatinal OU Id where the model will be deployed
+    Type: String
+    Default: ''
+
 Resources:
   SageMakerModel:
     Type: AWS::SageMaker::Model

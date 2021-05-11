@@ -69,6 +69,13 @@ Resources:
         - 
           VariableName: 'ModelExecutionRole'
           ParameterName: 'sm-model-execution-role-name'
+        - 
+          VariableName: 'StackSetExecutionRole'
+          ParameterName: 'stackset-execution-role-name'
+        - 
+          VariableName: 'StackSetAdministratorRole'
+          ParameterName: 'stackset-administrator-role-arn'
+        
 
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
@@ -354,13 +361,12 @@ Resources:
               Configuration:
                 StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-staging  #10+33+15+14=72 out of 128 max
                 Description: 'SageMaker endpoint in the staging target OU'
-                TemplatePath: BuildArtifact::cfn-sm-endpoint.yml
+                TemplatePath: BuildArtifact::cfn-sm-endpoint.yaml
                 Parameters: BuildArtifact::staging-config.json
                 Capabilities: CAPABILITY_NAMED_IAM
-                PermissionModel: !If 
-                  - MultiAccountDeploymentCondition
-                  - SERVICE_MANAGED
-                  - SELF_MANAGED
+                PermissionModel: 'SELF_MANAGED'
+                AdministrationRoleArn: GetEnvironmentConfiguration.StackSetAdministratorRole
+                ExecutionRoleName: GetEnvironmentConfiguration.StackSetExecutionRole
                 OrganizationsAutoDeployment: Disabled    
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
@@ -420,12 +426,11 @@ Resources:
                 StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-prod  #10+33+15+14=72 out of 128 max
                 Description: 'SageMaker endpoint in the production target OU'
                 Parameters: BuildArtifact::prod-config.json
-                TemplatePath: BuildArtifact::cfn-sm-endpoint.yml
+                TemplatePath: BuildArtifact::cfn-sm-endpoint.yaml
                 Capabilities: CAPABILITY_NAMED_IAM
-                PermissionModel: !If 
-                  - MultiAccountDeploymentCondition
-                  - SERVICE_MANAGED
-                  - SELF_MANAGED
+                PermissionModel: 'SELF_MANAGED'
+                AdministrationRoleArn: GetEnvironmentConfiguration.StackSetAdministratorRole
+                ExecutionRoleName: GetEnvironmentConfiguration.StackSetExecutionRole
                 OrganizationsAutoDeployment: Disabled
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
@@ -433,4 +438,3 @@ Resources:
                   - !Ref 'AWS::AccountId'
                 Regions: !Ref 'AWS::Region'
               RunOrder: 1
-

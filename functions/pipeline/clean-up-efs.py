@@ -27,7 +27,7 @@ def delete_efs(sm_domain_id, delete_vpc=False):
             subnets.append(mt["SubnetId"])
         
         while len(efs.describe_mount_targets(FileSystemId=id)["MountTargets"]) > 0:
-            print("Wait until mount targes have been deleted")
+            print("Wait until mount targets have been deleted")
             time.sleep(5)
 
         # Get all SageMaker EFS security groups (based on a tag)    

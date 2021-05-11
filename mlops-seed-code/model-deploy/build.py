@@ -21,26 +21,16 @@ def get_approved_package(model_package_group_name):
         The SageMaker Model Package ARN.
     """
     try:
-        # Get the latest approved model package
-        response = sm_client.list_model_packages(
+        approved_packages = []
+        # Find the latest approved model package. 
+        # If there are ceveral approved model packages, take the most recent one (by CreationTime)
+        for p in sm_client.get_paginator('list_model_packages').paginate(
             ModelPackageGroupName=model_package_group_name,
-            ModelApprovalStatus="Approved",
+            ModelApprovalStatus='Approved',
             SortBy="CreationTime",
-            MaxResults=100,
-        )
-        approved_packages = response["ModelPackageSummaryList"]
-
-        # Fetch more packages if none returned with continuation token
-        while len(approved_packages) == 0 and "NextToken" in response:
-            logger.debug("Getting more packages for token: {}".format(response["NextToken"]))
-            response = sm_client.list_model_packages(
-                ModelPackageGroupName=model_package_group_name,
-                ModelApprovalStatus="Approved",
-                SortBy="CreationTime",
-                MaxResults=100,
-                NextToken=response["NextToken"],
-            )
-            approved_packages.extend(response["ModelPackageSummaryList"])
+            SortOrder="Descending",
+            ):
+            approved_packages.extend(p["ModelPackageSummaryList"])
 
         # Return error if no packages found
         if len(approved_packages) == 0:
@@ -60,7 +50,7 @@ def get_approved_package(model_package_group_name):
         raise Exception(error_message)
 
 
-def prepare_config(args, model_package_arn, execution_role, config_name, ou_id):
+def prepare_config(args, model_package_arn, config_name, params):
     """
     Extend the stage configuration with additional parameters and tags based.
     """
@@ -71,14 +61,14 @@ def prepare_config(args, model_package_arn, execution_role, config_name, ou_id):
     # Optional: Add validation of config parameters if needed
 
     # Add deployment-time parameters
-    config.append({"ParameterKey": "OrgUnitId", "ParameterValue": ou_id})
-    config.append({"ParameterKey": "ExecutionRoleName", "ParameterValue": execution_role})
-    config.append({"ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name})
-    config.append({"ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id})
-    config.append({"ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn})
-    config.append({"ParameterKey": "EnvName", "ParameterValue": args.env_name})
+    config.append({ "ParameterKey": "OrgUnitId", "ParameterValue": params["OUId"] })
+    config.append({ "ParameterKey": "ExecutionRoleName", "ParameterValue": params["ExecutionRoleName"] })
+    config.append({ "ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name, })
+    config.append({ "ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id })
+    config.append({ "ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn })
+    config.append({ "ParameterKey": "EnvName", "ParameterValue": args.env_name, })
 
-    logger.debug(f"Saving CodePipeline CFN template configuration file: {json.dumps(config, indent=2)}")
+    logger.info(f"Saving CodePipeline CFN template configuration file ({config_name}.json): {json.dumps(config, indent=2)}")
     with open(f"{config_name}.json", "w") as f:
         json.dump(config, f, indent=2)
 
@@ -95,7 +85,6 @@ if __name__ == "__main__":
     parser.add_argument("--sagemaker-execution-role-prod-name", type=str, required=True)
     parser.add_argument("--organizational-unit-staging-id", type=str, required=True)
     parser.add_argument("--organizational-unit-prod-id", type=str, required=True)
-
     parser.add_argument("--env-name", type=str, required=True)
     args, _ = parser.parse_known_args()
 
@@ -107,7 +96,14 @@ if __name__ == "__main__":
     model_package_arn = get_approved_package(args.model_package_group_name)
 
     # Write the staging and prod template configuration files for CodePipeline
-    for k, v in {args.sagemaker_execution_role_staging_name:{"ConfigName":args.staging_config_name, "OUId":args.organizational_unit_staging_id}, 
-                 args.sagemaker_execution_role_prod_name:{"ConfigName":args.prod_config_name, "OUId":args.organizational_unit_prod_id}
+    for k, v in {
+                args.staging_config_name:{
+                    "ExecutionRoleName":args.sagemaker_execution_role_staging_name, 
+                    "OUId":args.organizational_unit_staging_id
+                    }, 
+                 args.prod_config_name:{
+                    "ExecutionRoleName":args.sagemaker_execution_role_prod_name, 
+                    "OUId":args.organizational_unit_prod_id
+                    }
                  }.items():
-        prepare_config(args, model_package_arn, k, v["ConfigName"], v["OUId"])
+        prepare_config(args, model_package_arn, k, v)

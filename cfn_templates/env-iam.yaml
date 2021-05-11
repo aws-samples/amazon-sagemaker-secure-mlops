@@ -79,7 +79,11 @@ Outputs:
   SetupLambdaExecutionRoleArn:
     Description: Lambda execution role for Data Science environment setup function
     Value: !GetAtt SetupLambdaExecutionRole.Arn
-      
+
+  StackSetAdministrationRoleArn:
+    Description: AWS CloudFormation StackSet administrator role ARN
+    Value: !GetAtt StackSetAdministrationRole.Arn
+    
   VPCFlowLogsRoleArn:
     Description: The ARN of the VPC Flow Logs role
     Value: !If [ VPCFlowLogsRoleCondition, !GetAtt VPCFlowLogsRole.Arn, '' ]
@@ -605,4 +609,27 @@ Resources:
               - iam:PassRole
               - iam:GetRole
             Resource: !GetAtt SageMakerExecutionRole.Arn
+
+  StackSetAdministrationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AssumeRole-StackSetExecutionRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource:
+                  - "arn:*:iam::*:role/*StackSetExecutionRole*"
 

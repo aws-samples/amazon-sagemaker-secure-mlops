@@ -275,6 +275,7 @@ Resources:
                 Action: 's3:GetObject'
                 Resource:
                   - 'arn:aws:s3:::sagemaker-*'
+                  - 'arn:aws:s3:::sm-mlops-cp-*'
               - Effect: Allow
                 Action:
                   - 's3:CreateBucket'
@@ -288,7 +289,9 @@ Resources:
                   - 's3:PutBucketLogging'
                   - 's3:PutEncryptionConfiguration'
                   - 's3:PutBucketTagging'
-                Resource: 'arn:aws:s3:::sagemaker-*'
+                Resource: 
+                  - 'arn:aws:s3:::sagemaker-*'
+                  - 'arn:aws:s3:::sm-mlops-cp-*'
               - Action:
                   - 'sagemaker:CreateEndpoint'
                   - 'sagemaker:CreateEndpointConfig'
@@ -354,7 +357,7 @@ Resources:
                 Action:
                   - sts:AssumeRole
                 Resource:
-                  - 'arn:aws:iam::*:role/*SageMakerModelDeploymentRole*'
+                  - 'arn:aws:iam::*:role/*SageMakerModelExecution*'
                 Effect: Allow
               - 
                 Action:
@@ -554,6 +557,7 @@ Resources:
                 Resource:
                   - arn:aws:s3:::aws-glue-*
                   - arn:aws:s3:::sagemaker-*
+                  - 'arn:aws:s3:::sm-mlops-cp-*'
                   - 'arn:aws:s3:::*-data*'
                   - 'arn:aws:s3:::*-data*/*'
                   - 'arn:aws:s3:::*-models*'

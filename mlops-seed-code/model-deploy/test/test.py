@@ -63,10 +63,11 @@ if __name__ == "__main__":
 
     boto_sts=boto3.client('sts')
 
-    if config["OrgUnitId"]:
+    if config["OrgUnitId"]: 
+        # Multi-account deployment to all accounts in the OU
         account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=config["OrgUnitId"])['Accounts']]
     else:
-        # using the caller account if OU id is not specified
+        # using the caller account if OU id is not specified - single-account deployment
         accounts_ids = [boto_sts.get_caller_identity()["Account"]] 
 
     # Test the endpoint in each account of the target organizational unit

@@ -31,6 +31,13 @@ Metadata:
           - SageMakerModelExecutionRoleArn
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
+          - StackSetAdministratorRoleArn
+          - StackSetExecutionRoleName
+      - Label:
+          default: S3 Buckets (only needed if created outside of this stack)
+        Parameters:
+          - DataBucketName
+          - ModelBucketName
       - Label:
           default: Organizational Unit Ids for multi-account model deployment
         Parameters:
@@ -52,6 +59,7 @@ Metadata:
           - CreateSageMakerRuntimeVPCEndpoint
           - CreateSageMakerNotebookVPCEndpoint
           - CreateSTSVPCEndpoint
+          - CreateServiceCatalogVPCEndpoint
           - CreateCodeCommitVPCEndpoint
           - CreateCodeCommitAPIVPCEndpoint
           - CreateCodePipelineVPCEndpoint
@@ -95,6 +103,10 @@ Metadata:
         default: Environment stage name (dev, test, prod)
       StartKernelGatewayApps:
         default: Select YES to start the Data Science and Data Wrangler kernels on KernelGateway
+      DataBucketName:
+        default: Existing S3 bucket name to store ML data (only if created outside of this stack)
+      ModelBucketName:
+        default: Existing S3 bucket name to store ML models (only if created outside of this stack)
       CreateEnvironmentIAMRoles:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
@@ -115,6 +127,8 @@ Metadata:
         default: Create SageMaker Notebook VPC endpoint
       CreateSTSVPCEndpoint:
         default: Create STS VPC endpoint
+      CreateServiceCatalogVPCEndpoint:
+        default: Create Service Catalog endpoint
       CreateCodeCommitVPCEndpoint:
         default: Create CodeCommit VPC endpoint
       CreateCodeCommitAPIVPCEndpoint:
@@ -143,6 +157,10 @@ Metadata:
         default: SageMaker pipeline execution role ARN
       SageMakerModelExecutionRoleArn:
         default: SageMaker model endpoint execution role ARN
+      StackSetAdministratorRoleArn:
+        default: CloudFormation StackSet administrator role ARN
+      StackSetExecutionRoleName:
+        default: CloudFormation StackSet execution role name
       SetupLambdaExecutionRoleArn:
         default: Execution role ARN for Lambda function for setup script
       SCProjectLaunchRoleArn:
@@ -245,6 +263,16 @@ Parameters:
       - 'NO'
     Default: 'NO'
 
+  DataBucketName:
+    Description: S3 bucket name to store data (only if created outside of this stack)
+    Type: String
+    Default: ''
+
+  ModelBucketName:
+    Description: S3 bucket name to store models (only if created outside of this stack)
+    Type: String
+    Default: ''
+
   CreateEnvironmentIAMRoles:
     Description: If YES, all IAM Roles for Data Science environment will be automatically provisioned. If NO, you have to provide the IAM roles
     Type: String
@@ -325,6 +353,14 @@ Parameters:
       - 'NO'
     Default: 'YES'
 
+  CreateServiceCatalogVPCEndpoint:
+    Description: Set to NO to disable creation of an Service Catalog VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    
   CreateCodeCommitVPCEndpoint:
     Description: Set to NO to disable creation of a CodeCommit VPC endpoint
     Type: String
@@ -421,6 +457,16 @@ Parameters:
     Description: The ARN of the SageMaker model endpoint execution role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
+
+  StackSetAdministratorRoleArn:
+    Description: The ARN of the CloudFormation StackSet administrator role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: ''
+
+  StackSetExecutionRoleName:
+    Description: The name of the CloudFormation StackSet execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Type: String
+    Default: 'AWSCloudFormationStackSetExecutionRole'
 
   SetupLambdaExecutionRoleArn:
     Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup
@@ -640,6 +686,8 @@ Rules:
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerPipelineExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerModelExecutionRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref StackSetAdministratorRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref StackSetExecutionRoleName, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
         AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
@@ -680,9 +728,11 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
   
-  # This role is used to run a model endpoint and to test the model in SageMaker MLOps CI/CD pipeline
-  # Assumed by AmazonSageMakerServiceCatalogProductsUseRole
-  SageMakerModelExecutionRole:
+  # IAM Roles which should be deployed into the target account
+  # Needed for StackSet operations and multi-account model deployment
+  # This stack deploys these roles to the current account to enable a trivial single-account model deployment
+  # Single-account model deployment is still uses StackSet operations and a separate model execution role
+  EnvironmentTargetAccountRoles:
     Type: AWS::CloudFormation::Stack
     Condition: IAMRolesCondition
     Properties:
@@ -690,7 +740,8 @@ Resources:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         PipelineExecutionRoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
-      TemplateURL: env-iam-sm-model-execution-role.yaml
+        AdministratorAccountId: !Ref AWS::AccountId
+      TemplateURL: env-iam-target-account-roles.yaml
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName
@@ -752,6 +803,7 @@ Resources:
         CreateSageMakerRuntimeVPCEndpoint: !Ref CreateSageMakerRuntimeVPCEndpoint
         CreateSageMakerNotebookVPCEndpoint: !Ref CreateSageMakerNotebookVPCEndpoint
         CreateSTSVPCEndpoint: !Ref CreateSTSVPCEndpoint
+        CreateServiceCatalogVPCEndpoint: !Ref CreateServiceCatalogVPCEndpoint
         CreateCodeCommitVPCEndpoint: !Ref CreateCodeCommitVPCEndpoint
         CreateCodeCommitAPIVPCEndpoint: !Ref CreateCodeCommitAPIVPCEndpoint
         CreateCodePipelineVPCEndpoint: !Ref CreateCodePipelineVPCEndpoint
@@ -778,8 +830,14 @@ Resources:
           - SharedServicesPyPiMirrorCondition
           - !ImportValue 'ds-pypimirror-shared-service-endpoint-name'
           - !Ref 'AWS::NoValue'
-        DataBucketName: !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
-        ModelBucketName: !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+        DataBucketName: !If 
+          - S3BucketsConditions
+          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+          - !Ref DataBucketName
+        ModelBucketName: !If 
+          - S3BucketsConditions
+          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+          - !Ref ModelBucketName
       TemplateURL: env-vpc-endpoints.yaml
       Tags:
         - Key: EnvironmentName
@@ -1008,6 +1066,7 @@ Resources:
 
   OrganizationalUnitStagingIdSSM:
     Type: 'AWS::SSM::Parameter'
+    Condition: MultiAccountDeploymentCondition
     Properties:
       Name: !Sub '${EnvName}-${EnvType}-ou-staging-id'
       Type: String
@@ -1016,6 +1075,7 @@ Resources:
 
   OrganizationalUnitProdIdSSM:
     Type: 'AWS::SSM::Parameter'
+    Condition: MultiAccountDeploymentCondition
     Properties:
       Name: !Sub '${EnvName}-${EnvType}-ou-prod-id'
       Type: String
@@ -1040,12 +1100,44 @@ Resources:
       Type: String
       Value: !If
           - IAMRolesCondition
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt SageMakerModelExecutionRole.Outputs.SageMakerModelExecutionRoleArn ]]]]
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleArn ]]]]
           - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref SageMakerModelExecutionRoleArn ]]]]
-
       Description: !Sub 'SageMaker model execution role for ${EnvName}-${EnvType} data science environment'
 
+  StackSetAdminstratorRoleSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-stackset-administrator-role-arn"
+      Type: String
+      Value: !If
+          - IAMRolesCondition
+          - EnvironmentIAMRoles.Outputs.StackSetAdministratorRoleArn
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref StackSetAdministratorRoleArn ]]]]
+      Description: !Sub 'CloudFormation StackSet administrator role for ${EnvName}-${EnvType} data science environment'
 
+  StackSetExecutionRoleSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-stackset-execution-role-name"
+      Type: String
+      Value: !If
+          - IAMRolesCondition
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleArn ]]]]
+          - !Ref StackSetExecutionRoleName
+      Description: !Sub 'CloudFormation StackSet execution role for ${EnvName}-${EnvType} data science environment'
+  
+  ModelBucketSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-model-bucket-name"
+      Type: String
+      Value: !GetAtt EnvironmentVPCEndpoints.Outputs.ModelBucketName
+      Description: !Sub 'Amazon S3 bucket to store models for ${EnvName}-${EnvType} data science environment'
 
-
-      
+  DataBucketSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-data-bucket-name"
+      Type: String
+      Value: !GetAtt EnvironmentVPCEndpoints.Outputs.DataBucketName
+      Description: !Sub 'Amazon S3 bucket to store data for ${EnvName}-${EnvType} data science environment'

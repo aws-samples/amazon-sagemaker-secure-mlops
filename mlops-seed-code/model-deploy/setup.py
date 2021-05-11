@@ -34,7 +34,7 @@ if __name__ == "__main__":
     try:
         # check if the model package group exists
         model_package_group_arn = sm_client.describe_model_package_group(
-            ModelPackageGroupName=args.sagemaker_project_name
+            ModelPackageGroupName=args.model_package_group_name
             )['ModelPackageGroupArn']
 
     except ClientError as e:
@@ -59,9 +59,10 @@ if __name__ == "__main__":
 
     if staging_ou_id and prod_ou_id:
 
+        logger.info(f"Staging OU: {staging_ou_id} and Production OU: {prod_ou_id} are provided. Setting up the permissions...")
         # finally, we need to update the model package group policy
         # Get the account principals based on staging and prod ids
-        principals = ['arn:aws:iam::%s:root' % acc for acc in
+        principals = [f"arn:aws:iam::{acc}:root" for acc in
                 [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=staging_ou_id)['Accounts']] +
                 [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=prod_ou_id)['Accounts']]]
 
@@ -88,5 +89,7 @@ if __name__ == "__main__":
                 }]
             })
         )
+    else:
+        logger.info(f"Stating OU and Production OU are not provided. Single-account model deployment.")
             
     

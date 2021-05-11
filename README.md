@@ -157,10 +157,10 @@ The following IAM execution roles will be provisioned in the development account
   + `SCLaunchRole`: for AWS Service Catalog to deploy the whole SageMaker environment
   + `SageMakerExecutionRole`: execution role for the SageMaker workloads and Studio
   + `SageMakerPipelineExecutionRole`: execution role for SageMaker pipelines
+  + `SageMakerModelExecutionRole`: execution role for SageMaker model endpoint, will be created in each of dev, stating and production accounts
   + `SCProjectLaunchRole`: for AWS Service Catalog to deploy project-specific products (such as SageMaker Notebooks)
   + `AmazonSageMakerServiceCatalogProductsUseRole`: for SageMaker CI/CD execution (CodeBuild and CodePipeline)
   + `AmazonSageMakerServiceCatalogProductsLaunchRole`: for SageMaker MLOps project templates deployments
-  + `SageMakerModelDeploymentRole`: deployment role for SageMaker Model endpoints
   + `VPCFlowLogsRole`: optional role for VPC Flow Logs to write logs into a CloudWatch log group
 
 ## AWS Organizations setup for multi-account ML model deployment
@@ -400,12 +400,13 @@ Multi-account model deployment uses the AWS Organizations setup to deploy model 
               * `222222222222` (data science staging AWS account)
           * production (OU)
               * `333333333333` (data science production AWS account)
-+ [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoings) in the staging and production accounts
-+ SageMaker execution role for model deployment into the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science account to deploy the endpoints in the target accounts and test them. To deploy the execution roles, use the `env-iam-sm-model-execution-role.yaml` CloudFormation template. Run the deployment in the staging and production accounts:
+
++ [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoints) in all staging and production accounts which belongs to the staging and production OUs.
++ SageMaker execution role for model endpoint into the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the dev data science account to test the endpoints in the target accounts. The model execution role is deployed to the target accounts automatically if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you must deploy the model execution role to all accounts in staging and production OUs. You can deploy the `env-iam-target-account-roles.yaml` CloudFormation template into the staging and production accounts:
 ```bash
 aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-model-execution-role.yaml \
-                --stack-name env-iam-sm-model-execution-role \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
+                --stack-name env-iam-target-account-roles \
                 --capabilities CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
                 EnvName=$ENV_NAME \
@@ -579,7 +580,7 @@ See [Appendix B](README.md#AppendixB)
 The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of a single AWS account. The following limitations and considerations apply:
 
 + The **shared IAM roles** (`DSAdministratorRole`, `SageMakerDetectiveControlExecutionRole`, `SCLaunchRole`) are created each time you deploy a new core infrastructure (`core-main`) or "quickstart" (`data-science-environment-quickstart`) stack. They created with `<StackName>-<RegionName>` prefix and designed to be unique within your end-to-end data science environment. For example, if you deploy one stack set (including core infrastructure and team data science environment) in one region and another stack in another region, these two stacks will not share any IAM roles and any users assuming any persona roles will have an independent set of permissions per stack set.
-+ The **environment IAM roles** (`DSTeamAdministratorRole`, `DataScientistRole`, `SageMakerExecutionRole`, `SageMakerPipelineExecutionRole`, `SCProjectLaunchRole`, `SageMakerModelDeploymentRole`) are created with unique names. Each deployment of a new data science environment (via CloudFormation or via AWS Service Catalog) creates a set of unique roles.
++ The **environment IAM roles** (`DSTeamAdministratorRole`, `DataScientistRole`, `SageMakerExecutionRole`, `SageMakerPipelineExecutionRole`, `SCProjectLaunchRole`, `SageMakerModelExecutionRole`) are created with unique names. Each deployment of a new data science environment (via CloudFormation or via AWS Service Catalog) creates a set of unique roles.
 + SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles.
 
 ## Clean-up considerations
@@ -827,6 +828,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [R13]: [Enable feature reuse across accounts and teams using Amazon SageMaker Feature Store](https://aws.amazon.com/blogs/machine-learning/enable-feature-reuse-across-accounts-and-teams-using-amazon-sagemaker-feature-store/)
 - [R14]: [How Genworth built a serverless ML pipeline on AWS using Amazon SageMaker and AWS Glue](https://aws.amazon.com/blogs/machine-learning/how-genworth-built-a-serverless-ml-pipeline-on-aws-using-amazon-sagemaker-and-aws-glue/)
 
+
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
 - [SOL2]: [Amazon SageMaker with Guardrails on AWS](https://aws.amazon.com/quickstart/architecture/amazon-sagemaker-with-guardrails/)
@@ -846,6 +848,8 @@ Second, do the steps from **Clean-up considerations** section.
 - [S12]: [PySparkProcessor - Unable to locate credentials for boto3 call in AppMaster](https://github.com/aws/amazon-sagemaker-examples/issues/1689)
 - [S13]: [Private package installation in Amazon SageMaker running in internet-free mode](https://aws.amazon.com/blogs/machine-learning/private-package-installation-in-amazon-sagemaker-running-in-internet-free-mode/)
 - [S14]: [Securing Amazon SageMaker Studio internet traffic using AWS Network Firewall](https://aws.amazon.com/blogs/machine-learning/securing-amazon-sagemaker-studio-internet-traffic-using-aws-network-firewall/)
+- [S15]: [Secure Your SageMaker Studio Access Using AWS PrivateLink and AWS IAM SourceIP Restrictions](https://aws.amazon.com/about-aws/whats-new/2020/12/secure-sagemaker-studio-access-using-aws-privatelink-aws-iam-sourceip-restrictions/)
+- [S16]: [Model Risk Management by Deloitte](https://www2.deloitte.com/content/dam/Deloitte/fr/Documents/risk/deloitte_model-risk-management_plaquette.pdf)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
@@ -945,8 +949,8 @@ aws cloudformation deploy \
 Deploy SageMaker model deployment roles in development, staging, and production AWS accounts:
 ```bash
 aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/env-iam-sm-model-execution-role.yaml \
-    --stack-name env-iam-sm-model-execution-role \
+    --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
+    --stack-name env-iam-target-account-roles \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
     EnvName=$ENV_NAME \
@@ -1046,7 +1050,7 @@ aws cloudformation create-stack \
 ```bash
 aws cloudformation delete-stack --stack-name ds-team-env
 aws cloudformation delete-stack --stack-name ds-team-core
-aws cloudformation delete-stack --stack-name env-iam-sm-model-execution-role
+aws cloudformation delete-stack --stack-name env-iam-target-account-roles
 aws cloudformation delete-stack --stack-name env-iam-roles
 aws cloudformation delete-stack --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name ds-team-vpc

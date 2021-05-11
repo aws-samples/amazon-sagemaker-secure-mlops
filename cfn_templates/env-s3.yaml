@@ -88,7 +88,7 @@ Resources:
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
-
+ 
   DataBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
@@ -110,7 +110,7 @@ Resources:
                 'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
               Bool:
                 'aws:ViaAWSService': 'false' #Exception for SageMaker execution role (for RegisterModel step)
-                
+
   ModelBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
@@ -133,20 +133,3 @@ Resources:
                 'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
               Bool:
                 'aws:ViaAWSService': 'false' #Exception for - #### Check if this exception is needed ####
-
-  # SSM parameters
-  ModelBucketSSM:
-    Type: 'AWS::SSM::Parameter'
-    Properties:
-      Name: !Sub "${EnvName}-${EnvType}-model-bucket-name"
-      Type: String
-      Value: !Ref ModelBucketName
-      Description: !Sub 'Amazon S3 bucket to store models for ${EnvName}-${EnvType} data science environment'
-
-  DataBucketSSM:
-    Type: 'AWS::SSM::Parameter'
-    Properties:
-      Name: !Sub "${EnvName}-${EnvType}-data-bucket-name"
-      Type: String
-      Value: !Ref DataBucketName
-      Description: !Sub 'Amazon S3 bucket to store data for ${EnvName}-${EnvType} data science environment'
