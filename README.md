@@ -383,11 +383,12 @@ This project provisions the following resources as part of MLOps pipeline:
 ![multi-account deployment](design/ml-ops-model-deploy.drawio.svg)
 
 This MLOps project consists of the following parts:
-1. The MLOps projec template deployable through SageMaker project in Studio
+1. The MLOps project template deployable through SageMaker project in Studio
 2. AWS CodeCommit repository with seed code 
 3. Model deployment multi-stage CodePipeline pipeline
 4. Staging AWS account
 5. Production AWS account
+6. SageMaker endpoints with the given model [hosted in your private VPC](https://docs.aws.amazon.com/sagemaker/latest/dg/host-vpc.html)
 
 ### Multi-account model deployment pre-requisites
 Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and production organizational units (OUs). For a proper functioning of the **multi-account** deployment solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail.
@@ -443,7 +444,7 @@ Each of the delivered MLOps projects contains a seed code which is deployed as p
 
 The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating or for multi-project model deployment. Please see `README.md` for each of the available projects.
 
-If you would like to develop the seed code and update the MLOps project templates with new version of the code, please refer to the [Appendix G](README.md#AppendixG)
+If you would like to develop the seed code and update the MLOps project templates with new version of the code, please refer to the [Appendix G](#appendix-g)
 
 ## Clean up 
 To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
@@ -511,7 +512,7 @@ This special type of deployment is designed for an environment, where all **IAM-
 The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack in your own process.
 You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
 
-See [Appendix B](README.md#AppendixB)
+See [Appendix B](#appendix-b)
 
 ## Multi-region deployment considerations
 The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of a single AWS account. The following limitations and considerations apply:
@@ -813,9 +814,9 @@ Second, do the steps from **Clean-up considerations** section.
 - [MLflow and PyTorch — Where Cutting Edge AI meets MLOps](https://medium.com/pytorch/mlflow-and-pytorch-where-cutting-edge-ai-meets-mlops-1985cf8aa789)
 - [5 Lessons Learned Building an Open Source MLOps Platform](https://towardsdatascience.com/5-lessons-learned-building-an-open-source-mlops-platform-624574a44c09)
 
-# AppendixA
+## Appendix A
 
-# AppendixB
+## Appendix B
 
 ## Deployment into an existing VPC and with pre-provisioned IAM resources
 This deployment option is a special case where the solution is deployed into an AWS account with an existing VPC, network resources and pre-provisioned IAM roles.
@@ -993,7 +994,7 @@ aws cloudformation delete-stack --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name ds-team-vpc
 ```
 
-# AppendixC
+# Appendix C
 
 ## Solution CI/CD pipelines
 The solution is tested end-to-end for all possible depoyment options using [AWS CodePipeline](https://aws.amazon.com/codepipeline/) and AWS developer tools.
@@ -1029,7 +1030,7 @@ aws cloudformation deploy \
     NotificationArn=
 ```
 
-# AppendixD
+# Appendix D
 
 ## Terraform considerations
 
@@ -1040,7 +1041,7 @@ aws cloudformation deploy \
 
 > You can leverage the [AWS Service Catalog Terraform Reference Architecture](https://d1.awsstatic.com/whitepapers/DevOps/TerraformReferenceArchitecture-instructions.pdf). This reference architecture provides an example for using AWS Service Catalog products, an AWS CloudFormation custom resource, and Terraform to provision resources on AWS.
 
-# AppendixE
+# Appendix E
 
 How to get an IAM snapshot from the account:
 ```
@@ -1077,7 +1078,7 @@ def enable_projects(studio_role_arn):
     )
 ```
 
-# AppendixF
+# Appendix F
 
 # Alternative architectural options for MLOps
 The following architectural options for implementing MLOps pipeline are available:
@@ -1088,7 +1089,7 @@ The following architectural options for implementing MLOps pipeline are availabl
 + [SageMaker Operators for Kubernetes](https://aws.amazon.com/blogs/machine-learning/introducing-amazon-sagemaker-operators-for-kubernetes/)
 
 
-# AppendixG
+# Appendix G
 
 # Develop and deploy seed code
 You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code **in form of the project template**, please follow the steps:

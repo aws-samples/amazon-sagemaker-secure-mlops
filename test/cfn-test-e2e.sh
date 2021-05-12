@@ -68,10 +68,10 @@ pipenv shell
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test42" "test43")
-MLOPS_PROJECT_ID_LIST=("p-he10tojepvsm" "p-rygwtspxn6yy")
-SM_DOMAIN_ID="d-vduglhpqpacm"
-STACKSET_NAME="sagemaker-test43-p-rygwtspxn6yy-deploy-staging"
+MLOPS_PROJECT_NAME_LIST=("test44" "test45")
+MLOPS_PROJECT_ID_LIST=("p-8lej8ex8m86a" "p-en0lxuabs0l3")
+SM_DOMAIN_ID="d-znpimqlwvch6"
+STACKSET_NAME="sagemaker-test45-p-en0lxuabs0l3-deploy-staging"
 ACCOUNT_IDS="949335012047"
 
 echo "Delete stack instances"

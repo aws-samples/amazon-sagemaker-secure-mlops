@@ -462,7 +462,8 @@ Resources:
               "arn:aws:s3:::*sagemaker*",
               "arn:aws:s3:::*SageMaker*",
               "arn:aws:s3:::*Sagemaker*",
-              "arn:aws:s3:::*aws-glue*"
+              "arn:aws:s3:::*aws-glue*",
+              "arn:aws:s3:::sm-mlops-cp-*"
               ]
           },
           {

@@ -14,6 +14,8 @@ def invoke_endpoint(endpoint_name, sm_client):
     """
     Add custom logic here to invoke the endpoint and validate reponse
     """
+    logger.info(f"invoking the endpoint {endpoint_name}")
+
     return {"EndpointName": endpoint_name, "Success": True}
 
 
@@ -36,6 +38,8 @@ def test_endpoint(endpoint_name, sm_client):
         response = sm_client.describe_endpoint_config(EndpointConfigName=endpoint_config_name)
         if "DataCaptureConfig" in response and response["DataCaptureConfig"]["EnableCapture"]:
             logger.info(f"data capture enabled for endpoint config {endpoint_config_name}")
+        else:
+            logger.info(f"data capture is not enabled for the endpoint config {endpoint_config_name}")
 
         # Do tests
         return invoke_endpoint(endpoint_name, sm_client)
@@ -57,22 +61,23 @@ if __name__ == "__main__":
     log_format = "%(levelname)s: [%(filename)s:%(lineno)s] %(message)s"
     logging.basicConfig(format=log_format, level=args.log_level)
 
-    # Load the build config
+    # Load the CFN template configuration file with stage parameters
     with open(args.build_config, "r") as f:
         config = {param['ParameterKey']:param['ParameterValue'] for param in json.load(f)}
 
     boto_sts=boto3.client('sts')
 
+    # using the caller account if OU id is not specified - single-account deployment
+    account_ids = [boto_sts.get_caller_identity()["Account"]]
     if config["OrgUnitId"]: 
         # Multi-account deployment to all accounts in the OU
-        account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=config["OrgUnitId"])['Accounts']]
-    else:
-        # using the caller account if OU id is not specified - single-account deployment
-        accounts_ids = [boto_sts.get_caller_identity()["Account"]] 
-
+        logger.info(f"Multi-account deployment enabled. Test endpoint for the accounts in {config['OrgUnitId']}")
+        account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=config["OrgUnitId"])['Accounts']]        
+         
     # Test the endpoint in each account of the target organizational unit
     for account_id in account_ids:
         # Request to assume the specified role in the target account
+        logger.info(f"Assuming the model execution role {config['ExecutionRoleName']} in {account_id}")
         stsresponse = boto_sts.assume_role(
             RoleArn=f"arn:aws:iam::{account_id}:role/{config['ExecutionRoleName']}",
             RoleSessionName='newsession'
@@ -95,6 +100,6 @@ if __name__ == "__main__":
         }
 
         # Output results and save to the file
-        logger.debug(json.dumps(results, indent=2))
+        logger.info(json.dumps(results, indent=2))
         with open(args.test_results_output, "a") as f:
             json.dump(results, f, indent=2)

@@ -79,8 +79,16 @@ Resources:
                 -
                   Effect: "Allow"
                   Action:
+                    - "ec2:DescribeVpcEndpoints"
+                    - "ec2:DescribeDhcpOptions"
+                    - "ec2:DescribeVpcs"
                     - "ec2:DescribeSubnets"
                     - "ec2:DescribeSecurityGroups"
+                    - "ec2:DescribeNetworkInterfaces"
+                    - "ec2:DeleteNetworkInterfacePermission"
+                    - "ec2:DeleteNetworkInterface"
+                    - "ec2:CreateNetworkInterfacePermission"
+                    - "ec2:CreateNetworkInterface"
                   Resource: "*"
         Tags:
           - Key: EnvironmentName
@@ -114,10 +122,18 @@ Resources:
                   - "cloudformation:*"
                   - "s3:*"
                   - "sns:*"
+                Resource: "*"
+              -
+                Effect: "Allow"
+                Action:
                   - "sagemaker:*Model"
                   - "sagemaker:*EndpointConfig"
                   - "sagemaker:*Endpoint"
-                Resource: "*"
+                  - "sagemaker:AddTags"
+                Resource:
+                  - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint/*"
+                  - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint-config/*"
+                  - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:model/*"
               - 
                 Effect: 'Allow'
                 Action:
