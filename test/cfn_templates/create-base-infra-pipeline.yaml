@@ -684,22 +684,22 @@ Resources:
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
-                  - Name: IAMOut
+                  - Name: I
                 Configuration:
                   ActionMode: 'REPLACE_ON_FAILURE'
                   StackName: 'base-env-iam-roles'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::env-iam.yaml'
-                  OutputFileName: 'iam-out.json'
-                  TemplateConfiguration: 'BuildArtifact::env-iam.json'
+                  OutputFileName: 'i.json'
+                  TemplateConfiguration: 'BuildArtifact::env-i.json'
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}"
                   }'
                 RunOrder: 1
 
               # Action 4
-              - Name: EnvironmentIAMCrossAccountRoles
+              - Name: EnvironmentIAMTargetAccountRoles
                 ActionTypeId:
                   Category: Deploy
                   Owner: AWS
@@ -709,14 +709,14 @@ Resources:
                 InputArtifacts:
                   - Name: BuildArtifact
                 OutputArtifacts:
-                  - Name: EnvIAMModelDeploymentRoleOutput
+                  - Name: TA
                 Configuration:
                   ActionMode: 'REPLACE_ON_FAILURE'
                   StackName: 'base-env-iam-target-account-roles'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::env-iam-target-account-roles.yaml'
-                  OutputFileName: 'env-iam-target-account-roles-output.json'
+                  OutputFileName: 'ta.json'
                   TemplateConfiguration: 'BuildArtifact::env-iam-target-account-roles.json'
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}",
@@ -734,7 +734,8 @@ Resources:
                 Region: !Ref AWS::Region
                 InputArtifacts:
                   - Name: BuildArtifact
-                  - Name: IAMOut
+                  - Name: I
+                  - Name: TA
                   - Name: VPCOut
                 OutputArtifacts:
                   - Name: BaseVPCTestPipelineOutput
@@ -746,15 +747,8 @@ Resources:
                   TemplatePath: 'BuildArtifact::test-base-vpc-pipeline.yaml'
                   OutputFileName: 'test-base-vpc-pipeline-output.json'
                   TemplateConfiguration: 'BuildArtifact::test-base-vpc-pipeline.json'
-                  ParameterOverrides: !Sub '{
-                      "TestVPCRegion":"${AWS::Region}",
-                      "DSTeamAdministratorRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DSTeamAdministratorRoleArn"]},
-                      "DataScientistRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "DataScientistRoleArn"]}, 
-                      "SageMakerExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerExecutionRoleArn"]},"SageMakerPipelineExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SageMakerPipelineExecutionRoleArn"]},
-                      "SetupLambdaExecutionRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SetupLambdaExecutionRoleArn"]},
-                      "SCProjectLaunchRoleArn":{ "Fn::GetParam":["IAMOut", "iam-out.json", "SCProjectLaunchRoleArn"]},
-                      "VPCId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "VPCID"]},"S3VPCEndpointId":{ "Fn::GetParam":["VPCOut", "vpc-output.json", "S3VPCEndpoint"]}
-                    }'
+                  # There is a maximum size limit of 1024 for the JSON object that can be stored in the ParameterOverrides
+                  ParameterOverrides: !Sub '{"TestVPCRegion":"${AWS::Region}","DSTeamAdministratorRoleArn":{"Fn::GetParam":["I","i.json","DSTeamAdministratorRoleArn"]},"DataScientistRoleArn":{"Fn::GetParam":["I","i.json","DataScientistRoleArn"]},"SageMakerExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerExecutionRoleArn"]},"SageMakerPipelineExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerPipelineExecutionRoleArn"]},"SageMakerModelExecutionRoleArn":{"Fn::GetParam":["TA","ta.json","SageMakerModelExecutionRoleArn"]},"StackSetExecutionRoleArn":{"Fn::GetParam":["TA","ta.json","StackSetExecutionRoleArn"]},"StackSetAdministrationRoleArn":{"Fn::GetParam":["I","i.json","StackSetAdministrationRoleArn"]},"SetupLambdaExecutionRoleArn":{"Fn::GetParam":["I","i.json","SetupLambdaExecutionRoleArn"]},"SCProjectLaunchRoleArn":{"Fn::GetParam":["I","i.json", "SCProjectLaunchRoleArn"]},"VPCId":{"Fn::GetParam":["VPCOut","vpc-output.json","VPCID"]},"S3VPCEndpointId":{"Fn::GetParam":["VPCOut","vpc-output.json","S3VPCEndpoint"]}}'
                 RunOrder: 2
 
               # Action 6
@@ -785,7 +779,7 @@ Resources:
                 RunOrder: 4
 
               # Action 8
-              - Name: DeleteEnvironmentIAMCrossAccountRoles
+              - Name: DeleteEnvironmentIAMTargetAccountRoles
                 ActionTypeId:
                   Category: Deploy
                   Owner: AWS

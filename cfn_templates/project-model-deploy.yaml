@@ -30,7 +30,7 @@ Parameters:
     AllowedValues:
       - 'YES'
       - 'NO'
-    Default: 'YES'
+    Default: 'NO'
 
 Conditions:
   MLOpsArtifactBucketCondition: !Equals [ 'true', 'true' ]

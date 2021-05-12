@@ -65,8 +65,22 @@ Parameters:
     Type: String
 
   SageMakerPipelineExecutionRoleArn:
-    Description: The ARN of the SageMaker Pipeline Execution role - must be created outside the stack. 
+    Description: The ARN of the SageMaker Pipeline Execution role 
     Type: String
+
+  SageMakerModelExecutionRoleArn:
+    Description: The ARN of the SageMaker model endpoint execution role - must be created outside the stack. 
+    Type: String
+
+  StackSetAdministrationRoleArn:
+    Description: The ARN of the CloudFormation StackSet administrator role - must be created outside the stack. 
+    Type: String
+    Default: ''
+
+  StackSetExecutionRoleName:
+    Description: The name of the CloudFormation StackSet execution role - must be created outside the stack. 
+    Type: String
+    Default: ''
 
   SetupLambdaExecutionRoleArn:
     Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup - must be created outside of the stack
@@ -188,6 +202,9 @@ Resources:
                   "DataScientistRoleArn":"${DataScientistRoleArn}",
                   "SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}",
                   "SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}",
+                  "SageMakerModelExecutionRoleArn":"${SageMakerModelExecutionRoleArn}",
+                  "StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}",
+                  "StackSetExecutionRoleName":"${StackSetExecutionRoleName}",
                   "SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}",
                   "SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}",
                   "AvailabilityZones":"${TestVPCRegion}a,${TestVPCRegion}b",

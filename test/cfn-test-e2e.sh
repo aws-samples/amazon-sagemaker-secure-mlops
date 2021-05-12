@@ -33,7 +33,6 @@ aws cloudformation create-stack \
 # env-main.yaml
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
-AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
@@ -44,8 +43,8 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
-        ParameterKey=AvailabilityZones,ParameterValue=$AVAILABILITY_ZONES \
-        ParameterKey=NumberOfAZs,ParameterValue=1 \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=NumberOfAZs,ParameterValue=2 \
         ParameterKey=StartKernelGatewayApps,ParameterValue=YES
 
 
@@ -65,14 +64,15 @@ aws cloudformation describe-stacks \
 
 pipenv shell
 
+# Set variables of the environment
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
 MLOPS_PROJECT_NAME_LIST=("test42" "test43")
-MLOPS_PROJECT_ID_LIST=("p-hapgh1bfp9rq" "p-hapgh1bfp9rq")
-SM_DOMAIN_ID="d-l2fvyqt2aysl"
-STACKSET_NAME=""
-ACCOUNT_IDS=""
+MLOPS_PROJECT_ID_LIST=("p-he10tojepvsm" "p-rygwtspxn6yy")
+SM_DOMAIN_ID="d-vduglhpqpacm"
+STACKSET_NAME="sagemaker-test43-p-rygwtspxn6yy-deploy-staging"
+ACCOUNT_IDS="949335012047"
 
 echo "Delete stack instances"
 aws cloudformation delete-stack-instances \
@@ -81,6 +81,7 @@ aws cloudformation delete-stack-instances \
     --no-retain-stacks \
     --accounts $ACCOUNT_IDS
 
+echo "Delete StackSet $STACKSET_NAME"
 aws cloudformation delete-stack-set --stack-set-name $STACKSET_NAME
 
 echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
@@ -110,14 +111,24 @@ aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
 echo "Delete data science stack"
 aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 
-# wait till stack deletion
-# ...
+echo "Wait till $ENV_STACK_NAME stack delete completion"
+aws cloudformation wait stack-delete-complete --stack-name $ENV_STACK_NAME
 
 echo "Delete SageMaker EFS"
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
+echo "Full clean up of the Data Science environment is completed"
+
+# read -n 1 -s -r -p "Press any key to continue"
+
+# *************************************************************** #
+# --------- Stop here if you delete only DS environment --------- #
+# *************************************************************** #
 echo "Delete core stack"
 aws cloudformation delete-stack --stack-name $CORE_STACK_NAME
+
+echo "Wait till $CORE_STACK_NAME stack deletion"
+aws cloudformation wait stack-delete-complete --stack-name $CORE_STACK_NAME
 
 echo "Delete Service Catalog SageMaker Project roles"
 aws iam detach-role-policy \

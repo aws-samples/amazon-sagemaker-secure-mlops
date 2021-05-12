@@ -15,7 +15,7 @@ phases:
 
       # Setup the staging and production configuration files for CloufFormation template with the model endpoint
       - |
-        python build.py 
+        python build.py \
           --sagemaker-project-id "$SAGEMAKER_PROJECT_ID" --sagemaker-project-name "$SAGEMAKER_PROJECT_NAME" \
           --model-package-group-name "$SOURCE_MODEL_PACKAGE_GROUP_NAME" \
           --staging-config-name "$STAGING_CONFIG_NAME" --prod-config-name "$PROD_CONFIG_NAME" \

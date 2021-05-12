@@ -254,7 +254,7 @@ These products are available as SageMaker projects in SageMaker Studio and only 
 
 ![sm-mlops-projects](img/sm-mlops-projects.png)
 
-#### User profile for SageMaker Studio domain
+#### User profile for SageMaker Studio domain (_not implemented in this version_)
 Each provisioning of a Data Science environment product creates a SageMaker Studio domain with a _default user profile_. You can optionally manually (from AWS CLI or SageMaker console) create new user profiles:
 
 + Each user profile has its own dedicated compute resource with a slice of the shared EFS file system
@@ -262,7 +262,7 @@ Each provisioning of a Data Science environment product creates a SageMaker Stud
 
 ❗ There is a limit of one SageMaker domain per region per account and you can provision only one Data Science environment product per region per account.
 
-#### SageMaker notebook product
+#### SageMaker notebook product (_not implemented in this version_)
 This product is available for Data Scientist and Data Science Team Administrator roles. Each notebook is provisioned with pre-defined lifecycle configuration. The following considerations are applied to the notebook product:
 + Only some instance types are allowed to use in the notebook
 + Pre-defined notebook execution role is attached to the notebook
@@ -272,7 +272,7 @@ This product is available for Data Scientist and Data Science Team Administrator
 + Notebook is started in the SageMaker VPC, subnet, and security group
 
 ## MLOps pipelines
-Functional MLOps architecture based on SageMaker MLOps Project templates as described in [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) and [Multi-account model deployment with Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/multi-account-model-deployment-with-amazon-sagemaker-pipelines/) blog posts on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).  
+Functional MLOps architecture based on [SageMaker MLOps Project templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates.html) as described in [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) and [Multi-account model deployment with Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/multi-account-model-deployment-with-amazon-sagemaker-pipelines/) blog posts on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).  
 
 The following diagram shows the MLOps architecture which is implemented by this solution and delivered as MLOps SageMaker project templates:
 
@@ -384,13 +384,13 @@ This project provisions the following resources as part of MLOps pipeline:
 
 This MLOps project consists of the following parts:
 1. The MLOps projec template deployable through SageMaker project in Studio
-2. AWS CodeCommit repository with seed working code 
+2. AWS CodeCommit repository with seed code 
 3. Model deployment multi-stage CodePipeline pipeline
 4. Staging AWS account
 5. Production AWS account
 
 ### Multi-account model deployment pre-requisites
-Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and productio account. For a proper functioning of the solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail:
+Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and production organizational units (OUs). For a proper functioning of the **multi-account** deployment solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail.
 
 + Enabled AWS Organizations with the following OU structure:
   + Root
@@ -400,19 +400,33 @@ Multi-account model deployment uses the AWS Organizations setup to deploy model 
               * `222222222222` (data science staging AWS account)
           * production (OU)
               * `333333333333` (data science production AWS account)
-
 + [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoints) in all staging and production accounts which belongs to the staging and production OUs.
-+ SageMaker execution role for model endpoint into the **staging** and **production** account. These roles are assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the dev data science account to test the endpoints in the target accounts. The model execution role is deployed to the target accounts automatically if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you must deploy the model execution role to all accounts in staging and production OUs. You can deploy the `env-iam-target-account-roles.yaml` CloudFormation template into the staging and production accounts:
++ Execution roles `SageMakerModelExecutionRole` and `StackSetExecutionRole` must be deployed in all target accounts. Target accounts are all accounts which are member of the staging and production OUs. 
+These execution roles are deployed to the target accounts automatically during the provisioning of the data science enviroment if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you must deploy the execution roles to all accounts in staging and production OUs. You can deploy the `env-iam-target-account-roles.yaml` CloudFormation template into the staging and production accounts:
 ```bash
-aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
-                --stack-name env-iam-target-account-roles \
-                --capabilities CAPABILITY_NAMED_IAM \
-                --parameter-overrides \
-                EnvName=$ENV_NAME \
-                EnvType=dev \
-                PipelineExecutionRoleArn=arn:aws:iam::<DATA SCIENCE ACCOUNT ID>:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+  aws cloudformation deploy \
+                  --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
+                  --stack-name env-iam-target-account-roles \
+                  --capabilities CAPABILITY_NAMED_IAM \
+                  --parameter-overrides \
+                  EnvName=$ENV_NAME \
+                  EnvType=<ENIRONMENT STAGE> \
+                  PipelineExecutionRoleArn=arn:aws:iam::<DATA SCIENCE ACCOUNT ID>:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole \
+                  AdministratorAccountId=<DATA SCIENCE ACCOUNT ID>
 ```
+
+The model execution role in the staging and production accounts is assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science environment account to test the endpoints in the target accounts. 
+
+_Alternatively_ you can choose to use single-account deployment. In this case the ML model will be deployed in the data science account. You do not need to setup AWS Organizations and provide OU Ids as deployment variables.
+
+❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`.
+### Model deployment pre-requisites
+The following pre-requisites are common for both single- and multi-account deployment.
+
++ SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment will fail as it requires at least two AZs to deploy an endpoint
++ CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
+  - `StackSetAdministrationRole`: This role must exist in the data science account and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
+  - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production OUs. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts
 
 ## Provision a new MLOps project
 Sign in to the console with the data scientist account. On the SageMaker console, open SageMaker Studio with your user.
@@ -429,84 +443,7 @@ Each of the delivered MLOps projects contains a seed code which is deployed as p
 
 The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating or for multi-project model deployment. Please see `README.md` for each of the available projects.
 
-### Develop and deploy seed code
-You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code as part of the project template, please follow the steps:
-+ Update existing or create your own version of the seed code
-+ Zip all files that should go into a project CodeCommit repository into a single `.zip` file
-+ Upload this `.zip` file to an Amazon S3 bucket of your choice. You must specify this S3 bucket name when you create a new project in SageMaker Studio
-+ Set a special tag `servicecatalog:provisioning` on the uploaded file. This tag will enable access to the object by `AmazonSageMakerServiceCatalogProductsLaunchRole` IAM role: 
-  ```bash
-  aws s3api put-object-tagging \
-          --bucket <your Amazon S3 bucket name> \
-          --key <your project name>/seed-code/<zip-file name> \
-          --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
-  ```
-+ Update the `AWS::CodeCommit::Repository` resource in the CloudFormation template with the CI/CD pipeline for the corresponding MLOps project (`project-model-build-train.yaml` or `proejct-model-deploy.yaml`) with the new zip-file name.
-  
-  Model deploy project `proejct-model-deploy.yaml`:
-  ```yaml
-    ModelDeployCodeCommitRepository:
-      Type: AWS::CodeCommit::Repository
-      Properties:
-        # Max allowed length: 100 chars
-        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-deploy # max: 10+33+15+12=70
-        RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
-        Code:
-          S3:
-            Bucket: !Ref SeedCodeS3BucketName 
-            Key: <your project name>/seed-code/<zip-file name>
-          BranchName: main
-  ```
-
-  Model build, train, validate project `project-model-build-train.yaml`:
-  ```yaml
-    ModelBuildCodeCommitRepository:
-      Type: AWS::CodeCommit::Repository
-      Properties:
-        # Max allowed length: 100 chars
-        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
-        RepositoryDescription: !Sub SageMaker Model building infrastructure as code for the project ${SageMakerProjectName}
-        Code:
-          S3:
-            Bucket: !Ref SeedCodeS3BucketName 
-            Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
-          BranchName: main
-  ```
-+ Update the CloudFormation template file `env-sc-portfolio.yaml` with a new version of Service Catalog Product:
-  ```yaml
-    DataScienceMLOpsModelBuildTrainProduct:
-        Type: 'AWS::ServiceCatalog::CloudFormationProduct'
-        Properties:
-          Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train <NEW VERSION>'
-          Description: 'This template creates a CI/CD MLOps project which implements ML build-train-validate pipeline'
-          Owner: 'Data Science Administration Team'
-          ProvisioningArtifactParameters:
-            - Name: 'MLOps Model Build Train <NEW VERSION>'
-  ```
-+ Package and upload all changed CloudFormation template to the distribution S3 bucket
-+ Update Service Catalog CloudFormation stack with the updated templates:
-  - Package the CloudFormation templates and upload everything to the Amazon S3 bucket:
-  ```bash
-  S3_BUCKET_NAME=<YOUR S3 BUCKET NAME>
-  make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
-  ```
-  - Update the Service Catalog portfolio and product stack:
-  ```bash
-  STACK_NAME= # <generated EnvironmentSCPortfolio stack name>
-  PRINCIPAL_ROLE_ARN= # <SageMaker Execution Role ARN>
-  LAUNCH_ROLE_ARN= # <AmazonSageMakerServiceCatalogProductsLaunchRole ARN>
-
-  aws cloudformation update-stack \
-      --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml \
-      --region $AWS_DEFAULT_REGION \
-      --stack-name $STACK_NAME \
-      --parameters \
-          ParameterKey=EnvName,ParameterValue=sm-mlops \
-          ParameterKey=EnvType,ParameterValue=dev \
-          ParameterKey=SCMLOpsPortfolioPrincipalRoleArn,ParameterValue=$PRINCIPAL_ROLE_ARN \
-          ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
-  ```
-+ Restart the SageMaker Studio (close the browser window with Studio and open again via AWS console)
+If you would like to develop the seed code and update the MLOps project templates with new version of the code, please refer to the [Appendix G](README.md#AppendixG)
 
 ## Clean up 
 To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
@@ -1149,6 +1086,88 @@ The following architectural options for implementing MLOps pipeline are availabl
 + [Step Functions](https://aws-step-functions-data-science-sdk.readthedocs.io/en/latest/readmelink.html#getting-started-with-sample-jupyter-notebooks)
 + [Apache AirFlow](https://airflow.apache.org/), [SageMaker Operators for AirFlow](https://sagemaker.readthedocs.io/en/stable/using_workflow.html)
 + [SageMaker Operators for Kubernetes](https://aws.amazon.com/blogs/machine-learning/introducing-amazon-sagemaker-operators-for-kubernetes/)
+
+
+# AppendixG
+
+# Develop and deploy seed code
+You can develop and evolve the seed code for your own needs. To deliver the new version of the seed code **in form of the project template**, please follow the steps:
++ Update existing or create your own version of the seed code
++ Zip all files that should go into a project CodeCommit repository into a single `.zip` file
++ Upload this `.zip` file to an Amazon S3 bucket of your choice. You must specify this S3 bucket name when you create a new project in SageMaker Studio
++ Set a special tag `servicecatalog:provisioning` on the uploaded file. This tag will enable access to the object by `AmazonSageMakerServiceCatalogProductsLaunchRole` IAM role: 
+  ```bash
+  aws s3api put-object-tagging \
+          --bucket <your Amazon S3 bucket name> \
+          --key <your project name>/seed-code/<zip-file name> \
+          --tagging 'TagSet=[{Key=servicecatalog:provisioning,Value=true}]'
+  ```
++ Update the `AWS::CodeCommit::Repository` resource in the CloudFormation template with the CI/CD pipeline for the corresponding MLOps project (`project-model-build-train.yaml` or `proejct-model-deploy.yaml`) with the new zip-file name.
+  
+  Model deploy project `proejct-model-deploy.yaml`:
+  ```yaml
+    ModelDeployCodeCommitRepository:
+      Type: AWS::CodeCommit::Repository
+      Properties:
+        # Max allowed length: 100 chars
+        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-deploy # max: 10+33+15+12=70
+        RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
+        Code:
+          S3:
+            Bucket: !Ref SeedCodeS3BucketName 
+            Key: <your project name>/seed-code/<zip-file name>
+          BranchName: main
+  ```
+
+  Model build, train, validate project `project-model-build-train.yaml`:
+  ```yaml
+    ModelBuildCodeCommitRepository:
+      Type: AWS::CodeCommit::Repository
+      Properties:
+        # Max allowed length: 100 chars
+        RepositoryName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-model-build-train # max: 10+33+15+18=76
+        RepositoryDescription: !Sub SageMaker Model building infrastructure as code for the project ${SageMakerProjectName}
+        Code:
+          S3:
+            Bucket: !Ref SeedCodeS3BucketName 
+            Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
+          BranchName: main
+  ```
++ Update the CloudFormation template file `env-sc-portfolio.yaml` with a new version of Service Catalog Product:
+  ```yaml
+    DataScienceMLOpsModelBuildTrainProduct:
+        Type: 'AWS::ServiceCatalog::CloudFormationProduct'
+        Properties:
+          Name: !Sub '${EnvName}-${EnvType} MLOps Model Build Train <NEW VERSION>'
+          Description: 'This template creates a CI/CD MLOps project which implements ML build-train-validate pipeline'
+          Owner: 'Data Science Administration Team'
+          ProvisioningArtifactParameters:
+            - Name: 'MLOps Model Build Train <NEW VERSION>'
+  ```
++ Package and upload all changed CloudFormation template to the distribution S3 bucket
++ Update Service Catalog CloudFormation stack with the updated templates:
+  - Package the CloudFormation templates and upload everything to the Amazon S3 bucket:
+  ```bash
+  S3_BUCKET_NAME=<YOUR S3 BUCKET NAME>
+  make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+  ```
+  - Update the Service Catalog portfolio and product stack:
+  ```bash
+  STACK_NAME= # <generated EnvironmentSCPortfolio stack name>
+  PRINCIPAL_ROLE_ARN= # <SageMaker Execution Role ARN>
+  LAUNCH_ROLE_ARN= # <AmazonSageMakerServiceCatalogProductsLaunchRole ARN>
+
+  aws cloudformation update-stack \
+      --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-sc-portfolio.yaml \
+      --region $AWS_DEFAULT_REGION \
+      --stack-name $STACK_NAME \
+      --parameters \
+          ParameterKey=EnvName,ParameterValue=sm-mlops \
+          ParameterKey=EnvType,ParameterValue=dev \
+          ParameterKey=SCMLOpsPortfolioPrincipalRoleArn,ParameterValue=$PRINCIPAL_ROLE_ARN \
+          ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
+  ```
++ Restart the SageMaker Studio (close the browser window with Studio and open again via AWS console)
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: MIT-0

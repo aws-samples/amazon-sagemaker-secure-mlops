@@ -76,6 +76,12 @@ Resources:
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint/*"
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint-config/*"
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:model/*"
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "ec2:DescribeSubnets"
+                    - "ec2:DescribeSecurityGroups"
+                  Resource: "*"
         Tags:
           - Key: EnvironmentName
             Value: !Ref EnvName
