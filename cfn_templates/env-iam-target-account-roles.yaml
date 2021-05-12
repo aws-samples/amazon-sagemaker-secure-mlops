@@ -18,7 +18,7 @@ Parameters:
   PipelineExecutionRoleArn:
     Type: String
     Description: CI/CD execution role in the development account (AmazonSageMakerServiceCatalogProductsUseRole)
-
+  
   AdministratorAccountId:
     Type: String
     Description: AWS Account Id of the account in which StackSets will be created (for multi-account deployment)
@@ -112,6 +112,12 @@ Resources:
                   - "sagemaker:*EndpointConfig"
                   - "sagemaker:*Endpoint"
                 Resource: "*"
+              - 
+                Effect: 'Allow'
+                Action:
+                  - 'iam:PassRole'
+                Resource:
+                  - !GetAtt SageMakerModelExecutionRole.Arn
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName

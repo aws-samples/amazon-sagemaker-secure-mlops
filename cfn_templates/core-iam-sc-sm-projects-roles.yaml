@@ -516,6 +516,7 @@ Resources:
                   - arn:aws:iam::*:role/service-role/AmazonSageMakerServiceCatalog*
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*SageMakerExecutionRole*'
                   - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*SageMakerPipeline*'
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*StackSetAdministration*'
                 Effect: Allow
               - 
                 Effect: Allow

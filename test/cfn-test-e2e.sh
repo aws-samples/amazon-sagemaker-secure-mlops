@@ -68,21 +68,41 @@ pipenv shell
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME="test38"
-MLOPS_PROJECT_ID="p-jrlwvpb9ukeo"
-SM_DOMAIN_ID="d-fkup4t4etdtv"
+MLOPS_PROJECT_NAME_LIST=("test42" "test43")
+MLOPS_PROJECT_ID_LIST=("p-hapgh1bfp9rq" "p-hapgh1bfp9rq")
+SM_DOMAIN_ID="d-l2fvyqt2aysl"
+STACKSET_NAME=""
+ACCOUNT_IDS=""
 
-echo "Delete SageMaker project(s)"
-aws sagemaker delete-project --project-name $MLOPS_PROJECT_NAME
+echo "Delete stack instances"
+aws cloudformation delete-stack-instances \
+    --stack-set-name $STACKSET_NAME \
+    --regions $AWS_DEFAULT_REGION \
+    --no-retain-stacks \
+    --accounts $ACCOUNT_IDS
 
-echo "Remove VPC-only access policy from the data S3 bucket"
+aws cloudformation delete-stack-set --stack-set-name $STACKSET_NAME
+
+echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
+for p in ${MLOPS_PROJECT_NAME_LIST[@]};
+do
+    echo "Delete project $p"
+    aws sagemaker delete-project --project-name $p
+
+    for pid in ${MLOPS_PROJECT_ID_LIST[@]};
+    do
+        echo "Delete S3 bucket: sm-mlops-cp-$p-$pid"
+        aws s3 rb s3://sm-mlops-cp-$p-$pid --force
+    done
+done
+
+echo "Remove VPC-only access policy from the data and model S3 buckets"
 aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
+aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-models
 
-echo "Empty data S3 bucket"
+echo "Empty data S3 buckets"
 aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
-
-echo "Delete MLOps project pipeline S3 bucket"
-aws s3 rb s3://sm-mlops-cp-$MLOPS_PROJECT_NAME-$MLOPS_PROJECT_ID --force
+aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 

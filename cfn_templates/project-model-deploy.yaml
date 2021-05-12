@@ -73,8 +73,11 @@ Resources:
           VariableName: 'StackSetExecutionRole'
           ParameterName: 'stackset-execution-role-name'
         - 
-          VariableName: 'StackSetAdministratorRole'
-          ParameterName: 'stackset-administrator-role-arn'
+          VariableName: 'StackSetAdministrationRole'
+          ParameterName: 'stackset-administration-role-arn'
+        - 
+          VariableName: 'EbsKmsKeyArn'
+          ParameterName: 'kms-ebs-key-arn'
         
 
   MlOpsArtifactsBucket:
@@ -231,6 +234,16 @@ Resources:
             Value: !GetAtt GetEnvironmentConfiguration.ModelExecutionRole
           - Name: SAGEMAKER_EXECUTION_ROLE_PROD_NAME
             Value: !GetAtt GetEnvironmentConfiguration.ModelExecutionRole
+          - Name: SAGEMAKER_EBS_KMS_KEY_ARN
+            Value: !GetAtt GetEnvironmentConfiguration.EbsKmsKeyArn
+          - Name: SAGEMAKER_SUBNET_IDS
+            Value: !Join
+              - ',' 
+              - !GetAtt GetEnvironmentConfiguration.SubnetIds
+          - Name: SAGEMAKER_SECURITY_GROUPS
+            Value: !Join
+              - ',' 
+              - !GetAtt GetEnvironmentConfiguration.SecurityGroups
 
       Source:
         Type: CODEPIPELINE
@@ -365,9 +378,8 @@ Resources:
                 Parameters: BuildArtifact::staging-config.json
                 Capabilities: CAPABILITY_NAMED_IAM
                 PermissionModel: 'SELF_MANAGED'
-                AdministrationRoleArn: GetEnvironmentConfiguration.StackSetAdministratorRole
-                ExecutionRoleName: GetEnvironmentConfiguration.StackSetExecutionRole
-                OrganizationsAutoDeployment: Disabled    
+                AdministrationRoleArn: !GetAtt GetEnvironmentConfiguration.StackSetAdministrationRole
+                ExecutionRoleName: !GetAtt GetEnvironmentConfiguration.StackSetExecutionRole
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
                   - !GetAtt GetEnvironmentConfiguration.OUStagingId
@@ -429,9 +441,8 @@ Resources:
                 TemplatePath: BuildArtifact::cfn-sm-endpoint.yaml
                 Capabilities: CAPABILITY_NAMED_IAM
                 PermissionModel: 'SELF_MANAGED'
-                AdministrationRoleArn: GetEnvironmentConfiguration.StackSetAdministratorRole
-                ExecutionRoleName: GetEnvironmentConfiguration.StackSetExecutionRole
-                OrganizationsAutoDeployment: Disabled
+                AdministrationRoleArn: !GetAtt GetEnvironmentConfiguration.StackSetAdministrationRole
+                ExecutionRoleName: !GetAtt GetEnvironmentConfiguration.StackSetExecutionRole
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
                   - !GetAtt GetEnvironmentConfiguration.OUProdId

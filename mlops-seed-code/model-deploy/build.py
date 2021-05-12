@@ -66,12 +66,14 @@ def prepare_config(args, model_package_arn, config_name, params):
     config.append({ "ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name, })
     config.append({ "ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id })
     config.append({ "ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn })
-    config.append({ "ParameterKey": "EnvName", "ParameterValue": args.env_name, })
+    config.append({ "ParameterKey": "EnvName", "ParameterValue": args.env_name })
+    config.append({ "ParameterKey": "VolumeKmsKeyArn", "ParameterValue": args.ebs_kms_key_arn })
+    config.append({ "ParameterKey": "SageMakerSecurityGroupIds", "ParameterValue": args.security_group_ids })
+    config.append({ "ParameterKey": "SageMakerSubnetIds", "ParameterValue": args.subnets })
 
     logger.info(f"Saving CodePipeline CFN template configuration file ({config_name}.json): {json.dumps(config, indent=2)}")
     with open(f"{config_name}.json", "w") as f:
         json.dump(config, f, indent=2)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -86,6 +88,10 @@ if __name__ == "__main__":
     parser.add_argument("--organizational-unit-staging-id", type=str, required=True)
     parser.add_argument("--organizational-unit-prod-id", type=str, required=True)
     parser.add_argument("--env-name", type=str, required=True)
+    parser.add_argument("--ebs-kms-key-arn", type=str, required=True)
+    parser.add_argument("--security-group-ids", type=str, required=True)
+    parser.add_argument("--subnets", type=str, required=True)
+
     args, _ = parser.parse_known_args()
 
     # Configure logging to output the line number and message

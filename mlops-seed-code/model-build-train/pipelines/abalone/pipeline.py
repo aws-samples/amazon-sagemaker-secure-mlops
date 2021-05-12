@@ -101,6 +101,8 @@ def get_pipeline(
         processing_role = sagemaker.session.get_execution_role(sagemaker_session)
     if training_role is None:
         training_role = sagemaker.session.get_execution_role(sagemaker_session)
+    if model_bucket is None:
+        model_bucket = sagemaker_session.default_bucket()
 
     print(f"Creating the pipeline '{pipeline_name}':")
     print(f"Parameters:{region}\n{security_group_ids}\n{subnets}\n{processing_role}\n\
@@ -156,7 +158,7 @@ def get_pipeline(
     )
 
     # training step for generating model artifacts
-    model_path = f"s3://{sagemaker_session.default_bucket()}/{base_job_prefix}/AbaloneTrain"
+    model_path = f"s3://{model_bucket}/{base_job_prefix}/AbaloneTrain"
     image_uri = sagemaker.image_uris.retrieve(
         framework="xgboost",
         region=region,

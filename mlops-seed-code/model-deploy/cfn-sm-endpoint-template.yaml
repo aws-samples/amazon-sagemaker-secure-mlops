@@ -42,6 +42,18 @@ Parameters:
     Description: System Environment (e.g. dev, staging, prod). Used as a suffix for environment resource names.
     Type: String
     Default: dev
+  
+  SageMakerSubnetIds:
+    Type: String
+    Description: VPC subnets
+
+  SageMakerSecurityGroupIds:
+    Type: String
+    Description: Security groups for SageMaker Studio and SageMaker workloads
+  
+  VolumeKmsKeyArn:
+    Type: String
+    Description: The ARN of a KMS key that Amazon SageMaker uses to encrypt data on the storage volume attached endpoint
 
   OrgUnitId:
     Description: Organizatinal OU Id where the model will be deployed
@@ -55,6 +67,10 @@ Resources:
       PrimaryContainer:
         ModelPackageName: !Ref ModelPackageName
       ExecutionRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${ExecutionRoleName}'
+      VpcConfig:
+        SecurityGroupIds: !Split [',', !Ref SageMakerSecurityGroupIds]
+        Subnets: !Split [',', !Ref SageMakerSubnetIds]
+
       Tags:
         - Key: sagemaker:deployment-stage
           Value: !Ref EnvType
@@ -76,6 +92,7 @@ Resources:
           InstanceType: !Ref EndpointInstanceType
           ModelName: !GetAtt SageMakerModel.ModelName
           VariantName: AllTraffic
+      # KmsKeyId: !Ref VolumeKmsKeyArn
       Tags:
         - Key: sagemaker:deployment-stage
           Value: !Ref EnvType

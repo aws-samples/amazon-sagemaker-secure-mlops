@@ -107,7 +107,7 @@ Resources:
             Condition:
               StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id #Allow access only via S3 VPC endpoint
-                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
+                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role to read evaluation.json using JsonGet
               Bool:
                 'aws:ViaAWSService': 'false' #Exception for SageMaker execution role (for RegisterModel step)
 

@@ -31,7 +31,7 @@ Metadata:
           - SageMakerModelExecutionRoleArn
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
-          - StackSetAdministratorRoleArn
+          - StackSetAdministrationRoleArn
           - StackSetExecutionRoleName
       - Label:
           default: S3 Buckets (only needed if created outside of this stack)
@@ -157,7 +157,7 @@ Metadata:
         default: SageMaker pipeline execution role ARN
       SageMakerModelExecutionRoleArn:
         default: SageMaker model endpoint execution role ARN
-      StackSetAdministratorRoleArn:
+      StackSetAdministrationRoleArn:
         default: CloudFormation StackSet administrator role ARN
       StackSetExecutionRoleName:
         default: CloudFormation StackSet execution role name
@@ -458,7 +458,7 @@ Parameters:
     Type: String
     Default: ''
 
-  StackSetAdministratorRoleArn:
+  StackSetAdministrationRoleArn:
     Description: The ARN of the CloudFormation StackSet administrator role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
@@ -686,7 +686,7 @@ Rules:
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerPipelineExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerModelExecutionRoleArn, '' ] ]
-          - !Not [ !Equals [ !Ref StackSetAdministratorRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref StackSetAdministrationRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref StackSetExecutionRoleName, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
@@ -1107,12 +1107,12 @@ Resources:
   StackSetAdminstratorRoleSSM:
     Type: 'AWS::SSM::Parameter'
     Properties:
-      Name: !Sub "${EnvName}-${EnvType}-stackset-administrator-role-arn"
+      Name: !Sub "${EnvName}-${EnvType}-stackset-administration-role-arn"
       Type: String
       Value: !If
           - IAMRolesCondition
-          - EnvironmentIAMRoles.Outputs.StackSetAdministratorRoleArn
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref StackSetAdministratorRoleArn ]]]]
+          - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
+          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref StackSetAdministrationRoleArn ]]]]
       Description: !Sub 'CloudFormation StackSet administrator role for ${EnvName}-${EnvType} data science environment'
 
   StackSetExecutionRoleSSM:
