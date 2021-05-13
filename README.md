@@ -378,6 +378,9 @@ This project provisions the following resources as part of MLOps pipeline:
 3. Seed code repository in AWS CodeCommit:
   - This repository provides seed code to create a multi-step model building pipeline including the following steps: data processing, model training, model evaluation, and conditional model registration based on accuracy. As you can see in the `pipeline.py` file, this pipeline trains a linear regression model using the XGBoost algorithm on the well-known [UCI Abalone dataset](https://archive.ics.uci.edu/ml/datasets/abalone). This repository also includes a [build specification file](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html), used by AWS CodePipeline and AWS CodeBuild to run the pipeline automatically
 
+### Work with Model build, train, validate project
+You can find a step-by-step instruction, implementation details, and usage patterns of the model building pipeline project in the provided Jupyter Notebook [sagemaker-pipeline](mlops-seed-code/model-build-train/sagemaker-pipeline.ipynb) and [sagemaker-pipelines-project](mlops-seed-code/model-build-train/sagemaker-pipelines-project.ipynb) files, delivered as part of the seed code.
+
 ## Multi-account model deployment
 
 ![multi-account deployment](design/ml-ops-model-deploy.drawio.svg)
@@ -421,6 +424,7 @@ The model execution role in the staging and production accounts is assumed by `A
 _Alternatively_ you can choose to use single-account deployment. In this case the ML model will be deployed in the data science account. You do not need to setup AWS Organizations and provide OU Ids as deployment variables.
 
 ❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`.
+
 ### Model deployment pre-requisites
 The following pre-requisites are common for both single- and multi-account deployment.
 
@@ -428,6 +432,9 @@ The following pre-requisites are common for both single- and multi-account deplo
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
   - `StackSetAdministrationRole`: This role must exist in the data science account and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
   - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production OUs. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts
+
+### Work with Model deployment project
+You can find a step-by-step instruction, implementation details, and usage patterns of the multi-account model deployment project in the provided [Jupyter Notebook file](mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb), delivered as part of the seed code.
 
 ## Provision a new MLOps project
 Sign in to the console with the data scientist account. On the SageMaker console, open SageMaker Studio with your user.

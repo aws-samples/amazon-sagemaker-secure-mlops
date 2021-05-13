@@ -71,18 +71,24 @@ ENV_NAME="sm-mlops-dev"
 MLOPS_PROJECT_NAME_LIST=("test46" "test47" "test48")
 MLOPS_PROJECT_ID_LIST=("p-be7gnlcgtssa" "p-zupe0a6hefne" "p-mdmirl0pn8gp")
 SM_DOMAIN_ID="d-fv4nca4qil8v"
-STACKSET_NAME="sagemaker-test45-p-en0lxuabs0l3-deploy-staging"
+STACKSET_NAME_LIST=("sagemaker-test48-p-mdmirl0pn8gp-deploy-staging" "sagemaker-test48-p-mdmirl0pn8gp-deploy-prod")
 ACCOUNT_IDS="949335012047"
 
 echo "Delete stack instances"
-aws cloudformation delete-stack-instances \
-    --stack-set-name $STACKSET_NAME \
-    --regions $AWS_DEFAULT_REGION \
-    --no-retain-stacks \
-    --accounts $ACCOUNT_IDS
+for ss in ${STACKSET_NAME_LIST[@]};
+do
+    echo "delete stack instances for $ss"
+    aws cloudformation delete-stack-instances \
+        --stack-set-name $ss \
+        --regions $AWS_DEFAULT_REGION \
+        --no-retain-stacks \
+        --accounts $ACCOUNT_IDS
+    
+    sleep 180
 
-echo "Delete StackSet $STACKSET_NAME"
-aws cloudformation delete-stack-set --stack-set-name $STACKSET_NAME
+    echo "delete stack set $ss"
+    aws cloudformation delete-stack-set --stack-set-name $ss
+done
 
 echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
 for p in ${MLOPS_PROJECT_NAME_LIST[@]};
