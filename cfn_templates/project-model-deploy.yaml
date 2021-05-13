@@ -21,8 +21,8 @@ Parameters:
 
   ModelPackageGroupName:
     Type: String
-    Description: Model package group name to monitor for model package state changes. Leave empty to auto generate.
-    Default: ''
+    Description: Model package group name to monitor for model package state changes. Leave 'Auto' to auto generate.
+    Default: 'Auto'
   
   MultiAccountDeployment:
     Type: String
@@ -34,7 +34,7 @@ Parameters:
 
 Conditions:
   MLOpsArtifactBucketCondition: !Equals [ 'true', 'true' ]
-  GenerateModelPackageNameCondition: !Equals [ !Ref ModelPackageGroupName, '' ]
+  GenerateModelPackageNameCondition: !Equals [ !Ref ModelPackageGroupName, 'Auto' ]
   MultiAccountDeploymentCondition: !Equals [ !Ref MultiAccountDeployment, 'YES' ]
 
 Resources:
@@ -405,7 +405,7 @@ Resources:
               RunOrder: 2
 
             # Action 3
-            - Name: ApproveDeployment
+            - Name: ApproveStagingDeployment
               ActionTypeId:
                 Category: Approval
                 Owner: AWS

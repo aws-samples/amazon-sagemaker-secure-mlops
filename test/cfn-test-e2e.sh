@@ -43,7 +43,7 @@ aws cloudformation create-stack \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
-        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
         ParameterKey=StartKernelGatewayApps,ParameterValue=YES
 
@@ -68,9 +68,9 @@ pipenv shell
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test44" "test45")
-MLOPS_PROJECT_ID_LIST=("p-8lej8ex8m86a" "p-en0lxuabs0l3")
-SM_DOMAIN_ID="d-znpimqlwvch6"
+MLOPS_PROJECT_NAME_LIST=("test46" "test47" "test48")
+MLOPS_PROJECT_ID_LIST=("p-be7gnlcgtssa" "p-zupe0a6hefne" "p-mdmirl0pn8gp")
+SM_DOMAIN_ID="d-fv4nca4qil8v"
 STACKSET_NAME="sagemaker-test45-p-en0lxuabs0l3-deploy-staging"
 ACCOUNT_IDS="949335012047"
 
@@ -117,6 +117,7 @@ aws cloudformation wait stack-delete-complete --stack-name $ENV_STACK_NAME
 echo "Delete SageMaker EFS"
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
+echo "**********************************************************"
 echo "Full clean up of the Data Science environment is completed"
 
 # read -n 1 -s -r -p "Press any key to continue"
