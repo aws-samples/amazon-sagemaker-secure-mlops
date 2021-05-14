@@ -67,11 +67,11 @@ pipenv shell
 # Set variables of the environment
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
-ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test46" "test47" "test48")
-MLOPS_PROJECT_ID_LIST=("p-be7gnlcgtssa" "p-zupe0a6hefne" "p-mdmirl0pn8gp")
-SM_DOMAIN_ID="d-fv4nca4qil8v"
-STACKSET_NAME_LIST=("sagemaker-test48-p-mdmirl0pn8gp-deploy-staging" "sagemaker-test48-p-mdmirl0pn8gp-deploy-prod")
+ENV_NAME="ds-product-dev"
+MLOPS_PROJECT_NAME_LIST=("test3" "test4" "test5")
+MLOPS_PROJECT_ID_LIST=("p-flmww3h8uhmn" "p-vy2vjmp3l6a0" "p-3bwilojdiz7y")
+SM_DOMAIN_ID="d-p6hcjblainqx"
+STACKSET_NAME_LIST=("sagemaker-test5-p-3bwilojdiz7y-deploy-staging" "sagemaker-test5-p-3bwilojdiz7y-deploy-prod")
 ACCOUNT_IDS="949335012047"
 
 echo "Delete stack instances"
@@ -112,6 +112,13 @@ aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
 aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
+aws sagemaker list-apps
+
+aws sagemaker delete-app \
+    --domain-id $SM_DOMAIN_ID \
+    --user-profile-name $ENV_NAME-${AWS_DEFAULT_REGION}-user-profile \
+    --app-type KernelGateway \
+    --app-name datascience-1-0-ml-t3-medium-5b87494b3efe79ac159474c0d6df
 
 # The following commands are only for manual test (not with CI/CD pipelines)
 echo "Delete data science stack"

@@ -29,7 +29,7 @@ Parameters:
   CfnArtifactS3BucketNamePrefix:
     Description: S3 bucket name prefix for artifact bucket
     Type: String
-    Default: 'ilyiny-cfn-artefacts'
+    Default: 'ilyiny-demo-cfn-artefacts'
 
   CodeCommitRepositoryArn:
     Description: ARN of CodeCommit repository with source code
@@ -283,6 +283,7 @@ Resources:
                   - 's3:GetBucketLocation'
                   - 's3:ListBucket'
                   - 's3:PutObjectTagging'
+                  - 's3:CreateBucket'
                 Resource: 
                   - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*'
                   - !Sub 'arn:aws:s3:::codepipeline-${ProjectName}*/*'
@@ -692,7 +693,7 @@ Resources:
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::env-iam.yaml'
                   OutputFileName: 'i.json'
-                  TemplateConfiguration: 'BuildArtifact::env-i.json'
+                  TemplateConfiguration: 'BuildArtifact::env-iam.json'
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}"
                   }'
@@ -720,7 +721,8 @@ Resources:
                   TemplateConfiguration: 'BuildArtifact::env-iam-target-account-roles.json'
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}",
-                      "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" 
+                      "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole",
+                      "AdministratorAccountId":${AWS::AccountId} 
                     }'
                 RunOrder: 1
 

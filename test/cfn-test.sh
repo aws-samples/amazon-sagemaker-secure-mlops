@@ -111,7 +111,7 @@ aws cloudformation deploy \
 #############################################################################################
 # Deployment into an existing VPC and with pre-provisioned IAM roles
 #############################################################################################
-S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
+S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # stand-alone VPC deployment

@@ -1,10 +1,10 @@
 # Amazon SageMaker secure MLOps
-The goal of the solution is to demonstrate a deployment of Amazon SageMaker Studio into a secure controlled environment and implementation of secure MLOps CI/CD pipelines.
+The goal of the solution is to demonstrate a deployment of Amazon SageMaker Studio into a secure controlled environment with multi-layer security and implementation of secure MLOps CI/CD pipelines.
 
 We are going to cover the following four main topics in this solution:
 1. Secure deployment of [Amazon SageMaker Studio](https://aws.amazon.com/sagemaker/studio/) into a new or an existing secure environment (VPC, private subnets, VPC endpoints, security groups). We implement end-to-end data encryption and access control, audit/monitoring, and preventive, detective and responsive security controls
 2. Self-service data science environment provisioning based on [AWS Service Catalog](https://aws.amazon.com/servicecatalog/?aws-service-catalog.sort-by=item.additionalFields.createdDate&aws-service-catalog.sort-order=desc) and [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
-3. Self-service [rovisioning of [MLOps project templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates.html) in SageMaker Studio
+3. Self-service provisioning of [MLOps project templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates.html) in SageMaker Studio
 4. MLOps CI/CD automation using [SageMaker projects](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-whatis.html) and [SageMaker pipelines](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines.html) for model training and multi-account deployment
 
 The solution recommends and implements the following development approach:
@@ -20,9 +20,9 @@ The solution recommends and implements the following development approach:
 
 # MLOps
 The goals of implementing MLOps for your Amazon SageMaker project are:
-+ Operationalization of AI/ML workloads and workflowsxs
++ Operationalization of AI/ML workloads and workflows
 + Create secured, automated, and reproducible ML workflows
-+ Manage models with a model registry
++ Manage models with a model registry and data lineage
 + Enable continious delivery with IaC and CI/CD pipelines
 + Monitor performance and feedback information to your models
 
@@ -287,7 +287,7 @@ The solution delivers two MLOps project templates:
 + Model build, train, validate
 + Model multi-account deploy
 
-See more details in the [MLOps](README.md#MLOps) section.
+See more details in the [MLOps projects](#mlops-projects) section.
 
 ## Security
 This section describes security controls and best practices implemented by the solution.
@@ -365,9 +365,14 @@ _Not implemented in this version_
 #### Responsive
 _Not implemented in this version_
 
-# MLOps
+# MLOps projects
+This solution delivers two MLOps project as SageMaker project templates:
+- Model build, train, validate pipeline
+- Multi-account model deploy pipeline
 
-## MLOps Project template to build, train, validate the model
+These project are fully functional examples integrated with exising security controls such as VPC, subnets, security groups, and dedicated IAM execution roles. 
+
+## MLOps project template to build, train, validate the model
 The solution is based on the [SageMaker project template](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) for model building, training, and deployment. You can find in-depth review of this MLOps project in the blog post [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
 
 ![project template: build, train, validate](design/ml-ops-model-build-train.drawio.svg)
@@ -381,7 +386,15 @@ This project provisions the following resources as part of MLOps pipeline:
 ### Work with Model build, train, validate project
 You can find a step-by-step instruction, implementation details, and usage patterns of the model building pipeline project in the provided Jupyter Notebook [sagemaker-pipeline](mlops-seed-code/model-build-train/sagemaker-pipeline.ipynb) and [sagemaker-pipelines-project](mlops-seed-code/model-build-train/sagemaker-pipelines-project.ipynb) files, delivered as part of the seed code.
 
-## Multi-account model deployment
+To deploy the notebooks into your local environment, you must clone the CodeCommit repository with the seed code. Go to the project overview page, select the `Repositories` tab and click the `clone repo...` link:
+
+![clone-seed-code-repo](img/clone-seed-code-repo.png)
+
+After the clone operation finished, you can browse the repository files in SageMaker Studio File view:
+
+![cloned-repo](img/cloned-repo.png)
+
+## MLOps project template for multi-account model deployment
 
 ![multi-account deployment](design/ml-ops-model-deploy.drawio.svg)
 
@@ -454,16 +467,72 @@ The seed repository contains fully functional source code used by the CI/CD pipe
 If you would like to develop the seed code and update the MLOps project templates with new version of the code, please refer to the [Appendix G](#appendix-g)
 
 ## Clean up 
-To remove a SageMaker project, run the following command from the command line. Make sure you have the latest version of AWS CLI:
-```bash
-aws sagemaker delete-project --project-name <your MLOps project name>
+After you have finished working and experimenting with MLOps projects you should perform clean up of the provisioned SageMaker resources to avoid charges.
+The following resources should be removed:
+- staging and production SageMaker endpoint (in case if they were deployed by Model deploy pipeline)
+- CloudFormation stack set (in case you run Model deploy pipeline)
+- SageMaker projects
+
+❗ **This is a destructive action. All data on in Amazon S3 buckets for MLOps pipelines, ML data, and ML models will be permanently deleted. All MLOps project seed code repository will be permanently removed from your AWS environment.**
+
+### CLI commands to perform clean up
+**Step 1**: set variables:
+```sh
+ENV_NAME="<data science environment name>"
+MLOPS_PROJECT_NAME_LIST=("<name1>" "<name2>")
+MLOPS_PROJECT_ID_LIST=("<p-id-1>" "p-id-2")
+SM_DOMAIN_ID="<SageMaker domain id>"
+STACKSET_NAME_LIST=("<stack-set-staging>" "<stack-set-prod>")
+ACCOUNT_IDS="<AWS ACCOUNT_ID"
 ```
 
-To remove the MLOps CodePipeline artifact bucket:
-```bash
-aws s3 rm s3://<s3 bucket name> --recursive
-aws s3 rb s3://<s3 bucket name>
+**Step 2**: delete SageMaker endpoints and CloudFormation stack sets:
+```sh
+echo "Delete stack instances"
+for ss in ${STACKSET_NAME_LIST[@]};
+do
+    echo "delete stack instances for $ss"
+    aws cloudformation delete-stack-instances \
+        --stack-set-name $ss \
+        --regions $AWS_DEFAULT_REGION \
+        --no-retain-stacks \
+        --accounts $ACCOUNT_IDS
+    
+    sleep 180
+
+    echo "delete stack set $ss"
+    aws cloudformation delete-stack-set --stack-set-name $ss
+done
 ```
+
+**Step 3**: delete SageMaker projects:
+```sh
+echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
+for p in ${MLOPS_PROJECT_NAME_LIST[@]};
+do
+    echo "Delete project $p"
+    aws sagemaker delete-project --project-name $p
+
+    for pid in ${MLOPS_PROJECT_ID_LIST[@]};
+    do
+        echo "Delete S3 bucket: sm-mlops-cp-$p-$pid"
+        aws s3 rb s3://sm-mlops-cp-$p-$pid --force
+    done
+done
+```
+
+**Step 4**: empty Amazon S3 buckets for data and models:
+```sh
+echo "Remove VPC-only access policy from the data and model S3 buckets"
+aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
+aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-models
+
+echo "Empty data S3 buckets"
+aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
+aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
+```
+
+After completion of all clean-up steps you can delete CloudFormation templates with data science environment and shared core infrastructure.
 
 ## Test secure S3 access
 
