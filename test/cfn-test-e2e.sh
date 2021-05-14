@@ -67,12 +67,14 @@ pipenv shell
 # Set variables of the environment
 ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
-ENV_NAME="ds-product-dev"
-MLOPS_PROJECT_NAME_LIST=("test3" "test4" "test5")
-MLOPS_PROJECT_ID_LIST=("p-flmww3h8uhmn" "p-vy2vjmp3l6a0" "p-3bwilojdiz7y")
-SM_DOMAIN_ID="d-p6hcjblainqx"
-STACKSET_NAME_LIST=("sagemaker-test5-p-3bwilojdiz7y-deploy-staging" "sagemaker-test5-p-3bwilojdiz7y-deploy-prod")
-ACCOUNT_IDS="949335012047"
+
+ENV_NAME="ds-quickstart-dev"
+MLOPS_PROJECT_NAME_LIST=("test2" "test3" "test4")
+MLOPS_PROJECT_ID_LIST=("p-e5nd6kymjscs" "p-2cxd3yus1w8s" "p-qrlpivdkh70z")
+SM_DOMAIN_ID="d-tiintsjueeal"
+STACKSET_NAME_LIST=("sagemaker-test4-p-qrlpivdkh70z-deploy-staging" "sagemaker-test4-p-qrlpivdkh70z-deploy-prod")
+ACCOUNT_IDS=""
+
 
 echo "Delete stack instances"
 for ss in ${STACKSET_NAME_LIST[@]};
@@ -118,7 +120,7 @@ aws sagemaker delete-app \
     --domain-id $SM_DOMAIN_ID \
     --user-profile-name $ENV_NAME-${AWS_DEFAULT_REGION}-user-profile \
     --app-type KernelGateway \
-    --app-name datascience-1-0-ml-t3-medium-5b87494b3efe79ac159474c0d6df
+    --app-name 
 
 # The following commands are only for manual test (not with CI/CD pipelines)
 echo "Delete data science stack"

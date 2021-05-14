@@ -33,7 +33,7 @@ One of the key components of MLOps pipeline in Amazon SageMaker is the [model re
 
 ![model registry](img/model-registry.png)
 
-The model registry provides the follwing features:
+The model registry provides the following features:
 + Centralized model storage and tracking service that stores lineage, versioning, and related metadata for ML models
 + Stores governance and audit data (e.g. who trained and published the model, which datasets were used)
 + Stores models metrics ad when the model was deployed to production
@@ -53,6 +53,8 @@ The SageMaker environment has a three-level organisational structure: Enterprise
 + **Enterprise** level: The highest level in hierarchy, represented by the `DS Administrator` role and _Data Science portfolio_ in AWS Service Catalog. A data science environment per team is provisioned via the AWS Service Catalog self-service into a dedicated AWS Account.
 + **Team/Environment** level: There is one dedicated Data Science Team AWS account and one SageMaker Studio domain per region per AWS account. DS Team Administrator can create user profiles in SageMaker studio for different user roles with different permissions, and also provision a CI/CD MLOps pipeline per project. The DS Administrator role is responsible for approving ML models and deployment into staging and production accounts. Based on role permission setup you can implement fine-granular separation of rights and duties per project. You can find more details on permission control with IAM policies and resource tagging in the blog post [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/) on [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/)
 + **Project** level: This is the individual project level and represented by CI/CD pipelines which are provisioned via SageMaker projects in SageMaker studio
+
+This is a proposed environment structure and can be adapted for your specific requirements, organizational and governance structure, and project methodology.
 
 ## Why multi-account
 The best practice for implementing production and real-life data science environment is to use multiple AWS accounts. The multi-account approaches has the following benefits:
@@ -97,7 +99,7 @@ This solution uses the concept of following roles in Model Development Life Cycl
     - Data locations (S3): only a defined set of S3 buckets (e.g. Data and Model)
     - SageMaker, SageMaker Studio, Notebooks
 
-    Role definition: [JSON](iam/json/DataScientistRole.json), [CloudFormation](cfn_templates/iam-project-roles.yaml)
+    Role definition: [CloudFormation](cfn_templates/env-iam.yaml)
 
 + **Data science team administrator**:  
    This is the admin role for a team or data science environment. In real-life setup you might want to add one more level of hiearchy and add an administrator role per project (or group of projects) – it creates a separation of duties between proejcts and minimize the blast radius. In this solution we are going to have one administrator role per team or "environment" (effectively meaning that Project Adminstrator = Team Administrator). The main responsibilities of the role are:  
@@ -114,7 +116,7 @@ This solution uses the concept of following roles in Model Development Life Cycl
     - ML infrastructure
     - Data locations (S3)
 
-    Role definition: [JSON](iam/json/DataScienceTeamAdministratorRole.json), [CloudFormation](cfn_templates/iam-project-roles.yaml)
+    Role definition: [CloudFormation](cfn_templates/env-iam.yaml)
 
 + **Data science administrator**:  
   This is overarching admin role for the data science projects and setting up the secure SageMaker environment. It uses only AWS managed policies. This role has the following responsibilities:
@@ -126,7 +128,7 @@ This solution uses the concept of following roles in Model Development Life Cycl
     - Approvals (MLOps, Model registry, CodePipeline)
     - Permissions to deploy products from AWS Service Catalog  
 
-    Role definition: [JSON](iam/json/DataScienceAdministratorRole.json), [CloudFormation](cfn_templates/iam-shared-roles.yaml)
+    Role definition: [CloudFormation](cfn_templates/core-iam-shared-roles.yaml)
 
 A dedicated IAM role is created for each persona/user. For a real-life project we recommend to start with a least possible permission set and add necessary permissions when needed based on your security requirements and data science environment settings. 
 
@@ -138,7 +140,7 @@ The following diagram shows the provisioned IAM roles for personas/users and exe
 More information and examples about the best practices and security setup for multi-project and multi-team environments you can find in the blog post [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/) on [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
 
 ### Multi-account setup for IAM roles
-For this sample solution we use three AWS accounts to simulate development, staging, and production environments.The following describes how the IAM roles should be mapped to the accounts:  
+For this sample solution we use three AWS accounts to simulate development, staging, and production environments. The following describes how the IAM roles should be mapped to the accounts:  
 
 #### IAM role to account mapping
 **DEV account**:
@@ -147,9 +149,6 @@ For this sample solution we use three AWS accounts to simulate development, stag
   - **DataScienceAdministratorRole**: overall management of Data Science projects via AWS Service Catalog. Management of the AWS Service Catalog. Deployment of a Data Science environment (VPC, subnets, S3 bucket) to an AWS account
   - **DataScientistRole**: Data Scientist role within a specific project. Provisioned on per-project and per-stage (dev/test/prod) basis
   - **DataScienceTeamAdministratorRole**: Administrator role within a specific team or environment
- 
-**TEST and PROD accounts**:
-  + Only `DataScienceProjectAdministratorRole` must be created on these accounts. This role is responsible to approve the ML model deployment.
 
 ### IAM execution roles
 The following IAM execution roles will be provisioned in the development account:
@@ -163,6 +162,12 @@ The following IAM execution roles will be provisioned in the development account
   + `AmazonSageMakerServiceCatalogProductsLaunchRole`: for SageMaker MLOps project templates deployments
   + `VPCFlowLogsRole`: optional role for VPC Flow Logs to write logs into a CloudWatch log group
 
+#### Staging and production accounts
+The following roles should be created in each of the accounts which belong to the staging and production organizational units (OUs):
++ `ModelExecutionRole`: SageMaker uses this role to run inference endpoints and access the model artifacts during the provisioning of the endpoint. This role must have a trust policy for `sagemaker.amazonaws.com` service
++ `StackSetExecutionRole`: used for CloudFormation stack set operations in the staging and production accounts. This role is assumed by `StackSetAdministrationRole` in the development account
+
+
 ## AWS Organizations setup for multi-account ML model deployment
 This solution uses a multi-account AWS environment setup in [AWS Organizations](https://aws.amazon.com/organizations/). OUs should be based on function or common set of controls rather than mirroring company’s reporting structure.
 
@@ -173,10 +178,13 @@ Root
 `--- OU SageMaker PoC
       |--- Data Science account (development)
       `----OU Staging
-            |--- Staging acccount
+            |--- Staging acccounts
       `----OU Production
-            |--- Production account
+            |--- Production accounts
 ```
+
+### Single-account setup
+The solution also implements full functionality with single-account setup. All examples, workflows and pipelines work in the single (development) data science account. We do not recommend to use a single-account setup for any production use of SageMaker and SageMaker studio, but for testing and experimentation purposes it is a good option to choose.
 
 ## SageMaker secure deployment in VPC 
 The following deployment architecture is implemented by this solution:
@@ -188,8 +196,8 @@ The main design principles and decisions are:
 + `Data Science Team VPC` can be configured with internet access by attaching a **NAT gateway**. You can also run this VPC in internet-free mode without any inbound or outbound internet access
 + All access to S3 is routed via S3 VPC endpoints
 + All access to SageMaker API and runtime as welle as to AWS public services is routed via VPC endpoints
-+ A PyPI repository mirror running on Fargate is hosted within your network to provide a python package repository in internet-free mode
-+ AWS Service Catalog is used to deploy SageMaker project templates and Notebooks
++ A PyPI repository mirror running on Fargate is hosted within your network to provide a python package repository in internet-free mode (_not implemented in this version_)
++ AWS Service Catalog is used to deploy a data science environment and SageMaker project templates
 + All user roles are deployed into Data Science account IAM
 
 ## AWS Service Catalog approach
