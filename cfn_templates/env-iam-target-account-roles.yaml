@@ -30,9 +30,17 @@ Outputs:
     Description: The ARN of the SageMaker model deployment role 
     Value: !GetAtt SageMakerModelExecutionRole.Arn
 
+  SageMakerModelExecutionRoleName:
+    Description: The ARN of the SageMaker model deployment role 
+    Value: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt SageMakerModelExecutionRole.Arn ]]]]
+
   StackSetExecutionRoleArn:
     Description: The ARN of the AWS CloudFormation StackSet execution role
     Value: !GetAtt StackSetExecutionRole.Arn
+
+  StackSetExecutionRoleName:
+    Description: The name of the AWS CloudFormation StackSet execution role
+    Value: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt StackSetExecutionRole.Arn ]]]]
 
 Resources:
 

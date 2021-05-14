@@ -68,8 +68,8 @@ Parameters:
     Description: The ARN of the SageMaker Pipeline Execution role 
     Type: String
 
-  SageMakerModelExecutionRoleArn:
-    Description: The ARN of the SageMaker model endpoint execution role - must be created outside the stack. 
+  SageMakerModelExecutionRoleName:
+    Description: The name of the SageMaker model endpoint execution role - must be created outside the stack. 
     Type: String
 
   StackSetAdministrationRoleArn:
@@ -202,7 +202,7 @@ Resources:
                   "DataScientistRoleArn":"${DataScientistRoleArn}",
                   "SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}",
                   "SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}",
-                  "SageMakerModelExecutionRoleArn":"${SageMakerModelExecutionRoleArn}",
+                  "SageMakerModelExecutionRoleName":"${SageMakerModelExecutionRoleName}",
                   "StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}",
                   "StackSetExecutionRoleName":"${StackSetExecutionRoleName}",
                   "SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}",

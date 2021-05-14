@@ -722,7 +722,7 @@ Resources:
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}",
                       "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole",
-                      "AdministratorAccountId":${AWS::AccountId} 
+                      "AdministratorAccountId":"${AWS::AccountId}"
                     }'
                 RunOrder: 1
 
@@ -750,7 +750,7 @@ Resources:
                   OutputFileName: 'test-base-vpc-pipeline-output.json'
                   TemplateConfiguration: 'BuildArtifact::test-base-vpc-pipeline.json'
                   # There is a maximum size limit of 1024 for the JSON object that can be stored in the ParameterOverrides
-                  ParameterOverrides: !Sub '{"TestVPCRegion":"${AWS::Region}","DSTeamAdministratorRoleArn":{"Fn::GetParam":["I","i.json","DSTeamAdministratorRoleArn"]},"DataScientistRoleArn":{"Fn::GetParam":["I","i.json","DataScientistRoleArn"]},"SageMakerExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerExecutionRoleArn"]},"SageMakerPipelineExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerPipelineExecutionRoleArn"]},"SageMakerModelExecutionRoleArn":{"Fn::GetParam":["TA","ta.json","SageMakerModelExecutionRoleArn"]},"StackSetExecutionRoleArn":{"Fn::GetParam":["TA","ta.json","StackSetExecutionRoleArn"]},"StackSetAdministrationRoleArn":{"Fn::GetParam":["I","i.json","StackSetAdministrationRoleArn"]},"SetupLambdaExecutionRoleArn":{"Fn::GetParam":["I","i.json","SetupLambdaExecutionRoleArn"]},"SCProjectLaunchRoleArn":{"Fn::GetParam":["I","i.json", "SCProjectLaunchRoleArn"]},"VPCId":{"Fn::GetParam":["VPCOut","vpc-output.json","VPCID"]},"S3VPCEndpointId":{"Fn::GetParam":["VPCOut","vpc-output.json","S3VPCEndpoint"]}}'
+                  ParameterOverrides: !Sub '{"TestVPCRegion":"${AWS::Region}","DSTeamAdministratorRoleArn":{"Fn::GetParam":["I","i.json","DSTeamAdministratorRoleArn"]},"DataScientistRoleArn":{"Fn::GetParam":["I","i.json","DataScientistRoleArn"]},"SageMakerExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerExecutionRoleArn"]},"SageMakerPipelineExecutionRoleArn":{"Fn::GetParam":["I","i.json","SageMakerPipelineExecutionRoleArn"]},"SageMakerModelExecutionRoleName":{"Fn::GetParam":["TA","ta.json","SageMakerModelExecutionRoleName"]},"StackSetExecutionRoleName":{"Fn::GetParam":["TA","ta.json","StackSetExecutionRoleName"]},"StackSetAdministrationRoleArn":{"Fn::GetParam":["I","i.json","StackSetAdministrationRoleArn"]},"SetupLambdaExecutionRoleArn":{"Fn::GetParam":["I","i.json","SetupLambdaExecutionRoleArn"]},"SCProjectLaunchRoleArn":{"Fn::GetParam":["I","i.json", "SCProjectLaunchRoleArn"]},"VPCId":{"Fn::GetParam":["VPCOut","vpc-output.json","VPCID"]},"S3VPCEndpointId":{"Fn::GetParam":["VPCOut","vpc-output.json","S3VPCEndpoint"]}}'
                 RunOrder: 2
 
               # Action 6

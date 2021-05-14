@@ -28,7 +28,7 @@ Metadata:
           - DataScientistRoleArn
           - SageMakerExecutionRoleArn
           - SageMakerPipelineExecutionRoleArn
-          - SageMakerModelExecutionRoleArn
+          - SageMakerModelExecutionRoleName
           - SetupLambdaExecutionRoleArn
           - SCProjectLaunchRoleArn
           - StackSetAdministrationRoleArn
@@ -155,8 +155,8 @@ Metadata:
         default: SageMaker and SageMaker Notebook execution role ARN
       SageMakerPipelineExecutionRoleArn:
         default: SageMaker pipeline execution role ARN
-      SageMakerModelExecutionRoleArn:
-        default: SageMaker model endpoint execution role ARN
+      SageMakerModelExecutionRoleName:
+        default: SageMaker model endpoint execution role name
       StackSetAdministrationRoleArn:
         default: CloudFormation StackSet administrator role ARN
       StackSetExecutionRoleName:
@@ -453,8 +453,8 @@ Parameters:
     Type: String
     Default: ''
 
-  SageMakerModelExecutionRoleArn:
-    Description: The ARN of the SageMaker model endpoint execution role if created outside the stack. Must be provided if Create IAM Roles = NO
+  SageMakerModelExecutionRoleName:
+    Description: The name of the SageMaker model endpoint execution role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
 
@@ -685,7 +685,7 @@ Rules:
           - !Not [ !Equals [ !Ref DataScientistRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerExecutionRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SageMakerPipelineExecutionRoleArn, '' ] ]
-          - !Not [ !Equals [ !Ref SageMakerModelExecutionRoleArn, '' ] ]
+          - !Not [ !Equals [ !Ref SageMakerModelExecutionRoleName, '' ] ]
           - !Not [ !Equals [ !Ref StackSetAdministrationRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref StackSetExecutionRoleName, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
@@ -1100,8 +1100,8 @@ Resources:
       Type: String
       Value: !If
           - IAMRolesCondition
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleArn ]]]]
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref SageMakerModelExecutionRoleArn ]]]]
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
+          - !Ref SageMakerModelExecutionRoleName
       Description: !Sub 'SageMaker model execution role for ${EnvName}-${EnvType} data science environment'
 
   StackSetAdminstratorRoleSSM:
@@ -1112,7 +1112,7 @@ Resources:
       Value: !If
           - IAMRolesCondition
           - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !Ref StackSetAdministrationRoleArn ]]]]
+          - !Ref StackSetAdministrationRoleArn
       Description: !Sub 'CloudFormation StackSet administrator role for ${EnvName}-${EnvType} data science environment'
 
   StackSetExecutionRoleSSM:
@@ -1122,7 +1122,7 @@ Resources:
       Type: String
       Value: !If
           - IAMRolesCondition
-          - !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleArn ]]]]
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
           - !Ref StackSetExecutionRoleName
       Description: !Sub 'CloudFormation StackSet execution role for ${EnvName}-${EnvType} data science environment'
   
