@@ -2,14 +2,14 @@
     "Parameters" : {
         "ProjectName":"sm-mlops",
         "TestVPCRegion":"us-east-2",
-        "CodeCommitRepositoryArn":"arn:aws:codecommit:us-east-2:<ACCOUNT_ID>:sagemaker-secure-mlops",
-        "NotificationArn":"arn:aws:sns:us-east-2:<ACCOUNT_ID>:ilyiny-demo-us-east-1-code-pipeline-sns",
-        "CodePipelineServiceRoleArn":"arn:aws:iam::<ACCOUNT_ID>:role/service-role/sm-mlops-us-east-2-CodePipelineServiceRole",
+        "CodeCommitRepositoryArn":"arn:aws:codecommit:us-east-2:949335012047:sagemaker-secure-mlops",
+        "NotificationArn":"arn:aws:sns:us-east-2:949335012047:ilyiny-demo-us-east-1-code-pipeline-sns",
+        "CodePipelineServiceRoleArn":"arn:aws:iam::949335012047:role/service-role/sm-mlops-us-east-2-CodePipelineServiceRole",
         "CleanUpEFSLambdaName":"sm-mlops-automation-CleanUpEFS",
         "CodePipelineArtifactsBucket":"codepipeline-sm-mlops-us-east-2",
         "CfnTemplateBuildProject":"sm-mlops-cfn-build-us-east-2",
-        "DSAdministratorRoleArn":"arn:aws:iam::<ACCOUNT_ID>:role/base-us-east-2-DataScienceAdministrator",
-        "SCLaunchRoleArn":"arn:aws:iam::<ACCOUNT_ID>:role/base-us-east-2-DSServiceCatalogLaunchRole",
-        "SecurityControlExecutionRoleArn":"arn:aws:iam::<ACCOUNT_ID>:role/base-us-east-2-DSSageMakerDetectiveControlRole"
+        "DSAdministratorRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DataScienceAdministrator",
+        "SCLaunchRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DSServiceCatalogLaunchRole",
+        "SecurityControlExecutionRoleArn":"arn:aws:iam::949335012047:role/base-us-east-2-DSSageMakerDetectiveControlRole"
       }
 }
