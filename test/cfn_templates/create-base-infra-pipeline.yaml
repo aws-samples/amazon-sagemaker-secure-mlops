@@ -688,7 +688,7 @@ Resources:
                   - Name: I
                 Configuration:
                   ActionMode: 'REPLACE_ON_FAILURE'
-                  StackName: 'base-env-iam-roles'
+                  StackName: 'e'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::env-iam.yaml'
@@ -713,7 +713,7 @@ Resources:
                   - Name: TA
                 Configuration:
                   ActionMode: 'REPLACE_ON_FAILURE'
-                  StackName: 'base-env-iam-target-account-roles'
+                  StackName: 't'
                   Capabilities: 'CAPABILITY_NAMED_IAM'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                   TemplatePath: 'BuildArtifact::env-iam-target-account-roles.yaml'
@@ -790,7 +790,7 @@ Resources:
                 Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'base-env-iam-target-account-roles'
+                  StackName: 't'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
 
@@ -804,7 +804,7 @@ Resources:
                 Region: !Ref AWS::Region
                 Configuration:
                   ActionMode: 'DELETE_ONLY'
-                  StackName: 'base-env-iam-roles'
+                  StackName: 'e'
                   RoleArn: !GetAtt CodePipelineDeployRole.Arn
                 RunOrder: 5
 

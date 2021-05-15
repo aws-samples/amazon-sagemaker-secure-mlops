@@ -197,7 +197,7 @@ Resources:
                 TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
                 OutputFileName: 'env-main-output.json'
                 TemplateConfiguration: 'BuildArtifact::env-main.json'
-                ParameterOverrides: !Sub '{"DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}","DataScientistRoleArn":"${DataScientistRoleArn}","SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}","SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}","SageMakerModelExecutionRoleName":"${SageMakerModelExecutionRoleName}","StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}","StackSetExecutionRoleName":"${StackSetExecutionRoleName}","SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}","SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}","AvailabilityZones":"${TestVPCRegion}a,${TestVPCRegion}b","ExistingVPCId":"${VPCId}","ExistingS3VPCEndpointId":"${S3VPCEndpointId}"}'
+                ParameterOverrides: !Sub '{"DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}","DataScientistRoleArn":"${DataScientistRoleArn}","SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}","SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}","SageMakerModelExecutionRoleName":"${SageMakerModelExecutionRoleName}","StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}","StackSetExecutionRoleName":"${StackSetExecutionRoleName}","SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}","SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}","ExistingVPCId":"${VPCId}","ExistingS3VPCEndpointId":"${S3VPCEndpointId}"}'
               RunOrder: 2
 
             # Action 3
