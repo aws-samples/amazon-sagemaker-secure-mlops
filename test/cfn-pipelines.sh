@@ -28,7 +28,10 @@ aws cloudformation deploy \
                 --s3-bucket $S3_BUCKET_NAME \
                 --parameter-overrides \
                 CodeCommitRepositoryArn=$REPOSITORY_ARN \
-                NotificationArn=$SNS_NOTIFICATION_ARN
+                NotificationArn=$SNS_NOTIFICATION_ARN \
+                TestDSQuickstart=NO \
+                TestServiceCatalog=NO \
+                Test2StepCFN=NO
 
 # Clean up
 # Delete stack under a role other than it has been created
@@ -37,11 +40,12 @@ aws cloudformation delete-stack \
     --stack-name $STACK_NAME \
     --role-arn arn:aws:iam::ACCOUNT_ID:role/sagemaker-secure-mlops-codepipeline-deploy-role
              
-aws cloudformation delete-stack --stack-name base-env-iam-target-account-roles
+aws cloudformation delete-stack --stack-name t
 aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
-aws cloudformation delete-stack --stack-name base-env-iam-roles
+aws cloudformation delete-stack --stack-name e
 aws cloudformation delete-stack --stack-name sm-mlops-$AWS_DEFAULT_REGION-VPC-pipeline
 aws cloudformation delete-stack --stack-name base-vpc 
+aws cloudformation delete-stack --stack-name sm-mlops-automation
 
 aws cloudformation delete-stack --stack-name base-infra-$AWS_DEFAULT_REGION
 

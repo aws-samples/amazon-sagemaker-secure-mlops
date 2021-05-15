@@ -2,7 +2,7 @@
     "Parameters" : {
         "EnvName":"sm-mlops",
         "EnvType":"dev",
-        "AvailabilityZones":"us-east-2a,us-east2-b",
+        "AvailabilityZones":"us-east-2a,us-east2b",
         "NumberOfAZs":"2",
         "CreateEnvironmentIAMRoles":"NO",
         "CreateS3VPCEndpoint":"NO",
