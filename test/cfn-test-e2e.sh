@@ -73,7 +73,7 @@ MLOPS_PROJECT_NAME_LIST=("test7" "test8" "test9")
 MLOPS_PROJECT_ID_LIST=("p-aw1yhxmlvvdl" "p-veovbvdmkapt" "p-hohw5qgemxe2")
 SM_DOMAIN_ID="d-kesh0tuva7f5"
 STACKSET_NAME_LIST=("sagemaker-test9-p-hohw5qgemxe2-deploy-staging" "sagemaker-test9-p-hohw5qgemxe2-deploy-prod")
-ACCOUNT_IDS="949335012047"
+ACCOUNT_IDS=""
 
 
 echo "Delete stack instances"
