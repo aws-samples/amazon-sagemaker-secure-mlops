@@ -90,6 +90,6 @@ if __name__ == "__main__":
             })
         )
     else:
-        logger.info(f"Stating OU and Production OU are not provided. Single-account model deployment.")
+        logger.info(f"Staging OU and Production OU are not provided. Single-account model deployment.")
             
     
