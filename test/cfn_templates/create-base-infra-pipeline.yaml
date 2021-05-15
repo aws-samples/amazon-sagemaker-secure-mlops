@@ -38,6 +38,35 @@ Parameters:
   NotificationArn:
     Description: SNS ARN for pipeline events and manual approval events
     Type: String
+  
+  TestDSQuickstart:
+    Type: String
+    Description: Create and run CodePipeline for DS Quickstart use case
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  TestServiceCatalog:
+    Type: String
+    Description: Create and run CodePipeline for Service Catalog use case
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  Test2StepCFN:
+    Type: String
+    Description: Create and run CodePipeline for 2 step CFN use case
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+Conditions:
+  TestDSQuickstartCondition: !Equals [ !Ref TestDSQuickstart, 'YES' ]
+  TestServiceCatalogCondition: !Equals [ !Ref TestServiceCatalog, 'YES' ]
+  Test2StepCFNCondition: !Equals [ !Ref Test2StepCFN, 'YES' ]
 
 Resources:
 
@@ -352,9 +381,18 @@ Resources:
                 Resource: 
                   - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
                   - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
-                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
-                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
-                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
+                  - !If
+                    - TestDSQuickstartCondition
+                    - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
+                    - !Ref AWS::NoValue
+                  - !If 
+                    - Test2StepCFNCondition
+                    - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
+                    - !Ref AWS::NoValue
+                  - !If 
+                    - TestDSQuickstartCondition
+                    - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
+                    - !Ref AWS::NoValue
                 Effect: 'Allow'
 
   CodeCommitTriggerEventRule:
@@ -385,21 +423,9 @@ Resources:
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
           Id: !Sub commit-${BaseDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
-        - 
-          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${DSQuickstartDeployPipeline}'
-          Id: !Sub commit-${DSQuickstartDeployPipeline}
-          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
-        - 
+        -
           Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
           Id: !Sub commit-${AutomationLambdaDeployPipeline}
-          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
-        - 
-          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${2StepCFNDeployPipeline}'
-          Id: !Sub commit-${2StepCFNDeployPipeline}
-          RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
-        - 
-          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ServiceCatalogDeployPipeline}'
-          Id: !Sub commit-${ServiceCatalogDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
@@ -855,6 +881,7 @@ Resources:
   ########################################################################
   DSQuickstartDeployPipeline:
     Type: AWS::CodePipeline::Pipeline
+    Condition: TestDSQuickstartCondition
     Properties:
       Name: !Sub '${ProjectName}-${AWS::Region}-ds-quickstart'
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
@@ -976,6 +1003,7 @@ Resources:
 
   DSQuicksightPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
+    Condition: TestDSQuickstartCondition
     Properties:
       DetailType: 'FULL'
       EventTypeIds:
@@ -993,6 +1021,7 @@ Resources:
   ########################################################################
   2StepCFNDeployPipeline:
     Type: AWS::CodePipeline::Pipeline
+    Condition: Test2StepCFNCondition
     Properties:
       Name: !Sub '${ProjectName}-${AWS::Region}-2S-CFN'
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
@@ -1164,6 +1193,7 @@ Resources:
 
   2StepCFNPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
+    Condition: Test2StepCFNCondition
     Properties:
       DetailType: 'FULL'
       EventTypeIds:
@@ -1181,6 +1211,7 @@ Resources:
   ########################################################################
   ServiceCatalogDeployPipeline:
     Type: AWS::CodePipeline::Pipeline
+    Condition: TestServiceCatalogCondition
     Properties:
       Name: !Sub '${ProjectName}-${AWS::Region}-SC'
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
@@ -1447,6 +1478,7 @@ Resources:
 
   ServiceCatalogPipelineNotificationRule:
     Type: AWS::CodeStarNotifications::NotificationRule
+    Condition: TestServiceCatalogCondition
     Properties:
       DetailType: 'FULL'
       EventTypeIds:
