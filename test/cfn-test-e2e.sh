@@ -69,12 +69,11 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test7" "test8" "test9")
-MLOPS_PROJECT_ID_LIST=("p-aw1yhxmlvvdl" "p-veovbvdmkapt" "p-hohw5qgemxe2")
-SM_DOMAIN_ID="d-kesh0tuva7f5"
+MLOPS_PROJECT_NAME_LIST=("test46" "test47" "test48")
+MLOPS_PROJECT_ID_LIST=("p-be7gnlcgtssa" "p-zupe0a6hefne" "p-mdmirl0pn8gp")
+SM_DOMAIN_ID="d-fv4nca4qil8v"
 STACKSET_NAME_LIST=("sagemaker-test9-p-hohw5qgemxe2-deploy-staging" "sagemaker-test9-p-hohw5qgemxe2-deploy-prod")
-ACCOUNT_IDS=""
-
+ACCOUNT_IDS="949335012047"
 
 echo "Delete stack instances"
 for ss in ${STACKSET_NAME_LIST[@]};
@@ -122,7 +121,7 @@ aws sagemaker delete-app \
     --app-type KernelGateway \
     --app-name 
 
-# The following commands are only for manual test (not with CI/CD pipelines)
+# The following commands are only for manual deployment (not with CI/CD pipelines)
 echo "Delete data science stack"
 aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 
@@ -137,9 +136,9 @@ echo "Full clean up of the Data Science environment is completed"
 
 # read -n 1 -s -r -p "Press any key to continue"
 
-# *************************************************************** #
-# --------- Stop here if you delete only DS environment --------- #
-# *************************************************************** #
+#*************************************************************** #
+#--------- Stop here if you delete only DS environment --------- #
+#*************************************************************** #
 echo "Delete core stack"
 aws cloudformation delete-stack --stack-name $CORE_STACK_NAME
 
