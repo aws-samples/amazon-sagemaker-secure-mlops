@@ -67,9 +67,10 @@ def prepare_config(args, model_package_arn, config_name, params):
     config.append({ "ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id })
     config.append({ "ParameterKey": "ModelPackageName", "ParameterValue": model_package_arn })
     config.append({ "ParameterKey": "EnvName", "ParameterValue": args.env_name })
+    config.append({ "ParameterKey": "EnvType", "ParameterValue": params["EnvType"] })
     config.append({ "ParameterKey": "VolumeKmsKeyArn", "ParameterValue": args.ebs_kms_key_arn })
-    config.append({ "ParameterKey": "SageMakerSecurityGroupIds", "ParameterValue": args.security_group_ids })
-    config.append({ "ParameterKey": "SageMakerSubnetIds", "ParameterValue": args.subnets })
+    config.append({ "ParameterKey": "SageMakerSecurityGroupIds", "ParameterValue":  f"{args.env_name}-{params['EnvType']}-sagemaker-sg-ids" })
+    config.append({ "ParameterKey": "SageMakerSubnetIds", "ParameterValue": f"{args.env_name}-{params['EnvType']}-private-subnet-ids" })
 
     logger.info(f"Saving CodePipeline CFN template configuration file ({config_name}.json): {json.dumps(config, indent=2)}")
     with open(f"{config_name}.json", "w") as f:
@@ -89,8 +90,8 @@ if __name__ == "__main__":
     parser.add_argument("--organizational-unit-prod-id", type=str, required=True)
     parser.add_argument("--env-name", type=str, required=True)
     parser.add_argument("--ebs-kms-key-arn", type=str, required=True)
-    parser.add_argument("--security-group-ids", type=str, required=True)
-    parser.add_argument("--subnets", type=str, required=True)
+    parser.add_argument("--env-type-staging-name", type=str, required=True)
+    parser.add_argument("--env-type-prod-name", type=str, required=True)
 
     args, _ = parser.parse_known_args()
 
@@ -105,11 +106,13 @@ if __name__ == "__main__":
     for k, v in {
                 args.staging_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_staging_name, 
-                    "OUId":args.organizational_unit_staging_id
+                    "OUId":args.organizational_unit_staging_id,
+                    "EnvType":args.env_type_staging_name
                     }, 
                  args.prod_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_prod_name, 
-                    "OUId":args.organizational_unit_prod_id
+                    "OUId":args.organizational_unit_prod_id,
+                    "EnvType":args.env_type_prod_name
                     }
                  }.items():
         prepare_config(args, model_package_arn, k, v)

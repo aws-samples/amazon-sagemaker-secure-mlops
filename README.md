@@ -447,7 +447,7 @@ _Alternatively_ you can choose to use single-account deployment. In this case th
 ❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`.
 
 ### Model deployment pre-requisites
-The following pre-requisites are common for both single- and multi-account deployment.
+The following pre-requisites are common for both single- and multi-account deployment. **These pre-requisites are automatically provisioned if you use provided CLoudFormation templates.**
 
 + SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment will fail as it requires at least two AZs to deploy an endpoint
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
@@ -577,7 +577,7 @@ git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
 cd amazon-sagemaker-secure-mlops
 
 S3_BUCKET_NAME=<your S3 bucket name>
-make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
+make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
 ```
 
 You can specify either a name for an existing S3 bucket or a new name (an S3 bucket will be created for you). If you use the existing S3 bucket, it must be in **the same region** where you are deploying the CloudFormation templates.
@@ -850,6 +850,8 @@ Second, do the steps from **Clean-up considerations** section.
 - [R13]: [Enable feature reuse across accounts and teams using Amazon SageMaker Feature Store](https://aws.amazon.com/blogs/machine-learning/enable-feature-reuse-across-accounts-and-teams-using-amazon-sagemaker-feature-store/)
 - [R14]: [How Genworth built a serverless ML pipeline on AWS using Amazon SageMaker and AWS Glue](https://aws.amazon.com/blogs/machine-learning/how-genworth-built-a-serverless-ml-pipeline-on-aws-using-amazon-sagemaker-and-aws-glue/)
 - [R15]: [SageMaker cross-account model](https://aws.amazon.com/premiumsupport/knowledge-center/sagemaker-cross-account-model/)
+- [R16]: [Use Amazon CloudWatch custom metrics for real-time monitoring of Amazon Sagemaker model performance](https://aws.amazon.com/blogs/machine-learning/use-amazon-cloudwatch-custom-metrics-for-real-time-monitoring-of-amazon-sagemaker-model-performance/)
+- [R17]: [Automate feature engineering pipelines with Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/automate-feature-engineering-pipelines-with-amazon-sagemaker/)
 
 
 ## AWS Solutions

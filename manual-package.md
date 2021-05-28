@@ -27,6 +27,8 @@ or use your OS-dependent string replacement utility, e.g.
 sed -ie "s/< S3_CFN_STAGING_BUCKET_PATH >/<your S3 bucket name>\/<project name>/" .
 ```
 
+Repeat the same with the file `env-sc-portfolio.yaml`
+
 ## 2 Package CloudFormation templates
 For each of the files:
 + `core-main.yaml`

@@ -11,12 +11,14 @@ phases:
   build:
     commands:
       # Create the Model Registry if needed. This code will run when the CodePipeline is provisioned first time on the creation of SageMake project
-      - python setup.py \
-        --sagemaker-project-id "$SAGEMAKER_PROJECT_ID" --sagemaker-project-name "$SAGEMAKER_PROJECT_NAME" \
-        --model-package-group-name "$SOURCE_MODEL_PACKAGE_GROUP_NAME" \
-        --organizational-unit-staging-id "$ORGANIZATIONAL_UNIT_STAGING_ID" \
-        --organizational-unit-prod-id "$ORGANIZATIONAL_UNIT_PROD_ID" \
-        --env-name "$ENV_NAME" --env-type "$ENV_TYPE"
+      - |
+        python setup.py \
+          --sagemaker-project-id "$SAGEMAKER_PROJECT_ID" --sagemaker-project-name "$SAGEMAKER_PROJECT_NAME" \
+          --model-package-group-name "$SOURCE_MODEL_PACKAGE_GROUP_NAME" \
+          --organizational-unit-staging-id "$ORGANIZATIONAL_UNIT_STAGING_ID" \
+          --organizational-unit-prod-id "$ORGANIZATIONAL_UNIT_PROD_ID" \
+          --env-name "$ENV_NAME" --env-type "$ENV_TYPE" \
+          --multi-account-deployment "$MULTI_ACCOUNT_DEPLOYMENT"
 
       # Setup the staging and production configuration files for CloufFormation template with the model endpoint
       - |
@@ -30,8 +32,8 @@ phases:
           --organizational-unit-prod-id "$ORGANIZATIONAL_UNIT_PROD_ID" \
           --env-name "$ENV_NAME" \
           --ebs-kms-key-arn "$SAGEMAKER_EBS_KMS_KEY_ARN" \
-          --security-group-ids "$SAGEMAKER_SECURITY_GROUPS" \
-          --subnets "$SAGEMAKER_SUBNET_IDS"
+          --env-type-staging-name "$ENV_TYPE_STAGING_NAME" \
+          --env-type-prod-name "$ENV_TYPE_PROD_NAME"
 
       # Package the CloudFormation template defined in cfn-sm-endpoint-template.yml in the source code repository.
       - aws cloudformation package --template ${CFN_TEMPLATE_NAME}-template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template ${CFN_TEMPLATE_NAME}.yaml

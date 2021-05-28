@@ -18,7 +18,7 @@ Description: |
   resources used if you create a stack from this template.
 
 Metadata:
-  'AWS::CloudFormation::Interface':
+  AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label: 
           default: Data Science environment

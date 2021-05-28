@@ -6,6 +6,7 @@ import cfnresponse
 
 sm = boto3.client("sagemaker")
 ssm = boto3.client("ssm")
+org_client = boto3.client("organizations")
 
 def get_environment(project_name, ssm_params):
     r = sm.describe_domain(
@@ -33,7 +34,7 @@ def get_environment(project_name, ssm_params):
             i[p["VariableName"]] = ""
 
     return i
-    
+
 def lambda_handler(event, context):
     try:
         response_status = cfnresponse.SUCCESS

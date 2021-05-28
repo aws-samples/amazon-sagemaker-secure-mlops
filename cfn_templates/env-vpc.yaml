@@ -5,132 +5,65 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   This template create a Multi-AZ, multi-subnet VPC infrastructure with optional managed NAT gateways in the public subnet for each AZ
 
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label: 
-          default: Data Science Environment
-        Parameters:
-          - EnvName
-          - EnvType
-      - Label:
-          default: Availability Zone Configuration
-        Parameters:
-          - AvailabilityZones
-          - NumberOfAZs
-      - Label:
-          default: Network Configuration
-        Parameters:
-          - CreateVPC
-          - CreateNATGateways
-          - ExistingVPCId
-          - VPCCIDR
-          - CreatePrivateSubnets
-          - PrivateSubnet1ACIDR
-          - PrivateSubnet2ACIDR
-          - PrivateSubnet3ACIDR
-          - PrivateSubnet4ACIDR
-          - PublicSubnet1CIDR
-          - PublicSubnet2CIDR
-          - PublicSubnet3CIDR
-          - PublicSubnet4CIDR
-      - Label:
-          default: VPC Flow Logs Configuration
-        Parameters:
-          - CreateVPCFlowLogsToCloudWatch
-          - VPCFlowLogsRoleArn
-          - VPCFlowLogsLogFormat
-          - VPCFlowLogsLogGroupRetention
-          - VPCFlowLogsMaxAggregationInterval
-          - VPCFlowLogsTrafficType
-          - VPCFlowLogsCloudWatchKMSKey
-
-    ParameterLabels:
-          EnvName:
-            default: Name of the Data Science environment
-          EnvType:
-            default: Environment stage name (dev, test, prod)
-          AvailabilityZones:
-            default: Availability Zones
-          NumberOfAZs:
-            default: Number of Availability Zones
-          CreateVPC:
-            default: Create a new VPC
-          CreateNATGateways:
-            default: Create NAT Gateways (per AZ)
-          ExistingVPCId:
-            default: Existing VPC Id
-          VPCCIDR:
-            default: Create a new VPC with the following CIDR
-          CreatePrivateSubnets:
-            default: Create private subnets
-          PrivateSubnet1ACIDR:
-            default: Private subnet 1A CIDR
-          PrivateSubnet2ACIDR:
-            default: Private subnet 2A CIDR
-          PrivateSubnet3ACIDR:
-            default: Private subnet 3A CIDR
-          PrivateSubnet4ACIDR:
-            default: Private subnet 4A CIDR
-          PublicSubnet1CIDR:
-            default: Public subnet 1 CIDR
-          PublicSubnet2CIDR:
-            default: Public subnet 2 CIDR
-          PublicSubnet3CIDR:
-            default: Public subnet 3 CIDR
-          PublicSubnet4CIDR:
-            default: Public subnet 4 CIDR
-          CreateVPCFlowLogsToCloudWatch:
-            default: Create VPC Flow Logs (CloudWatch)
-          VPCFlowLogsRoleArn:
-            default: VPC Flow Logs Role ARN
-          VPCFlowLogsCloudWatchKMSKey:
-            default: CloudWatch Logs KMS Key for VPC flow logs
-          VPCFlowLogsLogFormat:
-            default: VPC Flow Logs - Log Format
-          VPCFlowLogsLogGroupRetention:
-            default: VPC Flow Logs - Log Group Retention
-          VPCFlowLogsMaxAggregationInterval:
-            default: VPC Flow Logs - Max Aggregation Interval
-          VPCFlowLogsTrafficType:
-            default: VPC Flow Logs - Traffic Type
-
 Outputs:
   VPCId:
-    Description: VPC ID
+    Description: SageMaker VPC ID
     Value: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
 
   PrivateSubnetIds:
     Description: Ids of the private subnets to deploy SageMaker resources and VPC endpoints
-    Value: !Join
-      - ','
-      - - !If [ PrivateSubnetsCondition, !Ref PrivateSubnet1A, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
-
-  PrivateRouteTableIds:
-    Description: Ids of the private route tables
-    Value: !Join
-      - ',' 
-      - - !If [ PrivateSubnetsCondition, !Ref PrivateSubnet1ARouteTable, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2ARouteTable, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3ARouteTable, !Ref AWS::NoValue ]
-        - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4ARouteTable, !Ref AWS::NoValue ]
+    Value: !If
+      - PrivateSubnetsCondition
+      - !Join
+        - ','
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+      - !Ref ExistingPrivateSubnetIds
 
   SageMakerSecurityGroupIds:
-    Description: Id of SageMaker security group(s)
+    Description: Id of the SageMaker security group(s)
     Value: !Join
       - ','
       - - !GetAtt SageMakerSecurityGroup.GroupId
   
   VPCEndpointsSecurityGroupId:
-    Description: Id of VPC endpoints security group
+    Description: Id of the VPC endpoints security group
     Value: !GetAtt VPCEndpointsSecurityGroup.GroupId
 
   SharedServicesVPCEndpointSecurityGroupId:
-    Description: Id of shared services VPC endpoint security group
+    Description: Id of the shared services VPC endpoint security group
     Value: !GetAtt SharedServicesVPCEndpointSecurityGroup.GroupId
+
+  VPCEndpointS3Id:
+    Description: Id of the S3 VPC endpoint
+    Value: !If
+    - S3VPCEndpointCondition
+    - !Ref VPCEndpointS3
+    - !Ref ExistingS3VPCEndpointId
+  
+  VPCEndpointKMSId:
+    Description: Id of the KMS VPC endpoint
+    Value: !If
+    - KMSVPCEndpointCondition
+    - !Ref VPCEndpointKMS
+    - ''
+
+  PyPIMirrorEndpointDNS:
+    Description: DNS entries for the PyPI mirror VPC endpoint 
+    Value: !If 
+      - PyPIMirrorEndpointCondition
+      - !Select [ 0, !GetAtt VPCEndpointSharedServicesPyPIMirror.DnsEntries ]
+      - ''
+
+  DataBucketName:
+    Description: Name of the Amazon S3 bucket for data
+    Value: !Ref DataBucketName
+
+  ModelBucketName:
+    Description: Name of the Amazon S3 bucket for models
+    Value: !Ref ModelBucketName
 
 Parameters:
   AvailabilityZones:
@@ -181,6 +114,11 @@ Parameters:
       - 'NO'
     Default: 'YES'
     Description: Set to NO when you want to re-use existing subnets in the existing VPC (existing VPC Id must be provided)
+    Type: String
+
+  ExistingPrivateSubnetIds:
+    Description: Existing private subnet ids if SageMaker Studio is being deployed into an existing VPC
+    Default: ''
     Type: String
 
   PrivateSubnet1ACIDR:
@@ -306,6 +244,159 @@ Parameters:
     Type: String
     Default: dev
 
+  # VPC endpoints parameters part
+
+  CreateS3VPCEndpoint:
+    Description: Set to NO to disable creation of an S3 VPC endpoint (and use an existing one)
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  ExistingS3VPCEndpointId:
+    Description: Id of the existing S3 VPC endpoint (must be provided if CreateS3VPCEndpoint = NO)
+    Type: String
+    Default: ''
+
+  CreateSSMVPCEndpoint:
+    Description: Set to NO to disable creation of an SSM VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCWLVPCEndpoint:
+    Description: Set to NO to disable creation of a CloudWatch logs VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerRuntimeVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Runtime VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSageMakerNotebookVPCEndpoint:
+    Description: Set to NO to disable creation of a SageMaker Notebook VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateSTSVPCEndpoint:
+    Description: Set to NO to disable creation of an STS VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeCommitAPIVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeCommit API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodePipelineVPCEndpoint:
+    Description: Set to NO to disable creation of a CodePipeline VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateCodeBuildVPCEndpoint:
+    Description: Set to NO to disable creation of a CodeBuild VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRAPIVPCEndpoint:
+    Description: Set to NO to disable creation of an ECR API VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateECRVPCEndpoint:
+    Description: Set to NO to disable creation of a ECR VPC endpoint
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  CreateServiceCatalogVPCEndpoint:
+    Description: Set to NO to disable creation of a Service Catalog VPC endpoint. This VPC endpoint is needed to access Studio Projects functionality
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+  
+  CreateKMSVPCEndpoint:
+    Description: Set to NO to disable creation of a KMS VPC endpoint. This VPC endpoint is needed for all KMS API calls
+    Type: String
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+
+  ExistingPrivateRouteTableIds:
+    Description: Comma-delimited list of existing private route tables ids
+    Type: String
+    Default: ''
+
+  PyPIMirrorEndpointServiceName:
+    Description: PyPI mirror service name for VPC endpoint
+    Type: String
+    Default: ''
+
+  DataBucketName:
+    Description: S3 bucket name to store data
+    Type: String
+
+  ModelBucketName:
+    Description: S3 bucket name to store models
+    Type: String
+
 Rules:
   VPC:
     RuleCondition: !Equals [ !Ref 'CreateVPC', 'NO' ]
@@ -329,6 +420,17 @@ Rules:
     Assertions:
       - Assert: !Equals [ !Ref 'CreateVPC', 'NO' ] 
         AssertDescription: You can set Create private subnets to NO only if you use existing VPC
+      - Assert: !Not [ !Equals [ !Ref 'ExistingPrivateSubnetIds', '' ] ]
+        AssertDescription: You must provide existing private subnet ids if you select not to create private subnets
+      - Assert: !Not [ !Equals [ !Ref 'ExistingPrivateRouteTableIds', '' ] ]
+        AssertDescription: You must provide existing private route tables ids if you select not to create private subnets
+
+  # VPC endpoints rules part
+  S3VPCEndpoint:
+    RuleCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'NO']
+    Assertions:
+      - Assert: !Not [ !Equals [ !Ref ExistingS3VPCEndpointId, '' ] ]
+        AssertDescription: ExistingS3VPCEndpointId must be provided if CreateS3VPCEndpoint=NO
 
 Conditions:
   2AZCondition: !Or
@@ -365,6 +467,25 @@ Conditions:
   VPCFlowLogsCloudWatchKMSKeyCondition: !Not [!Equals [!Ref VPCFlowLogsCloudWatchKMSKey, '']]
   VPCFlowLogsToCloudWatchCondition: !Equals [!Ref 'CreateVPCFlowLogsToCloudWatch', 'YES']
   NVirginiaRegionCondition: !Equals [!Ref 'AWS::Region', us-east-1]
+
+  # VPC endpoints conditions part
+  PyPIMirrorEndpointCondition: !Not [ !Equals [!Ref 'PyPIMirrorEndpointServiceName', ''] ]
+  S3VPCEndpointCondition: !Equals [!Ref 'CreateS3VPCEndpoint', 'YES']
+  SSMVPCEndpointCondition: !Equals [!Ref 'CreateSSMVPCEndpoint', 'YES']
+  CWVPCEndpointCondition: !Equals [!Ref 'CreateCWVPCEndpoint', 'YES']
+  CWLVPCEndpointCondition: !Equals [!Ref 'CreateCWLVPCEndpoint', 'YES']
+  SageMakerAPIVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerAPIVPCEndpoint', 'YES']
+  SageMakerRuntimeVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerRuntimeVPCEndpoint', 'YES']
+  SageMakerNotebookVPCEndpointCondition: !Equals [!Ref 'CreateSageMakerNotebookVPCEndpoint', 'YES']
+  STSVPCEndpointCondition: !Equals [!Ref 'CreateSTSVPCEndpoint', 'YES']
+  CodeCommitVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitVPCEndpoint', 'YES']
+  CodeCommitAPIVPCEndpointCondition: !Equals [!Ref 'CreateCodeCommitAPIVPCEndpoint', 'YES']
+  CodePipelineVPCEndpointCondition: !Equals [!Ref 'CreateCodePipelineVPCEndpoint', 'YES']
+  CodeBuildVPCEndpointCondition: !Equals [!Ref 'CreateCodeBuildVPCEndpoint', 'YES']
+  ECRAPIVPCEndpointCondition: !Equals [!Ref 'CreateECRAPIVPCEndpoint', 'YES']
+  ECRVPCEndpointCondition: !Equals [!Ref 'CreateECRVPCEndpoint', 'YES']
+  ServiceCatalogVPCEndpointCondition: !Equals [!Ref 'CreateServiceCatalogVPCEndpoint', 'YES']
+  KMSVPCEndpointCondition: !Equals [!Ref 'CreateKMSVPCEndpoint', 'YES']
 
 Resources:
   DHCPOptions:
@@ -552,13 +673,31 @@ Resources:
       Value: !Ref PrivateSubnet4A
       Description: Private Subnet 4A ID
 
-  SageMakerSecurityGroupIdSSM:
+  SageMakerSecurityGroupIdsSSM:
     Type: 'AWS::SSM::Parameter'
     Properties:
-      Name: !Sub "${EnvName}-${EnvType}-sagemaker-sg-id"
+      Name: !Sub "${EnvName}-${EnvType}-sagemaker-sg-ids"
       Type: String
-      Value: !GetAtt SageMakerSecurityGroup.GroupId
-      Description: SageMaker Security Group ID
+      Value: !Join
+        - ','
+        - - !GetAtt SageMakerSecurityGroup.GroupId
+      Description: SageMaker Security Group id
+
+  SageMakerPrivateSubnetIdsSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-private-subnet-ids"
+      Type: String
+      Value: !If
+        - PrivateSubnetsCondition
+        - !Join
+          - ','
+          - - !Ref PrivateSubnet1A
+            - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+            - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+            - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Ref ExistingPrivateSubnetIds
+      Description: SageMaker private subnet ids
 
   # Public subnets
   PublicSubnet1:
@@ -1088,5 +1227,397 @@ Resources:
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
+
+  # ******************************************************************************
+  # VPC endpoints
+  # ******************************************************************************
+
+  # Create the VPC endpoints (interface type) for AWS public service access:
+  # SSM, CloudWatch, CloudWatch Logs, SageMaker Runtime, SageMaker API, SageMaker Notebook
+  # STS, CodeCommit, CodeCommit API, ECR API, ECR, KMS
+  # Shared Services PyPi mirror VPC endpoint
+  VPCEndpointSSM:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SSMVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ssm'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCW:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CWVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.monitoring'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCWL:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CWLVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.logs'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointSagemakerAPI:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerAPIVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sagemaker.api'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointSageMakerRuntime:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerRuntimeVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sagemaker.runtime'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointSageMakerNotebook:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: SageMakerNotebookVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'aws.sagemaker.${AWS::Region}.notebook'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      
+  VPCEndpointSTS:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: STSVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.sts'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCodeCommit:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeCommitVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.git-codecommit'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCodeCommitAPI:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeCommitAPIVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codecommit'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCodePipeline:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodePipelineVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codepipeline'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointCodeBuild:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: CodeBuildVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.codebuild'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointECRAPI:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ECRAPIVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.api'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointECR:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ECRVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.ecr.dkr'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointServiceCatalog:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: ServiceCatalogVPCEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.servicecatalog'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  VPCEndpointSharedServicesPyPIMirror:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: PyPIMirrorEndpointCondition
+    Properties:
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: false
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt SharedServicesVPCEndpointSecurityGroup.GroupId
+      ServiceName: !Ref PyPIMirrorEndpointServiceName
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  # Create S3 endpoint (gateway type) for S3 access
+  VPCEndpointS3:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: S3VPCEndpointCondition
+    Properties:
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcEndpointType: Gateway
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+      PolicyDocument: 
+        !Sub |
+        { 
+          "Version":"2012-10-17", 
+          "Statement":[
+          { 
+            "Effect":"Allow", 
+            "Principal": "*", 
+            "Action":[
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject",
+              "s3:ListBucket",
+              "s3:CreateBucket",
+              "s3:GetBucketAcl",
+              "s3:GetBucketCors",
+              "s3:ListBucketMultipartUploads",
+              "s3:PutBucketCors",
+              "s3:GetObjectVersion",
+              "s3:AbortMultipartUpload",
+              "s3:GetBucketLocation",
+              "s3:GetBucketTagging"
+            ], 
+            "Resource":[
+              "arn:aws:s3:::*${ModelBucketName}*",
+              "arn:aws:s3:::*${DataBucketName}*",
+              "arn:aws:s3:::*sagemaker*",
+              "arn:aws:s3:::*SageMaker*",
+              "arn:aws:s3:::*Sagemaker*",
+              "arn:aws:s3:::*aws-glue*",
+              "arn:aws:s3:::sm-mlops-cp-*"
+              ]
+          },
+          {
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEqualsIgnoreCase": {
+                  "s3:ExistingObjectTag/SageMaker": "true"
+                }
+              }
+            },
+            {
+                "Effect": "Allow",
+                "Principal": "*",
+                "Action": [
+                    "s3:GetObject"
+                ],
+                "Resource": "*",
+                "Condition": {
+                    "StringEquals": {
+                        "s3:ExistingObjectTag/servicecatalog:provisioning": "true"
+                    }
+                }
+            }
+          ]
+        }
+      RouteTableIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1ARouteTable
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2ARouteTable, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3ARouteTable, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4ARouteTable, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateRouteTableIds]
+
+  VPCEndpointKMS:
+    Type: 'AWS::EC2::VPCEndpoint'
+    Condition: KMSVPCEndpointCondition
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: '*'
+            Resource: '*'
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: !If
+        - PrivateSubnetsCondition
+        - - !Ref PrivateSubnet1A
+          - !If [ PrivateSubnets&2AZCondition, !Ref PrivateSubnet2A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&3AZCondition, !Ref PrivateSubnet3A, !Ref AWS::NoValue ]
+          - !If [ PrivateSubnets&4AZCondition, !Ref PrivateSubnet4A, !Ref AWS::NoValue ]
+        - !Split [',', !Ref ExistingPrivateSubnetIds]
+      SecurityGroupIds:
+        - !GetAtt VPCEndpointsSecurityGroup.GroupId
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
+      VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
+
+  # SSM parameter
+  VPCEndpointS3IdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-s3-vpce-id"
+      Type: String
+      Value: !If
+        - S3VPCEndpointCondition
+        - !Ref VPCEndpointS3
+        - !Ref ExistingS3VPCEndpointId
+      Description: S3 VPC Endpoint ID
   
   

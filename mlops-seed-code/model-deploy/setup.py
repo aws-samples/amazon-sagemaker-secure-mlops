@@ -22,6 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--organizational-unit-prod-id", type=str, default='')
     parser.add_argument("--env-name", type=str, required=True)
     parser.add_argument("--env-type", type=str, required=True)
+    parser.add_argument("--multi-account-deployment", type=str, required=True)
 
     args, _ = parser.parse_known_args()
 
@@ -33,13 +34,19 @@ if __name__ == "__main__":
     # Create model package group if necessary
     try:
         # check if the model package group exists
+        logger.info(f"Checking if the model package group {args.model_package_group_name} exists")
+
         model_package_group_arn = sm_client.describe_model_package_group(
             ModelPackageGroupName=args.model_package_group_name
             )['ModelPackageGroupArn']
 
+        logger.info(f"Found an existing model package group: {model_package_group_arn}")
+
     except ClientError as e:
         if e.response['Error']['Code'] == 'ValidationException':
             # it doesn't exist, create a new one
+            logger.info(f"The model package group {args.model_package_group_name} is not found, creating a new one...")
+
             model_package_group_arn = sm_client.create_model_package_group(
                 ModelPackageGroupName=args.model_package_group_name,
                 ModelPackageGroupDescription=f"Multi account model group for SageMaker project {args.sagemaker_project_name}",
@@ -54,42 +61,48 @@ if __name__ == "__main__":
         else:
             raise e
 
-    staging_ou_id = args.organizational_unit_staging_id
-    prod_ou_id = args.organizational_unit_prod_id
+    if args.multi_account_deployment == "YES":
+        staging_ou_id = args.organizational_unit_staging_id
+        prod_ou_id = args.organizational_unit_prod_id
 
-    if staging_ou_id and prod_ou_id:
+        if not staging_ou_id or not prod_ou_id:
+            error_message = (
+                f"Staging OU {staging_ou_id} or production OU {prod_ou_id} are not provided for multi-account-deployment"
+            )
+            logger.error(error_message)
+            raise Exception(error_message)
 
         logger.info(f"Staging OU: {staging_ou_id} and Production OU: {prod_ou_id} are provided. Setting up the permissions...")
-        # finally, we need to update the model package group policy
-        # Get the account principals based on staging and prod ids
+
+        # Get the account ids based on staging and prod ids
         principals = [f"arn:aws:iam::{acc}:root" for acc in
                 [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=staging_ou_id)['Accounts']] +
                 [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=prod_ou_id)['Accounts']]]
 
-        # create policy for access to the ModelPackageGroup
+        # create policy for cross-account access to the ModelPackageGroup
         sm_client.put_model_package_group_policy(
             ModelPackageGroupName=args.model_package_group_name,
             ResourcePolicy=json.dumps({
                 'Version': '2012-10-17',
                 'Statement': [{
-                    'Sid': 'multi-account-access-model-package-group',
+                    'Sid': 'ModelPackageGroupPerm',
                     'Effect': 'Allow',
                     'Principal': {'AWS': principals},
                     'Action': ['sagemaker:DescribeModelPackageGroup'],
                     'Resource': model_package_group_arn
                 },{
-                    'Sid': 'multi-account-access-model',
+                    'Sid': 'ModelVersionPerm',
                     'Effect': 'Allow',
                     'Principal': {'AWS': principals },
                     'Action': [ 'sagemaker:DescribeModelPackage',
                                 'sagemaker:ListModelPackages',
-                                'sagemaker:UpdateModelPackage,'
+                                'sagemaker:UpdateModelPackage',
                                 'sagemaker:CreateModel'],
                     'Resource': f"{model_package_group_arn.replace('model-package-group', 'model-package')}/*"
                 }]
             })
         )
     else:
-        logger.info(f"Staging OU and Production OU are not provided. Single-account model deployment.")
+        logger.info(f"Multi-account deployment is set to NO for this project")
             
     

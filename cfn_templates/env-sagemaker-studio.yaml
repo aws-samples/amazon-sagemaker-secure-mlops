@@ -6,7 +6,7 @@ Description: |
   Create a SageMaker Studio domain, applications and a default user profile
 
 Metadata:
-  'AWS::CloudFormation::Interface':
+  AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label: 
           default: Data Science Environment

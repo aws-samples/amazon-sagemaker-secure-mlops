@@ -31,6 +31,11 @@ Parameters:
       - 'NO'
     Default: 'YES'
   
+  SetupStackSetExecutionRoleName:
+    Description: Stack set execution role to setup IAM roles in the target accounts (staging and production OUs)
+    Type: String
+    Default: 'AWSCloudFormationStackSetExecutionRole'
+  
 Conditions:
   VPCFlowLogsRoleCondition: !Equals [!Ref CreateVPCFlowLogsRole, 'YES']
   IAMUserRolesCondition: !Equals [!Ref CreateIAMUserRoles, 'YES']
@@ -401,6 +406,7 @@ Resources:
             Action:
               - 'cloudformation:DeleteStackInstances'
               - 'cloudformation:DeleteStackSet'
+              - 'cloudformation:ListStackInstances'
             Resource: 
               - 'arn:aws:cloudformation:*:*:stackset/sagemaker-*'
             Effect: Allow
@@ -616,6 +622,12 @@ Resources:
             Action:
               - servicecatalog:*
             Resource: '*'
+          - Sid: AWSOrganizationsPermission
+            Effect: Allow
+            Action:
+              - organizations:List*
+              - organizations:DescribeOrganizationalUnit
+            Resource: 'arn:aws:organizations::*:ou/o-*/ou-*'
           - Sid: SageMakerExecPassRole
             Effect: Allow
             Action:
@@ -645,4 +657,5 @@ Resources:
                   - sts:AssumeRole
                 Resource:
                   - "arn:*:iam::*:role/*StackSetExecutionRole*"
+                  - !Sub 'arn:*:iam::*:role/${SetupStackSetExecutionRoleName}'
 

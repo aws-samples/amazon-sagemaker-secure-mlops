@@ -6,7 +6,7 @@ Description: |
   Create the Data Science environment
 
 Metadata:
-  'AWS::CloudFormation::Interface':
+  AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label: 
           default: Data Science Environment
@@ -14,6 +14,8 @@ Metadata:
           - EnvName
           - EnvType
           - StartKernelGatewayApps
+          - EnvTypeStagingName
+          - EnvTypeProdName
       - Label:
           default: Deployment Options
         Parameters:
@@ -43,6 +45,11 @@ Metadata:
         Parameters:
           - OrganizationalUnitStagingId
           - OrganizationalUnitProdId
+      - Label:
+          default: Infrastructure setup in the target accounts in staging and production OUs (multi-account only)
+        Parameters:
+          - SetupStackSetExecutionRoleName
+          - CreateTargetAccountNetworkInfra
       - Label:
           default: Availability Zone Configuration
         Parameters:
@@ -101,6 +108,10 @@ Metadata:
         default: Environment name
       EnvType:
         default: Environment stage name (dev, test, prod)
+      EnvTypeStagingName:
+        default: Environment name for staging environment
+      EnvTypeProdName:
+        default: Environment name for production environment
       StartKernelGatewayApps:
         default: Select YES to start the Data Science and Data Wrangler kernels on KernelGateway
       DataBucketName:
@@ -158,7 +169,7 @@ Metadata:
       SageMakerModelExecutionRoleName:
         default: SageMaker model endpoint execution role name
       StackSetAdministrationRoleArn:
-        default: CloudFormation StackSet administrator role ARN
+        default: CloudFormation StackSet administration role ARN
       StackSetExecutionRoleName:
         default: CloudFormation StackSet execution role name
       SetupLambdaExecutionRoleArn:
@@ -169,6 +180,10 @@ Metadata:
         default: OU Id for the organizational unit with data science staging account. Leave empty for single-account deployment
       OrganizationalUnitProdId:
         default: OU Id for the organizational unit with data science production account. Leave empty for single-account deployment
+      SetupStackSetExecutionRoleName:
+        default: Stack set execution role name for initial infrastructure setup in the target accounts in the staging and production OUs
+      CreateTargetAccountNetworkInfra:
+        default: Create a private VPC and VPC endpoints for model hosting in the target accounts in the staging and production OUs
       AvailabilityZones:
         default: Availability Zones
       NumberOfAZs:
@@ -244,6 +259,12 @@ Outputs:
       - !GetAtt EnvironmentSageMakerStudio.Outputs.SageMakerDomainId
       - '' 
   
+  GetOUAccountsLambdaArn:
+    Description: Lambda function to retrieve the accounts id from the parent OUs
+    Value: !GetAtt GetOUAccountsLambda.Arn
+    Export:
+      Name: 'ds-ou-accounts-lambda-arn'
+
 Parameters:
   EnvName:
     Type: String
@@ -253,7 +274,17 @@ Parameters:
   EnvType:
     Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
     Type: String
-    Default: dev
+    Default: 'dev'
+
+  EnvTypeStagingName:
+    Description: Environment name for staging environment
+    Type: String
+    Default: 'staging'
+
+  EnvTypeProdName:
+    Description: Environment name for production environment
+    Type: String
+    Default: 'prod'
 
   StartKernelGatewayApps:
     Type: String
@@ -459,14 +490,14 @@ Parameters:
     Default: ''
 
   StackSetAdministrationRoleArn:
-    Description: The ARN of the CloudFormation StackSet administrator role if created outside the stack. Must be provided if Create IAM Roles = NO
+    Description: The ARN of the CloudFormation StackSet administration role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
     Default: ''
 
   StackSetExecutionRoleName:
     Description: The name of the CloudFormation StackSet execution role if created outside the stack. Must be provided if Create IAM Roles = NO
     Type: String
-    Default: 'AWSCloudFormationStackSetExecutionRole'
+    Default: ''
 
   SetupLambdaExecutionRoleArn:
     Description: The ARN of the execution role for the Lambda function for SageMaker Studio setup
@@ -487,6 +518,19 @@ Parameters:
     Type: String
     Description: OU Id of the organizational unit that holds the data science production account   
     Default: ''
+
+  SetupStackSetExecutionRoleName:
+    Type: String
+    Description: Stack set execution role name for initial infrastructure setup in the target accounts (staging and production OUs).
+    Default: ''
+
+  CreateTargetAccountNetworkInfra:
+    AllowedValues:
+      - 'YES'
+      - 'NO'
+    Default: 'YES'
+    Description: Set to NO when you do not want to create any network infra hosting in the target account. Model hosting VPC and VPC endpoints are required for multi-account model deployment.
+    Type: String
 
   AvailabilityZones:
     Description: 'List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.'
@@ -668,6 +712,9 @@ Conditions:
   IAMRolesCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'YES' ]
   VPCFlowLogsRoleCondition: !Equals [ !Ref CreateVPCFlowLogsRole, 'YES' ]
   ExistingVPCCondition: !Equals [!Ref 'CreateVPC', 'NO']
+  ExistingPrivateSubnetsCondition: !And
+    - !Condition ExistingVPCCondition
+    - !Equals [!Ref CreatePrivateSubnets, 'NO']
   IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
@@ -675,6 +722,13 @@ Conditions:
   MultiAccountDeploymentCondition: !And
     - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
     - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
+  IAMRolesStackSetDeploymentCondition: !And 
+    - !Condition MultiAccountDeploymentCondition
+    - !Condition IAMRolesCondition
+  TargetAccountNetworkInfraCondition: !Equals [ !Ref CreateTargetAccountNetworkInfra, 'YES' ]
+  NetworkInfraStackSetDeploymentCondition: !And
+    - !Condition MultiAccountDeploymentCondition
+    - !Condition TargetAccountNetworkInfraCondition
 
 Rules:
   IAMRoles:
@@ -702,13 +756,24 @@ Rules:
     RuleCondition: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
     Assertions:
       - Assert: !Equals [ !Ref OrganizationalUnitProdId, '' ]
-        AssertDescription: OU Ids for both staging and production OU must be provided if one (staging or production) id is provided
+        AssertDescription: OU Ids for both staging and production OUs must be provided if one (staging or production) id is provided
 
   OrganizationalUnitProdId: 
     RuleCondition: !Equals [ !Ref OrganizationalUnitProdId, '' ]
     Assertions:
       - Assert: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
-        AssertDescription: OU Ids for both staging and production OU must be provided if one (staging or production) id is provided
+        AssertDescription: OU Ids for both staging and production OUs must be provided if one (staging or production) id is provided
+
+  SetupStackSetExecutionRole:
+    RuleCondition: !And
+      - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
+      - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
+      - !Or
+        - !Equals [ !Ref CreateEnvironmentIAMRoles, 'YES' ]
+        - !Equals [ !Ref CreateTargetAccountNetworkInfra, 'YES' ]
+    Assertions:
+      - Assert: !Not [ !Equals [ !Ref SetupStackSetExecutionRoleName, '' ] ]
+        AssertDescription: SetupStackSetExecutionRoleName must be provided for multi-account model deployment option
 
 Resources:
 
@@ -721,6 +786,10 @@ Resources:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         CreateVPCFlowLogsRole: !Ref CreateVPCFlowLogsRole
+        SetupStackSetExecutionRoleName: !If 
+          - IAMRolesStackSetDeploymentCondition
+          - !Ref SetupStackSetExecutionRoleName
+          - !Ref AWS::NoValue
       TemplateURL: env-iam.yaml
       Tags:
         - Key: EnvironmentName
@@ -728,9 +797,9 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
   
-  # IAM Roles which should be deployed into the target account
-  # Needed for StackSet operations and multi-account model deployment
-  # This stack deploys these roles to the current account to enable a trivial single-account model deployment
+  # This stack deployes the IAM Roles which will be provisioned in the target accounts (staging and production) into the current account
+  # These roles are needed for StackSet operations and model deployment
+  # This stack deploys these roles to _the current account_ to enable a trivial single-account model deployment
   # Single-account model deployment is still uses StackSet operations and a separate model execution role
   EnvironmentTargetAccountRoles:
     Type: AWS::CloudFormation::Stack
@@ -748,6 +817,97 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
+  # These two stack set deploys the IAM roles in the target accounts - staging and production - defined by the provided OU Ids
+  # Using 'SELF_MANAGED' permission model for this deployment
+
+  # Deploy IAM roles into the staging OU
+  EnvironmentTargetAccountRolesStackSetStaging:
+    Type: AWS::CloudFormation::StackSet
+    Condition: IAMRolesStackSetDeploymentCondition
+    Properties:
+      AdministrationRoleARN: !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
+      Capabilities: 
+        - CAPABILITY_NAMED_IAM
+      Description: Deploys stack set execution and model execution roles to the target accounts in the staging OU
+      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      Parameters:
+        - 
+          ParameterKey: 'EnvName'
+          ParameterValue: !Ref EnvName
+        -
+          ParameterKey: 'EnvType'
+          ParameterValue: !Ref EnvTypeStagingName
+        -
+          ParameterKey: 'SageMakerModelExecutionRoleName'
+          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
+        -
+          ParameterKey: 'StackSetExecutionRoleName'
+          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
+        -
+          ParameterKey: 'PipelineExecutionRoleArn'
+          ParameterValue: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+        -
+          ParameterKey: 'AdministratorAccountId'
+          ParameterValue: !Ref AWS::AccountId
+      PermissionModel: 'SELF_MANAGED'
+      StackInstancesGroup:  
+        - 
+          Regions: 
+            - !Ref AWS::Region
+          DeploymentTargets:
+            Accounts: !GetAtt GetOUAccountsStaging.Accounts
+      StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-roles'
+      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Deploy IAM roles into the production OU
+  EnvironmentTargetAccountRolesStackSetProd:
+    Type: AWS::CloudFormation::StackSet
+    Condition: IAMRolesStackSetDeploymentCondition
+    Properties:
+      AdministrationRoleARN: !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
+      Capabilities: 
+        - CAPABILITY_NAMED_IAM
+      Description: Deploys stack set execution and model execution roles to the target accounts in production OU
+      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      Parameters:
+        - 
+          ParameterKey: 'EnvName'
+          ParameterValue: !Ref EnvName
+        -
+          ParameterKey: 'EnvType'
+          ParameterValue: !Ref EnvTypeProdName
+        -
+          ParameterKey: 'SageMakerModelExecutionRoleName'
+          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
+        -
+          ParameterKey: 'StackSetExecutionRoleName'
+          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
+        -
+          ParameterKey: 'PipelineExecutionRoleArn'
+          ParameterValue: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+        -
+          ParameterKey: 'AdministratorAccountId'
+          ParameterValue: !Ref AWS::AccountId
+      PermissionModel: 'SELF_MANAGED'
+      StackInstancesGroup:  
+        - 
+          Regions: 
+            - !Ref AWS::Region
+          DeploymentTargets:
+            Accounts: !GetAtt GetOUAccountsProd.Accounts
+      StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-roles'
+      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
   # Environment VPC and network resources
   EnvironmentVPC:
     Type: AWS::CloudFormation::Stack
@@ -755,6 +915,7 @@ Resources:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
+
         AvailabilityZones: !Join [ ',', !Ref AvailabilityZones ]
         NumberOfAZs: !Ref NumberOfAZs
         CreateVPC: !Ref CreateVPC
@@ -762,6 +923,10 @@ Resources:
         ExistingVPCId: !Ref ExistingVPCId
         VPCCIDR: !Ref VPCCIDR
         CreatePrivateSubnets: !Ref CreatePrivateSubnets
+        ExistingPrivateSubnetIds: !If 
+          - ExistingPrivateSubnetsCondition
+          - !Join [',', !GetAtt GetNetworkConfiguration.SubnetIds]
+          - !Ref AWS::NoValue
         PrivateSubnet1ACIDR: !Ref PrivateSubnet1ACIDR
         PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
         PrivateSubnet3ACIDR: !Ref PrivateSubnet3ACIDR
@@ -780,21 +945,8 @@ Resources:
         VPCFlowLogsLogGroupRetention: !Ref VPCFlowLogsLogGroupRetention
         VPCFlowLogsMaxAggregationInterval: !Ref VPCFlowLogsMaxAggregationInterval
         VPCFlowLogsTrafficType: !Ref VPCFlowLogsTrafficType
-      TemplateURL: env-vpc.yaml
-      Tags:
-        - Key: EnvironmentName
-          Value: !Ref EnvName
-        - Key: EnvironmentType
-          Value: !Ref EnvType
 
-  # VPC endpoints
-  EnvironmentVPCEndpoints:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Parameters:
-        EnvName: !Ref EnvName
-        EnvType: !Ref EnvType
-        VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
+        # VPC endpoints parameters
         CreateS3VPCEndpoint: !Ref CreateS3VPCEndpoint
         CreateSSMVPCEndpoint: !Ref CreateSSMVPCEndpoint
         CreateCWVPCEndpoint: !Ref CreateCWVPCEndpoint
@@ -812,24 +964,14 @@ Resources:
         CreateECRVPCEndpoint: !Ref CreateECRVPCEndpoint
         CreateKMSVPCEndpoint: !Ref CreateKMSVPCEndpoint
         ExistingS3VPCEndpointId: !Ref ExistingS3VPCEndpointId
-        PrivateSubnetIds: !If 
-          - ExistingVPCCondition
-          - !Join
-            - ',' 
-            - !GetAtt GetNetworkConfiguration.SubnetIds
-          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
-        PrivateRouteTableIds: !If 
-          - ExistingVPCCondition
-          - !Join
-            - ',' 
-            - !GetAtt GetNetworkConfiguration.RouteTableIds
-          - !GetAtt EnvironmentVPC.Outputs.PrivateRouteTableIds
-        VPCEndpointsSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.VPCEndpointsSecurityGroupId
-        SharedServicesVPCEndpointSecurityGroupId: !GetAtt EnvironmentVPC.Outputs.SharedServicesVPCEndpointSecurityGroupId
+        ExistingPrivateRouteTableIds: !If 
+          - ExistingPrivateSubnetsCondition
+          - !Join [',', !GetAtt GetNetworkConfiguration.RouteTableIds]
+          - !Ref AWS::NoValue
         PyPIMirrorEndpointServiceName: !If
           - SharedServicesPyPiMirrorCondition
           - !ImportValue 'ds-pypimirror-shared-service-endpoint-name'
-          - !Ref 'AWS::NoValue'
+          - !Ref AWS::NoValue
         DataBucketName: !If 
           - S3BucketsConditions
           - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
@@ -838,13 +980,286 @@ Resources:
           - S3BucketsConditions
           - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
           - !Ref ModelBucketName
-      TemplateURL: env-vpc-endpoints.yaml
+
+      TemplateURL: env-vpc.yaml
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
+
+  # Staging environment SSM parameters for single-account model deployment use case
+  SageMakerSecurityGroupIdsSSMStaging:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvTypeStagingName}-sagemaker-sg-ids"
+      Type: String
+      Value: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
+      Description: !Sub 'SageMaker Security Group id for ${EnvName}-${EnvTypeStagingName} environment'
+
+  PrivateSubnetsSSMStaging:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvTypeStagingName}-private-subnet-ids"
+      Type: String
+      Value: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+      Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvTypeStagingName} environment'
+
+  # Production environment SSM parameters for single-account model deployment use case
+  SageMakerSecurityGroupIdsSSMProd:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvTypeProdName}-sagemaker-sg-ids"
+      Type: String
+      Value: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
+      Description: !Sub 'SageMaker Security Group id for ${EnvName}-${EnvTypeProdName} environment'
+
+  PrivateSubnetsSSMProd:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvTypeProdName}-private-subnet-ids"
+      Type: String
+      Value: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+      Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvTypeProdName} environment'
   
+  # VPC stack set for model hosting in the target accounts in the staging and production OUs
+
+  # Deploy VPC infrastructure into the staging OU
+  EnvironmentVPCStackSetStaging:
+    Type: AWS::CloudFormation::StackSet
+    Condition: NetworkInfraStackSetDeploymentCondition
+    Properties:
+      AdministrationRoleARN: !If
+        - IAMRolesCondition
+        - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
+        - !Ref StackSetAdministrationRoleArn
+      Description: Deploys VPC infrastructure for model hosting to the target accounts in the staging OU
+      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      Parameters:
+        - 
+          ParameterKey: 'EnvName'
+          ParameterValue: !Ref EnvName
+        -
+          ParameterKey: 'EnvType'
+          ParameterValue: !Ref EnvTypeStagingName
+        -
+          ParameterKey: 'AvailabilityZones'
+          ParameterValue: !Ref AvailabilityZones
+        -
+          ParameterKey: 'NumberOfAZs'
+          ParameterValue: !Ref NumberOfAZs
+        -
+          ParameterKey: 'CreateNATGateways'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'VPCCIDR'
+          ParameterValue: !Ref VPCCIDR
+        -
+          ParameterKey: 'PrivateSubnet1ACIDR'
+          ParameterValue: !Ref PrivateSubnet1ACIDR
+        -
+          ParameterKey: 'PrivateSubnet2ACIDR'
+          ParameterValue: !Ref PrivateSubnet2ACIDR
+        -
+          ParameterKey: 'PrivateSubnet3ACIDR'
+          ParameterValue: !Ref PrivateSubnet3ACIDR
+        -
+          ParameterKey: 'PrivateSubnet4ACIDR'
+          ParameterValue: !Ref PrivateSubnet4ACIDR
+        -
+          ParameterKey: 'CreateS3VPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSSMVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateCWVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateCWLVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerAPIVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerRuntimeVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerNotebookVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateSTSVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateServiceCatalogVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeCommitVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeCommitAPIVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodePipelineVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeBuildVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateECRAPIVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateECRVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateKMSVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'DataBucketName'
+          ParameterValue: !If 
+            - S3BucketsConditions
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+            - !Ref DataBucketName
+        -
+          ParameterKey: 'ModelBucketName'
+          ParameterValue: !If 
+            - S3BucketsConditions
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+            - !Ref ModelBucketName
+
+      PermissionModel: 'SELF_MANAGED'
+      StackInstancesGroup:  
+        - 
+          Regions: 
+            - !Ref AWS::Region
+          DeploymentTargets:
+            Accounts: !GetAtt GetOUAccountsStaging.Accounts
+      StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-vpc'
+      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Deploy VPC infrastructure into the production OU
+  EnvironmentVPCStackSetProd:
+    Type: AWS::CloudFormation::StackSet
+    Condition: NetworkInfraStackSetDeploymentCondition
+    Properties:
+      AdministrationRoleARN: !If
+        - IAMRolesCondition
+        - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
+        - !Ref StackSetAdministrationRoleArn
+      Description: Deploys VPC infrasturcture for model hosting to the target accounts in the production OU
+      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      Parameters:
+        - 
+          ParameterKey: 'EnvName'
+          ParameterValue: !Ref EnvName
+        -
+          ParameterKey: 'EnvType'
+          ParameterValue: !Ref EnvTypeProdName
+        -
+          ParameterKey: 'AvailabilityZones'
+          ParameterValue: !Ref AvailabilityZones
+        -
+          ParameterKey: 'NumberOfAZs'
+          ParameterValue: !Ref NumberOfAZs
+        -
+          ParameterKey: 'CreateNATGateways'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'VPCCIDR'
+          ParameterValue: !Ref VPCCIDR
+        -
+          ParameterKey: 'PrivateSubnet1ACIDR'
+          ParameterValue: !Ref PrivateSubnet1ACIDR
+        -
+          ParameterKey: 'PrivateSubnet2ACIDR'
+          ParameterValue: !Ref PrivateSubnet2ACIDR
+        -
+          ParameterKey: 'PrivateSubnet3ACIDR'
+          ParameterValue: !Ref PrivateSubnet3ACIDR
+        -
+          ParameterKey: 'PrivateSubnet4ACIDR'
+          ParameterValue: !Ref PrivateSubnet4ACIDR
+        -
+          ParameterKey: 'CreateS3VPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSSMVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateCWVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateCWLVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerAPIVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerRuntimeVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateSageMakerNotebookVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateSTSVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateServiceCatalogVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeCommitVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeCommitAPIVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodePipelineVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateCodeBuildVPCEndpoint'
+          ParameterValue: 'NO'
+        -
+          ParameterKey: 'CreateECRAPIVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateECRVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'CreateKMSVPCEndpoint'
+          ParameterValue: 'YES'
+        -
+          ParameterKey: 'DataBucketName'
+          ParameterValue: !If 
+            - S3BucketsConditions
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+            - !Ref DataBucketName
+        -
+          ParameterKey: 'ModelBucketName'
+          ParameterValue: !If 
+            - S3BucketsConditions
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+            - !Ref ModelBucketName
+
+      PermissionModel: 'SELF_MANAGED'
+      StackInstancesGroup:  
+        - 
+          Regions: 
+            - !Ref AWS::Region
+          DeploymentTargets:
+            Accounts: !GetAtt GetOUAccountsProd.Accounts
+      StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-vpc'
+      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
   # Environment KMS keys
   EnvironmentKMSKeys:
     Type: AWS::CloudFormation::Stack
@@ -869,7 +1284,7 @@ Resources:
           - !GetAtt EnvironmentIAMRoles.Outputs.SageMakerExecutionRoleArn
           - !Ref SageMakerExecutionRoleArn
         SCLaunchRoleArn: !ImportValue 'ds-service-catalog-launch-role-arn'
-        VPCEndpointKMSId: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointKMSId
+        VPCEndpointKMSId: !GetAtt EnvironmentVPC.Outputs.VPCEndpointKMSId
       TemplateURL: env-kms.yaml
       Tags:
         - Key: EnvironmentName
@@ -885,9 +1300,9 @@ Resources:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
-        DataBucketName: !GetAtt EnvironmentVPCEndpoints.Outputs.DataBucketName
-        ModelBucketName: !GetAtt EnvironmentVPCEndpoints.Outputs.ModelBucketName
-        VPCEndpointS3Id: !GetAtt EnvironmentVPCEndpoints.Outputs.VPCEndpointS3Id
+        DataBucketName: !GetAtt EnvironmentVPC.Outputs.DataBucketName
+        ModelBucketName: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
+        VPCEndpointS3Id: !GetAtt EnvironmentVPC.Outputs.VPCEndpointS3Id
         S3BucketKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
       TemplateURL: env-s3.yaml
       Tags:
@@ -919,19 +1334,13 @@ Resources:
   EnvironmentSageMakerStudio:
     Type: AWS::CloudFormation::Stack
     Condition: SageMakerStudioDomainCondition
-    DependsOn: EnvironmentVPCEndpoints
     Properties:
       Parameters:
         EnvName: !Ref EnvName
         EnvType: !Ref EnvType
         StartKernelGatewayApps: !Ref StartKernelGatewayApps
         VPCId: !GetAtt EnvironmentVPC.Outputs.VPCId
-        SageMakerStudioSubnetIds: !If 
-          - ExistingVPCCondition
-          - !Join
-            - ',' 
-            - !GetAtt GetNetworkConfiguration.SubnetIds
-          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
+        SageMakerStudioSubnetIds: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
         SageMakerSecurityGroupIds: !GetAtt EnvironmentVPC.Outputs.SageMakerSecurityGroupIds
         SageMakerStudioStorageKMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.SageMakerStudioStorageKMSKeyId
         SageMakerExecutionRoleArn: !If
@@ -973,9 +1382,79 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
+  GetOUAccountsStaging:
+    Type: Custom::GetOUAccounts
+    Condition: MultiAccountDeploymentCondition
+    Properties:
+      ServiceToken: !GetAtt GetOUAccountsLambda.Arn
+      OUIds: 
+        - !Ref OrganizationalUnitStagingId
+
+  GetOUAccountsProd:
+    Type: Custom::GetOUAccounts
+    Condition: MultiAccountDeploymentCondition
+    Properties:
+      ServiceToken: !GetAtt GetOUAccountsLambda.Arn
+      OUIds: 
+        - !Ref OrganizationalUnitProdId
+
+  GetOUAccountsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+
+          org_client = boto3.client("organizations")
+
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["Accounts"] = get_ou_accounts(
+                          event['ResourceProperties']['OUIds']
+                      )
+
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+          # This operation can be called only from the organization's management account or by a member account that is a delegated administrator for an AWS service
+          def get_ou_accounts(ou_ids):
+              accounts = []
+              for ou_id in ou_ids:
+                  accounts += ([a for a in [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=ou_id)['Accounts']]])
+
+              return accounts    
+
+      Description: Get accounts from Organizations OUs
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SetupLambdaExecutionRoleArn
+          - !Ref SetupLambdaExecutionRoleArn 
+      Runtime: python3.8
+      Timeout: 60
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
   GetNetworkConfiguration:
     Type: Custom::GetNetworkConfiguration
-    Condition: ExistingVPCCondition
+    Condition: ExistingPrivateSubnetsCondition
     Properties:
       ServiceToken: !GetAtt GetNetworkConfigurationLambda.Arn
       AvailabilityZones: !Ref AvailabilityZones
@@ -987,8 +1466,7 @@ Resources:
       
   GetNetworkConfigurationLambda:
     Type: AWS::Lambda::Function
-    Condition: ExistingVPCCondition
-    DependsOn: EnvironmentVPC
+    Condition: ExistingPrivateSubnetsCondition
     Properties:
       FunctionName: GetNetworkConfiguration
       Code:
@@ -1049,20 +1527,6 @@ Resources:
           Value: !Ref EnvName
         - Key: EnvironmentType
           Value: !Ref EnvType
-
-  # SSM parameters
-  PrivateSubnetsSSM:
-    Type: 'AWS::SSM::Parameter'
-    Properties:
-      Name: !Sub "${EnvName}-${EnvType}-private-subnets-ids"
-      Type: String
-      Value: !If 
-          - ExistingVPCCondition
-          - !Join
-            - ',' 
-            - !GetAtt GetNetworkConfiguration.SubnetIds
-          - !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
-      Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvType} data science environment'
 
   OrganizationalUnitStagingIdSSM:
     Type: 'AWS::SSM::Parameter'
@@ -1131,7 +1595,7 @@ Resources:
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-model-bucket-name"
       Type: String
-      Value: !GetAtt EnvironmentVPCEndpoints.Outputs.ModelBucketName
+      Value: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
       Description: !Sub 'Amazon S3 bucket to store models for ${EnvName}-${EnvType} data science environment'
 
   DataBucketSSM:
@@ -1139,5 +1603,21 @@ Resources:
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-data-bucket-name"
       Type: String
-      Value: !GetAtt EnvironmentVPCEndpoints.Outputs.DataBucketName
+      Value: !GetAtt EnvironmentVPC.Outputs.DataBucketName
       Description: !Sub 'Amazon S3 bucket to store data for ${EnvName}-${EnvType} data science environment'
+
+  EnvTypeStagingNameSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-env-type-staging-name"
+      Type: String
+      Value: !Ref EnvTypeStagingName
+      Description: Environment name for staging environment
+
+  EnvTypeProdNameSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-env-type-prod-name"
+      Type: String
+      Value: !Ref EnvTypeProdName
+      Description: Environment name for production environment

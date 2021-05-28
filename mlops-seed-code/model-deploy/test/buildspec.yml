@@ -7,7 +7,12 @@ phases:
   build:
     commands:
       # Call the test python code
-      - python test/test.py --build-config $CODEBUILD_SRC_DIR_BuildArtifact/${BUILD_CONFIG}.json --test-results-output ${TEST_RESULTS}.json
+      - |
+        python test/test.py \
+          --build-config $CODEBUILD_SRC_DIR_BuildArtifact/${BUILD_CONFIG}.json \
+          --test-results-output ${TEST_RESULTS}.json \
+          --multi-account-deployment "$MULTI_ACCOUNT_DEPLOYMENT"
+
       # Show the test results file
       - cat ${TEST_RESULTS}.json
 

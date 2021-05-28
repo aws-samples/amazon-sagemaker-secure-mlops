@@ -6,7 +6,7 @@ Description: |
   Create the base infrastructure for SageMaker secure deployment: IAM roles and shared VPC network resources
 
 Metadata:
-  'AWS::CloudFormation::Interface':
+  AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label: 
           default: Stack name

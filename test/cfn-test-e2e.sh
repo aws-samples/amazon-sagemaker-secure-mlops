@@ -9,8 +9,47 @@
 # To deploy the 2nd level-templates we call `aws cloudformation create-stack`
 #############################################################################################
 # Package templates
-S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
+S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
+
+# ONE-OFF SETUP -----------------------------------------------------------------------------
+# STEP 1:
+# SELF_MANAGED stack set permission model:
+# Deploy a stack set execution role to EACH of the target accounts
+# This stack set execution role used to deploy the target account roles stack set in env-main.yaml
+ENV_NAME="sm-mlops"
+ENV_TYPE="staging"
+STACK_NAME=$ENV_NAME-setup-stackset-role
+ADMIN_ACCOUNT_ID="340327315379"
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
+
+aws cloudformation delete-stack --stack-name $STACK_NAME
+
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
+                --stack-name $STACK_NAME \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                EnvName=$ENV_NAME \
+                EnvType=$ENV_TYPE \
+                StackSetExecutionRoleName=$SETUP_STACKSET_ROLE_NAME \
+                AdministratorAccountId=$ADMIN_ACCOUNT_ID
+
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+
+# STEP 2:
+# Register a delegated administrator to enable AWS Organizations API permission for non-management account
+# Must be run in under administrator in the AWS Organizations _management account_
+aws organizations register-delegated-administrator \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com \
+    --account-id=$ADMIN_ACCOUNT_ID
+
+aws organizations list-delegated-administrators  \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com
+# END OF ONE-OFF SETUP ----------------------------------------------------------------------
 
 # core-main.yaml
 STACK_NAME="sm-mlops-core"
@@ -25,14 +64,16 @@ aws cloudformation create-stack \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME
 
     # Parameter block if CreateIAMRoles = NO (the IAM role ARNs must be provided)
-    ParameterKey=CreateIAMRoles,ParameterValue=NO
-    ParameterKey=DSAdministratorRoleArn,ParameterValue=
-    ParameterKey=SCLaunchRoleArn,ParameterValue=
-    ParameterKey=SecurityControlExecutionRoleArn,ParameterValue=
+    ParameterKey=CreateIAMRoles,ParameterValue=NO \
+    ParameterKey=DSAdministratorRoleArn,ParameterValue= \
+    ParameterKey=SCLaunchRoleArn,ParameterValue= 
 
 # env-main.yaml
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
+STAGING_OU_ID="ou-fi18-56v340tb"
+PROD_OU_ID="ou-fi18-9fex2edg"
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
@@ -45,7 +86,10 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=StartKernelGatewayApps,ParameterValue=YES
+        ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
+        ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
+        ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
+        ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 
 
 #####################################################################################################################
@@ -69,12 +113,13 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test46" "test47" "test48")
-MLOPS_PROJECT_ID_LIST=("p-be7gnlcgtssa" "p-zupe0a6hefne" "p-mdmirl0pn8gp")
-SM_DOMAIN_ID="d-fv4nca4qil8v"
-STACKSET_NAME_LIST=("sagemaker-test9-p-hohw5qgemxe2-deploy-staging" "sagemaker-test9-p-hohw5qgemxe2-deploy-prod")
-ACCOUNT_IDS="949335012047"
+MLOPS_PROJECT_NAME_LIST=("test4-train" "test5-deploy" "test4-deploy")
+MLOPS_PROJECT_ID_LIST=("p-rugzeldzo3pj" "p-5hehvokl38kc" "p-q5q4ujc1tmr3")
+SM_DOMAIN_ID="d-ibwbn7vzxczs"
+STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-q5q4ujc1tmr3-deploy-staging" "sagemaker-test4-deploy-p-q5q4ujc1tmr3-deploy-prod")
+ACCOUNT_IDS="340327315379"
 
+# This works only for single-account deployment
 echo "Delete stack instances"
 for ss in ${STACKSET_NAME_LIST[@]};
 do
@@ -90,6 +135,21 @@ do
     echo "delete stack set $ss"
     aws cloudformation delete-stack-set --stack-set-name $ss
 done
+
+# For multi-account deployment get the list of stack instances
+for ss in ${STACKSET_NAME_LIST[@]};
+do
+    aws cloudformation list-stack-instances \
+        --stack-set-name $ss
+done
+
+# delete stack instances for all accounts returned by the previous call
+ACCOUNT_IDS="" #comma-delimited account list
+aws cloudformation delete-stack-instances \
+    --stack-set-name "" \
+    --regions $AWS_DEFAULT_REGION \
+    --no-retain-stacks \
+    --accounts $ACCOUNT_IDS
 
 echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
 for p in ${MLOPS_PROJECT_NAME_LIST[@]};
@@ -169,3 +229,10 @@ aws iam delete-role-policy \
     --policy-name "AmazonSageMakerServiceCatalogProductsUseRolePolicy"
 
 aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
+
+aws cloudformation delete-stack --stack-name sm-mlops-setup-stackset-role
+
+# Must be run in under administrator in the AWS Organizations management account
+aws organizations deregister-delegated-administrator \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com \
+    --account-id=$ADMIN_ACCOUNT_ID

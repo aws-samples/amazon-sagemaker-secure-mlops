@@ -9,7 +9,7 @@ export PYTHONUNBUFFERED := 1
 # CloudFormation deployment variables
 CFN_BUCKET_NAME ?= 
 CFN_TEMPLATE_DIR := cfn_templates
-CFN_OUTPUT_DIR := build/${AWS_DEFAULT_REGION}
+CFN_OUTPUT_DIR := build/$(AWS_DEFAULT_REGION)
 CFN_STACK_NAME ?= 
 
 PYTHON := $(shell /usr/bin/which python$(PY_VERSION))

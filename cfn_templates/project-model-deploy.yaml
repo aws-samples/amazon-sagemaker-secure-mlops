@@ -38,7 +38,23 @@ Conditions:
   MultiAccountDeploymentCondition: !Equals [ !Ref MultiAccountDeployment, 'YES' ]
 
 Resources:
+  # Retrieve accounts from the staging OU
+  GetOUAccountsStaging:
+    Type: Custom::GetOUAccounts
+    Properties:
+      ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
+      OUIds: 
+        - !GetAtt GetEnvironmentConfiguration.OUStagingId
 
+  # Retrieve accounts from the production OU
+  GetOUAccountsProd:
+    Type: Custom::GetOUAccounts
+    Properties:
+      ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
+      OUIds: 
+        - !GetAtt GetEnvironmentConfiguration.OUProdId
+
+  # Retrieve the environment variables
   GetEnvironmentConfiguration:
     Type: Custom::GetEnvironmentConfiguration
     Properties:
@@ -78,8 +94,13 @@ Resources:
         - 
           VariableName: 'EbsKmsKeyArn'
           ParameterName: 'kms-ebs-key-arn'
+        -
+          VariableName: 'EnvTypeStagingName'
+          ParameterName: 'env-type-staging-name'
+        -
+          VariableName: 'EnvTypeProdName'
+          ParameterName: 'env-type-prod-name'
         
-
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
     Condition: MLOpsArtifactBucketCondition
@@ -220,6 +241,8 @@ Resources:
               - !Ref ModelPackageGroupName
           - Name: AWS_REGION
             Value: !Ref AWS::Region
+          - Name: MULTI_ACCOUNT_DEPLOYMENT
+            Value: !Ref MultiAccountDeployment
           - Name: ORGANIZATIONAL_UNIT_STAGING_ID
             Value: !GetAtt GetEnvironmentConfiguration.OUStagingId
           - Name: ORGANIZATIONAL_UNIT_PROD_ID
@@ -236,14 +259,10 @@ Resources:
             Value: !GetAtt GetEnvironmentConfiguration.ModelExecutionRole
           - Name: SAGEMAKER_EBS_KMS_KEY_ARN
             Value: !GetAtt GetEnvironmentConfiguration.EbsKmsKeyArn
-          - Name: SAGEMAKER_SUBNET_IDS
-            Value: !Join
-              - ',' 
-              - !GetAtt GetEnvironmentConfiguration.SubnetIds
-          - Name: SAGEMAKER_SECURITY_GROUPS
-            Value: !Join
-              - ',' 
-              - !GetAtt GetEnvironmentConfiguration.SecurityGroups
+          - Name: ENV_TYPE_STAGING_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.EnvTypeStagingName
+          - Name: ENV_TYPE_PROD_NAME
+            Value: !GetAtt GetEnvironmentConfiguration.EnvTypeProdName
 
       Source:
         Type: CODEPIPELINE
@@ -283,6 +302,8 @@ Resources:
             Value: 'staging-config'
           - Name: TEST_RESULTS
             Value: 'test-results'
+          - Name: MULTI_ACCOUNT_DEPLOYMENT
+            Value: !Ref MultiAccountDeployment
 
       Source:
         Type: CODEPIPELINE
@@ -380,9 +401,10 @@ Resources:
                 PermissionModel: 'SELF_MANAGED'
                 AdministrationRoleArn: !GetAtt GetEnvironmentConfiguration.StackSetAdministrationRole
                 ExecutionRoleName: !GetAtt GetEnvironmentConfiguration.StackSetExecutionRole
+                # For a self-managed model, targets can only be AWS accounts
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
-                  - !GetAtt GetEnvironmentConfiguration.OUStagingId
+                  - !Join [',', !GetAtt GetOUAccountsStaging.Accounts]
                   - !Ref 'AWS::AccountId'
                 Regions: !Ref 'AWS::Region'
               RunOrder: 1
@@ -443,9 +465,10 @@ Resources:
                 PermissionModel: 'SELF_MANAGED'
                 AdministrationRoleArn: !GetAtt GetEnvironmentConfiguration.StackSetAdministrationRole
                 ExecutionRoleName: !GetAtt GetEnvironmentConfiguration.StackSetExecutionRole
+                # For a self-managed model, targets can only be AWS accounts
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
-                  - !GetAtt GetEnvironmentConfiguration.OUProdId
+                  - !Join [',', !GetAtt GetOUAccountsProd.Accounts]
                   - !Ref 'AWS::AccountId'
                 Regions: !Ref 'AWS::Region'
               RunOrder: 1

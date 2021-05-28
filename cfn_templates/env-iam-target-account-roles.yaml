@@ -15,6 +15,16 @@ Parameters:
     Type: String
     Default: dev
 
+  SageMakerModelExecutionRoleName:
+    Type: String
+    Description: Name of the SageMaker model execution role. If empty, the name will be generated
+    Default: ''
+  
+  StackSetExecutionRoleName:
+    Type: String
+    Description: Name of the CloudFormation StackSet execution role. If empty, the name will be generated
+    Default: ''
+
   PipelineExecutionRoleArn:
     Type: String
     Description: CI/CD execution role in the development account (AmazonSageMakerServiceCatalogProductsUseRole)
@@ -27,11 +37,11 @@ Parameters:
 
 Outputs:
   SageMakerModelExecutionRoleArn:
-    Description: The ARN of the SageMaker model deployment role 
+    Description: The ARN of the SageMaker model deployment and execution role 
     Value: !GetAtt SageMakerModelExecutionRole.Arn
 
   SageMakerModelExecutionRoleName:
-    Description: The ARN of the SageMaker model deployment role 
+    Description: The ARN of the SageMaker model deployment and execution role 
     Value: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt SageMakerModelExecutionRole.Arn ]]]]
 
   StackSetExecutionRoleArn:
@@ -41,6 +51,10 @@ Outputs:
   StackSetExecutionRoleName:
     Description: The name of the AWS CloudFormation StackSet execution role
     Value: !Select ['1', !Split [ '/', !Select ['5', !Split [':', !GetAtt StackSetExecutionRole.Arn ]]]]
+
+Conditions:
+  GenerateSageMakerModelExecutionRoleName: !Equals [ !Ref SageMakerModelExecutionRoleName, '']
+  GenerateStackSetExecutionRoleName: !Equals [ !Ref StackSetExecutionRoleName, '']
 
 Resources:
 
@@ -66,6 +80,10 @@ Resources:
               Action:
                 - "sts:AssumeRole"
         Path: "/"
+        RoleName: !If
+          - GenerateSageMakerModelExecutionRoleName
+          - !Ref 'AWS::NoValue'
+          - !Ref SageMakerModelExecutionRoleName
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess # S3 should be limited to specific buckets in a real production setup
         Policies: 
@@ -118,6 +136,10 @@ Resources:
             Action:
               - sts:AssumeRole
       Path: /
+      RoleName: !If
+          - GenerateStackSetExecutionRoleName
+          - !Ref 'AWS::NoValue'
+          - !Ref StackSetExecutionRoleName
       Policies: 
         -
           PolicyName: !Sub "${EnvName}-${EnvType}-${AWS::Region}-stackset-execution-policy"
@@ -142,6 +164,13 @@ Resources:
                   - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint/*"
                   - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint-config/*"
                   - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:model/*"
+                  - !Sub "arn:aws:sagemaker:*:${AdministratorAccountId}:model-package/*"
+              - 
+                Effect: 'Allow'
+                Action:
+                  - 'ssm:GetParameter*'
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${EnvName}-${EnvType}*'
               - 
                 Effect: 'Allow'
                 Action:
