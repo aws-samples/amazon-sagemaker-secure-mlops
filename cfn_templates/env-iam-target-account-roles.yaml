@@ -170,7 +170,7 @@ Resources:
                 Action:
                   - 'ssm:GetParameter*'
                 Resource:
-                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${EnvName}-${EnvType}*'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${EnvName}*'
               - 
                 Effect: 'Allow'
                 Action:

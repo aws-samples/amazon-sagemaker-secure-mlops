@@ -41,6 +41,7 @@ Resources:
   # Retrieve accounts from the staging OU
   GetOUAccountsStaging:
     Type: Custom::GetOUAccounts
+    Condition: MultiAccountDeploymentCondition
     Properties:
       ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
       OUIds: 
@@ -49,6 +50,7 @@ Resources:
   # Retrieve accounts from the production OU
   GetOUAccountsProd:
     Type: Custom::GetOUAccounts
+    Condition: MultiAccountDeploymentCondition
     Properties:
       ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
       OUIds: 
@@ -393,7 +395,7 @@ Resources:
                 Version: '1'
                 Provider: CloudFormationStackSet
               Configuration:
-                StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-staging  #10+33+15+14=72 out of 128 max
+                StackSetName: !Sub 'sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-${GetEnvironmentConfiguration.EnvTypeStagingName}'  #10+33+15+14=72 out of 128 max
                 Description: 'SageMaker endpoint in the staging target OU'
                 TemplatePath: BuildArtifact::cfn-sm-endpoint.yaml
                 Parameters: BuildArtifact::staging-config.json
@@ -457,7 +459,7 @@ Resources:
                 Version: '1'
                 Provider: CloudFormationStackSet
               Configuration:
-                StackSetName: !Sub sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-prod  #10+33+15+14=72 out of 128 max
+                StackSetName: !Sub 'sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-deploy-${GetEnvironmentConfiguration.EnvTypeProdName}'  #10+33+15+14=72 out of 128 max
                 Description: 'SageMaker endpoint in the production target OU'
                 Parameters: BuildArtifact::prod-config.json
                 TemplatePath: BuildArtifact::cfn-sm-endpoint.yaml

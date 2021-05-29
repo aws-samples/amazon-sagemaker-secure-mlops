@@ -26,8 +26,9 @@ def lambda_handler(event, context):
 
 # This operation can be called only from the organization's management account or by a member account that is a delegated administrator for an AWS service
 def get_ou_accounts(ou_ids):
-    accounts = []
-    for ou_id in ou_ids:
-        accounts += ([a for a in [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=ou_id)['Accounts']]])
-
-    return accounts
+    print(f"get account ids for OUs: {ou_ids}")
+    return [
+        i['Id'] 
+        for ou_id in ou_ids if ou_id
+            for i in org_client.list_accounts_for_parent(ParentId=ou_id)['Accounts']             
+    ]
