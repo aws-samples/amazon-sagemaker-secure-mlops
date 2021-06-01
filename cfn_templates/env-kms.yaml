@@ -230,7 +230,7 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action: 'kms:*'
             Resource: '*'
-          - Sid: Allow use of the key
+          - Sid: AllowCrossAccount
             Effect: Allow
             Principal:
               AWS: 
@@ -240,15 +240,25 @@ Resources:
             Action:
               - kms:Encrypt
               - kms:Decrypt
-              - kms:ReEncrypt
-              - kms:GenerateDataKey
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: '*'
+          - Sid: DenyNoVPC
+            Effect: Deny
+            Principal: '*'
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
               - kms:DescribeKey
             Resource: '*'
             Condition:
-              StringEquals:
+              StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointKMSId
               Bool:
-                'aws:ViaAWSService': 'true' #Allow connection from CodeCommit to copy artifacts
+                'aws:ViaAWSService': 'false' #Allow connection from CodeCommit to copy artifacts
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName
@@ -266,7 +276,5 @@ Resources:
     Properties:
       Name: !Sub "${EnvName}-${EnvType}-kms-s3-key-arn"
       Type: String
-      Value: !GetAtt 
-        - S3BucketKMSKey
-        - Arn
+      Value: !GetAtt S3BucketKMSKey.Arn
       Description: Environment S3 buckets KMS key

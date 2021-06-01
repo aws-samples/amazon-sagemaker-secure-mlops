@@ -117,11 +117,24 @@ Resources:
       Bucket: !Ref ModelBucket
       PolicyDocument:
         Statement:
-          - !Ref AWS::NoValue
-          - Action:
+          - Sid: AllowCrossAccount
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Effect: Allow
+            Principal: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Resource:
+              - !Sub "arn:aws:s3:::${ModelBucket}/*"
+              - !Sub "arn:aws:s3:::${ModelBucket}"
+          - Sid: DenyNoVPC
+            Action:
               - 's3:GetObject'
               - 's3:PutObject'
               - 's3:ListBucket'
+              - 's3:GetBucketAcl'
+              - 's3:GetObjectAcl'
+              - 's3:PutBucketAcl'
+              - 's3:PutObjectAcl'
             Effect: Deny
             Resource:
               - !Sub "arn:aws:s3:::${ModelBucket}/*"

@@ -266,3 +266,49 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev
 
 
+
+
+
+# Update SageMaker Service Catalog Project roles
+STACK_NAME="sm-mlops-core-IAMSCSageMakerProjectRoles-136RA0IGCAFK7"
+
+aws s3 cp build/$AWS_DEFAULT_REGION/core-iam-sc-sm-projects-roles.yaml s3://$S3_BUCKET_NAME/sagemaker-mlops/core-iam-sc-sm-projects-roles.yaml
+
+aws cloudformation update-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-iam-sc-sm-projects-roles.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --capabilities CAPABILITY_NAMED_IAM
+
+# ################################################################################
+# SageMaker endpoint deployment
+# ################################################################################
+
+SM_PROJECT_NAME="test11-deploy"
+SM_PROJECT_ID="p-6dyr0oam0c9s"
+MODEL_PACKAGE_NAME="arn:aws:sagemaker:us-east-1:340327315379:model-package/test11-deploy-p-6dyr0oam0c9s/2"
+EXECUTION_ROLE_NAME="sm-mlops-env-EnvironmentT-SageMakerModelExecutionR-DTXUGN38COKK"
+SM_SUBNET_ID="sm-mlops-staging-private-subnet-ids"
+SM_SG_ID="sm-mlops-staging-sagemaker-sg-ids"
+ENV_NAME="sm-mlops"
+ENV_TYPE="staging"
+EBS_KMS_KEY_ID="arn:aws:kms:us-east-1:340327315379:key/9eca9a44-9b46-42c8-88af-474124ec9d34"
+S3_KMS_KEY_ID="arn:aws:kms:us-east-1:340327315379:key/a8e3e301-3fea-4784-bd6f-5b5aea3ca384"
+OU_ID="ou-fi18-56v340tb"
+
+aws cloudformation deploy \
+    --template-file build/cfn-sm-endpoint-template.yaml \
+    --stack-name $ENV_NAME-$ENV_TYPE-sm-endpoint \
+    --parameter-overrides \
+    SageMakerProjectName=$SM_PROJECT_NAME \
+    SageMakerProjectId=$SM_PROJECT_ID \
+    ModelPackageName=$MODEL_PACKAGE_NAME \
+    EndpointInstanceCount=1 \
+    EndpointInstanceType=ml.t2.medium \
+    ExecutionRoleName=$EXECUTION_ROLE_NAME \
+    EnvName=$ENV_NAME \
+    EnvType=$ENV_TYPE \
+    SageMakerSubnetIds=$SM_SUBNET_ID \
+    SageMakerSecurityGroupIds=$SM_SG_ID \
+    VolumeKmsKeyArn=$EBS_KMS_KEY_ID \
+    OrgUnitId=$OU_ID

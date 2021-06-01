@@ -139,26 +139,10 @@ Resources:
             Value: !GetAtt GetEnvironmentConfiguration.EnvironmentType
           - Name: DATA_BUCKET
             Value: !GetAtt GetEnvironmentConfiguration.DataBucketName
-          - Name: MODEL_BUCKET
-            Value: !GetAtt GetEnvironmentConfiguration.ModelBucketName
           - Name: SAGEMAKER_PIPELINE_NAME
             Value: !Sub sagemaker-${SageMakerProjectName}
           - Name: SAGEMAKER_PIPELINE_ROLE_ARN
             Value: !GetAtt GetEnvironmentConfiguration.PipelineExecutionRole
-          - Name: SAGEMAKER_PROCESSING_ROLE_ARN
-            Value: !GetAtt GetEnvironmentConfiguration.ExecutionRole
-          - Name: SAGEMAKER_TRAINING_ROLE_ARN
-            Value: !GetAtt GetEnvironmentConfiguration.ExecutionRole
-          - Name: SAGEMAKER_SUBNET_IDS
-            Value: !Join
-              - ',' 
-              - !GetAtt GetEnvironmentConfiguration.SubnetIds
-          - Name: SAGEMAKER_SECURITY_GROUPS
-            Value: !Join
-              - ',' 
-              - !GetAtt GetEnvironmentConfiguration.SecurityGroups
-          - Name: SAGEMAKER_KMS_KEY_ID
-            Value: !GetAtt GetEnvironmentConfiguration.KmsKeyId
           - Name: AWS_REGION
             Value: !Ref AWS::Region
       Source:

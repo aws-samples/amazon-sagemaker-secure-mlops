@@ -34,6 +34,14 @@ Parameters:
     Description: AWS Account Id of the account in which StackSets will be created (for multi-account deployment)
     MaxLength: 12
     MinLength: 12
+  
+  ModelS3KMSKeyArn:
+    Type: String
+    Description: KMS key ARN for model encryption in the S3 bucket
+
+  ModelBucketName:
+    Type: String
+    Description: Name of the S3 bucket where models are stored    
 
 Outputs:
   SageMakerModelExecutionRoleArn:
@@ -84,15 +92,13 @@ Resources:
           - GenerateSageMakerModelExecutionRoleName
           - !Ref 'AWS::NoValue'
           - !Ref SageMakerModelExecutionRoleName
-        ManagedPolicyArns:
-          - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess # S3 should be limited to specific buckets in a real production setup
         Policies: 
           -
             PolicyName: !Sub "${EnvName}-${EnvType}-${AWS::Region}-sagemaker-model-execution-policy"
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
-                -
+                - # permission to create a model, endpoint config, and endpoint
                   Effect: "Allow"
                   Action:
                     - "sagemaker:*Model"
@@ -102,7 +108,7 @@ Resources:
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint/*"
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:endpoint-config/*"
                     - !Sub "arn:aws:sagemaker:*:${AWS::AccountId}:model/*"
-                -
+                - # permission to create an ENI in the provided VPC
                   Effect: "Allow"
                   Action:
                     - "ec2:DescribeVpcEndpoints"
@@ -116,6 +122,23 @@ Resources:
                     - "ec2:CreateNetworkInterfacePermission"
                     - "ec2:CreateNetworkInterface"
                   Resource: "*"
+                - # permission to download the model artifact from the S3 bucket in model account
+                  Effect: 'Allow'
+                  Action:
+                    - s3:GetObject
+                    - s3:ListBucket
+                  Resource:
+                    - !Sub "arn:aws:s3:::${ModelBucketName}/*"
+                    - !Sub "arn:aws:s3:::${ModelBucketName}"
+                -  # permission to access the KMS key for S3 bucket with the model
+                  Effect: 'Allow'
+                  Action:
+                    - kms:Encrypt
+                    - kms:Decrypt
+                    - kms:ReEncrypt*
+                    - kms:GenerateDataKey*
+                    - kms:DescribeKey
+                  Resource: !Ref ModelS3KMSKeyArn
         Tags:
           - Key: EnvironmentName
             Value: !Ref EnvName
@@ -129,6 +152,12 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
           - Effect: Allow
             Principal:
               AWS:

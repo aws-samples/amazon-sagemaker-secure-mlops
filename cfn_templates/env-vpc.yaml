@@ -1608,7 +1608,7 @@ Resources:
       ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
 
-  # SSM parameter
+  # SSM parameters
   VPCEndpointS3IdSSM:
     Type: 'AWS::SSM::Parameter'
     Properties:
@@ -1620,4 +1620,13 @@ Resources:
         - !Ref ExistingS3VPCEndpointId
       Description: S3 VPC Endpoint ID
   
-  
+  VPCEndpointKMSIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-kms-vpce-id"
+      Type: String
+      Value: !If
+        - KMSVPCEndpointCondition
+        - !Ref VPCEndpointKMS
+        - ''
+      Description: KMS VPC Endpoint ID

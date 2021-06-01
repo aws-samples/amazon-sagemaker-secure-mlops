@@ -113,10 +113,10 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test6-train" "test9-deploy" "test6-deploy")
-MLOPS_PROJECT_ID_LIST=("p-l5ghkmjq71br" "p-qesudvwatxjt" "p-f9fliyvket9h")
-SM_DOMAIN_ID="d-8xa4qx44ogvg"
-STACKSET_NAME_LIST=("sagemaker-test6-deploy-p-f9fliyvket9h-deploy-staging" "sagemaker-test6-deploy-p-f9fliyvket9h-deploy-prod")
+MLOPS_PROJECT_NAME_LIST=("test11-deploy" "test12-train")
+MLOPS_PROJECT_ID_LIST=("p-6dyr0oam0c9s" "p-9ivfr0pdp2g0")
+SM_DOMAIN_ID="d-gzu9ypibxwdc"
+STACKSET_NAME_LIST=("" "")
 ACCOUNT_IDS="340327315379"
 
 # This works only for single-account deployment

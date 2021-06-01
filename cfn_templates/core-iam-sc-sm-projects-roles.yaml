@@ -573,6 +573,13 @@ Resources:
                   - arn:aws:sagemaker:*:*:app/*
                   - arn:aws:sagemaker:*:*:flow-definition/*
               - 
+                Effect: Allow
+                Action:
+                  - sagemaker:Describe*
+                  - sagemaker:ListTags
+                Resource:
+                  - arn:aws:sagemaker:*:*:domain/*
+              - 
                 Action:
                   - states:DescribeExecution
                   - states:DescribeStateMachine
@@ -603,5 +610,10 @@ Resources:
                   - 'kms:GenerateDataKey'
                   - 'kms:ListAliases'
                 Resource: '*'
+                Effect: Allow
+              - 
+                Action:
+                  - 'ssm:GetParameter*'
+                Resource: !Sub 'arn:aws:ssm:*:${AWS::AccountId}:parameter/*'
                 Effect: Allow
  

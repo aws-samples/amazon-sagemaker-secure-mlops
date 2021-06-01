@@ -427,7 +427,7 @@ Multi-account model deployment uses the AWS Organizations setup to deploy model 
               * `333333333333` (data science production AWS account)
 + [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoints) in all staging and production accounts which belongs to the staging and production OUs.
 + Execution roles `SageMakerModelExecutionRole` and `StackSetExecutionRole` must be deployed in all target accounts. Target accounts are all accounts which are member of the staging and production OUs. 
-These execution roles are deployed to the target accounts automatically during the provisioning of the data science enviroment if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you must deploy the execution roles to all accounts in staging and production OUs. You can deploy the `env-iam-target-account-roles.yaml` CloudFormation template into the staging and production accounts:
+These execution roles are deployed to the target accounts automatically during the provisioning of the data science enviroment if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you are responsible for provisioning of the execution roles in all accounts in the staging and production OUs. You can use the `env-iam-target-account-roles.yaml` CloudFormation template to deploy these roles into the staging and production accounts:
 ```bash
   aws cloudformation deploy \
                   --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
@@ -437,7 +437,9 @@ These execution roles are deployed to the target accounts automatically during t
                   EnvName=$ENV_NAME \
                   EnvType=<ENIRONMENT STAGE> \
                   PipelineExecutionRoleArn=arn:aws:iam::<DATA SCIENCE ACCOUNT ID>:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole \
-                  AdministratorAccountId=<DATA SCIENCE ACCOUNT ID>
+                  AdministratorAccountId=<DATA SCIENCE ACCOUNT ID> \
+                  ModelS3KMSKeyArn=<AWS KMS Key for S3 model bucket> \
+                  ModelBucketName=<S3 Model bucket name>
 ```
 
 The model execution role in the staging and production accounts is assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science environment account to test the endpoints in the target accounts. 
@@ -980,7 +982,9 @@ aws cloudformation deploy \
     --parameter-overrides \
     EnvName=$ENV_NAME \
     EnvType=dev \
-    PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole
+    PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole \
+    ModelS3KMSKeyArn=<AWS KMS Key for S3 model bucket> \
+    ModelBucketName=<S3 Model bucket name>
 ```
 
 Show IAM role ARNs:

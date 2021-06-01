@@ -9,7 +9,7 @@
 Implements a get_pipeline(**kwargs) method.
 """
 import os
-
+import json
 import boto3
 import sagemaker
 import sagemaker.session
@@ -47,6 +47,35 @@ from sagemaker.network import NetworkConfig
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
+def get_environment(project_name, ssm_params):
+    sm = boto3.client("sagemaker")
+    ssm = boto3.client("ssm")
+
+    r = sm.describe_domain(
+            DomainId=sm.describe_project(
+                ProjectName=project_name
+                )["CreatedBy"]["DomainId"]
+        )
+    del r["ResponseMetadata"]
+    del r["CreationTime"]
+    del r["LastModifiedTime"]
+    r = {**r, **r["DefaultUserSettings"]}
+    del r["DefaultUserSettings"]
+
+    i = {
+        **r,
+        **{t["Key"]:t["Value"] 
+            for t in sm.list_tags(ResourceArn=r["DomainArn"])["Tags"] 
+            if t["Key"] in ["EnvironmentName", "EnvironmentType"]}
+    }
+
+    for p in ssm_params:
+        try:
+            i[p["VariableName"]] = ssm.get_parameter(Name=f"{i['EnvironmentName']}-{i['EnvironmentType']}-{p['ParameterName']}")["Parameter"]["Value"]
+        except:
+            i[p["VariableName"]] = ""
+
+    return i
 
 def get_session(region, default_bucket):
     """Gets the sagemaker session based on the region.
@@ -70,19 +99,12 @@ def get_session(region, default_bucket):
         default_bucket=default_bucket,
     )
 
-
 def get_pipeline(
     region,
-    security_group_ids,
-    subnets,
-    processing_role=None,
-    training_role=None,
-    data_bucket=None,
-    model_bucket=None,
+    project_name=None,
     model_package_group_name="AbalonePackageGroup",
     pipeline_name="AbalonePipeline",
     base_job_prefix="Abalone",
-
 ):
     """Gets a SageMaker ML Pipeline instance working with on abalone data.
 
@@ -95,6 +117,27 @@ def get_pipeline(
     Returns:
         an instance of a pipeline
     """
+
+    # Dynamically load environmental SSM parameters - provide the list of the variables to load from SSM parameter store
+    ssm_parameters = [
+        {"VariableName":"DataBucketName", "ParameterName":"data-bucket-name"},
+        {"VariableName":"ModelBucketName", "ParameterName":"model-bucket-name"},
+        {"VariableName":"S3KmsKeyId", "ParameterName":"kms-s3-key-arn"},
+        {"VariableName":"EbsKmsKeyArn", "ParameterName":"kms-ebs-key-arn"},
+    ]
+
+    env_data = get_environment(project_name=project_name, ssm_params=ssm_parameters)
+    print(f"Environment data:\n{json.dumps(env_data, indent=2)}")
+
+    security_group_ids = env_data["SecurityGroups"]
+    subnets = env_data["SubnetIds"]
+    processing_role = env_data["ExecutionRole"]
+    training_role = env_data["ExecutionRole"]
+    data_bucket = env_data["DataBucketName"]
+    model_bucket = env_data["ModelBucketName"]
+    ebs_kms_id = env_data["EbsKmsKeyArn"]
+    s3_kms_id = env_data["S3KmsKeyId"]
+
     sagemaker_session = get_session(region, data_bucket)
 
     if processing_role is None:
@@ -103,6 +146,7 @@ def get_pipeline(
         training_role = sagemaker.session.get_execution_role(sagemaker_session)
     if model_bucket is None:
         model_bucket = sagemaker_session.default_bucket()
+
 
     print(f"Creating the pipeline '{pipeline_name}':")
     print(f"Parameters:{region}\n{security_group_ids}\n{subnets}\n{processing_role}\n\
@@ -130,8 +174,8 @@ def get_pipeline(
     # see https://github.com/aws/amazon-sagemaker-examples/issues/1689
     network_config = NetworkConfig(
         enable_network_isolation=False, 
-        security_group_ids=security_group_ids.split(","),
-        subnets=subnets.split(","),
+        security_group_ids=security_group_ids,
+        subnets=subnets,
         encrypt_inter_container_traffic=True)
     
     # processing step for feature engineering
@@ -142,7 +186,9 @@ def get_pipeline(
         base_job_name=f"{base_job_prefix}/sklearn-abalone-preprocess",
         sagemaker_session=sagemaker_session,
         role=processing_role,
-        network_config=network_config
+        network_config=network_config,
+        volume_kms_key=ebs_kms_id,
+        output_kms_key=s3_kms_id
     )
     
     step_process = ProcessingStep(
@@ -177,7 +223,9 @@ def get_pipeline(
         subnets=network_config.subnets,
         security_group_ids=network_config.security_group_ids,
         encrypt_inter_container_traffic=True,
-        enable_network_isolation=False
+        enable_network_isolation=False,
+        volume_kms_key=ebs_kms_id,
+        output_kms_key=s3_kms_id
     )
     xgb_train.set_hyperparameters(
         objective="reg:linear",
@@ -218,7 +266,9 @@ def get_pipeline(
         base_job_name=f"{base_job_prefix}/script-abalone-eval",
         sagemaker_session=sagemaker_session,
         role=processing_role,
-        network_config=network_config
+        network_config=network_config,
+        volume_kms_key=ebs_kms_id,
+        output_kms_key=s3_kms_id
     )
     
     evaluation_report = PropertyFile(

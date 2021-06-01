@@ -634,6 +634,31 @@ Resources:
               - iam:PassRole
               - iam:GetRole
             Resource: !GetAtt SageMakerExecutionRole.Arn
+          - Sid: AssumeTargetAccountRole
+            Action:
+              sts:AssumeRole
+            Resource:
+              - 'arn:*:iam::*:role/*StackSetExecutionRole*'
+            Effect: Allow
+          - Sid: BucketPolicyPermission
+            Action:
+              - 's3:GetBucketPolicy'
+              - 's3:PutBucketPolicy'
+            Resource:
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
+            Effect: Allow
+          - Sid: KMSPolicyPermission
+            Action:
+              - 'kms:GetKeyPolicy'
+              - 'kms:PutKeyPolicy'
+            Resource: '*'
+            Effect: Allow
+          - Sid: SSMReadPermission 
+            Action:
+              - 'ssm:GetParameters'
+              - 'ssm:GetParameter'
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${EnvName}-${EnvType}*'
+            Effect: Allow 
 
   StackSetAdministrationRole:
     Type: AWS::IAM::Role
@@ -656,6 +681,6 @@ Resources:
                 Action:
                   - sts:AssumeRole
                 Resource:
-                  - "arn:*:iam::*:role/*StackSetExecutionRole*"
+                  - 'arn:*:iam::*:role/*StackSetExecutionRole*'
                   - !Sub 'arn:*:iam::*:role/${SetupStackSetExecutionRoleName}'
 

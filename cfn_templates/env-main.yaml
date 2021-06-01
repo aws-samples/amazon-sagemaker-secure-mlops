@@ -810,6 +810,8 @@ Resources:
         EnvType: !Ref EnvType
         PipelineExecutionRoleArn: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
         AdministratorAccountId: !Ref AWS::AccountId
+        ModelS3KMSKeyArn: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyArn
+        ModelBucketName: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
       TemplateURL: env-iam-target-account-roles.yaml
       Tags:
         - Key: EnvironmentName
@@ -849,6 +851,13 @@ Resources:
         -
           ParameterKey: 'AdministratorAccountId'
           ParameterValue: !Ref AWS::AccountId
+        - 
+          ParameterKey: 'ModelS3KMSKeyArn'
+          ParameterValue: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyArn
+        -
+          ParameterKey: "ModelBucketName"
+          ParameterValue: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
+
       PermissionModel: 'SELF_MANAGED'
       StackInstancesGroup:  
         - 
@@ -893,6 +902,13 @@ Resources:
         -
           ParameterKey: 'AdministratorAccountId'
           ParameterValue: !Ref AWS::AccountId
+        - 
+          ParameterKey: 'ModelS3KMSKeyArn'
+          ParameterValue: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyArn
+        -
+          ParameterKey: "ModelBucketName"
+          ParameterValue: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
+
       PermissionModel: 'SELF_MANAGED'
       StackInstancesGroup:  
         - 
@@ -1044,7 +1060,7 @@ Resources:
           ParameterValue: !Ref EnvTypeStagingName
         -
           ParameterKey: 'AvailabilityZones'
-          ParameterValue: !Ref AvailabilityZones
+          ParameterValue: !Join [ ',', !Ref AvailabilityZones ]
         -
           ParameterKey: 'NumberOfAZs'
           ParameterValue: !Ref NumberOfAZs
@@ -1162,7 +1178,7 @@ Resources:
           ParameterValue: !Ref EnvTypeProdName
         -
           ParameterKey: 'AvailabilityZones'
-          ParameterValue: !Ref AvailabilityZones
+          ParameterValue: !Join [ ',', !Ref AvailabilityZones ]
         -
           ParameterKey: 'NumberOfAZs'
           ParameterValue: !Ref NumberOfAZs
@@ -1376,6 +1392,183 @@ Resources:
             - Key: "EnvironmentType" 
               Values: 
                 - !Sub '${EnvType}'
+      Tags:
+        - Key: EnvironmentName
+          Value: !Ref EnvName
+        - Key: EnvironmentType
+          Value: !Ref EnvType
+
+  # Call a Lambda function to setup cross-account permissions for S3 model bucket and S3 KMS key
+  SetupCrossAccountPermissionsStaging:
+    Type: Custom::SetupCrossAccountPermissions
+    Condition: MultiAccountDeploymentCondition
+    DependsOn: EnvironmentVPC
+    Properties:
+      ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
+      Accounts: !GetAtt GetOUAccountsStaging.Accounts
+      PrincipalRoleName: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
+          - !Ref SageMakerModelExecutionRoleName
+      SetupRoleName: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
+          - !Ref StackSetExecutionRoleName
+      S3BucketName:  !If 
+            - S3BucketsConditions
+            - !GetAtt EnvironmentS3.Outputs.ModelBucketName
+            - !Ref ModelBucketName
+      KMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
+      S3VPCESSMParamNames: !Sub '${EnvName}-${EnvTypeStagingName}-s3-vpce-id'
+      KMSVPCESSMParamNames: !Sub '${EnvName}-${EnvTypeStagingName}-kms-vpce-id'
+  
+  SetupCrossAccountPermissionsProd:
+    Type: Custom::SetupCrossAccountPermissions
+    Condition: MultiAccountDeploymentCondition
+    DependsOn: EnvironmentVPC
+    Properties:
+      ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
+      Accounts: !GetAtt GetOUAccountsProd.Accounts
+      PrincipalRoleName: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
+          - !Ref SageMakerModelExecutionRoleName
+      SetupRoleName: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
+          - !Ref StackSetExecutionRoleName
+      S3BucketName:  !If 
+            - S3BucketsConditions
+            - !GetAtt EnvironmentS3.Outputs.ModelBucketName
+            - !Ref ModelBucketName
+      KMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
+      S3VPCESSMParamNames: !Sub '${EnvName}-${EnvTypeProdName}-s3-vpce-id'
+      KMSVPCESSMParamNames: !Sub '${EnvName}-${EnvTypeProdName}-kms-vpce-id'
+
+  SetupCrossAccountPermissionsLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
+          import json
+          import boto3
+          import cfnresponse
+          from botocore.exceptions import ClientError
+
+          sts = boto3.client("sts")
+          s3 = boto3.client("s3")
+          kms = boto3.client("kms")
+
+          def lambda_handler(event, context):
+              try:
+                  response_status = cfnresponse.SUCCESS
+                  r = {}
+
+                  if 'RequestType' in event and event['RequestType'] == 'Create':
+                      r["Result"] = setup_cross_account_permissions(
+                          accounts=event['ResourceProperties']['Accounts'],
+                          principal_role_name=event['ResourceProperties']['PrincipalRoleName'],
+                          setup_role_name=event['ResourceProperties']['SetupRoleName'],
+                          bucket_name=event['ResourceProperties']['S3BucketName'],
+                          kms_key_id=event['ResourceProperties']['KMSKeyId'],
+                          s3_vpce_ssm_param_names=event['ResourceProperties']['S3VPCESSMParamNames'],
+                          kms_vpce_ssm_pram_names=event['ResourceProperties']['KMSVPCESSMParamNames'],
+                      )
+                      
+                  cfnresponse.send(event, context, response_status, r, '')
+
+              except ClientError as exception:
+                  print(exception)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+
+          def get_ssm_parameters(accounts, role, p_names):
+              values = []
+              for account_id in accounts:
+                  print(f"assume the role {role} in {account_id}")
+                  stsresponse = sts.assume_role(
+                      RoleArn=f"arn:aws:iam::{account_id}:role/{role}",
+                      RoleSessionName=f"newsession-{role}"
+                  )
+
+                  r = boto3.client("ssm",
+                      aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
+                      aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
+                      aws_session_token=stsresponse["Credentials"]["SessionToken"]
+                      ).get_parameters(Names=p_names)
+
+                  if len(r["Parameters"]) != 1:
+                      print(f"multiple values retireved for the parameter names {p_names} in {account_id}")
+                  else:
+                      values.append(r["Parameters"][0]["Value"])
+              
+              print(f"values retrieved: {values}")
+              return values
+
+          def append_list(value, list):
+              if type(value) is str:
+                  return list + [value]
+              else: 
+                  return list + value
+
+          def setup_policy(
+              policy,
+              principals,
+              vpce_ids
+          ):
+              p = json.loads(policy)
+
+              s = [s for s in p["Statement"] if s["Sid"] == "AllowCrossAccount"]
+              v = [s for s in p["Statement"] if s["Sid"] == "DenyNoVPC"][0]
+
+              s[0]["Principal"]["AWS"] = append_list(s[0]["Principal"]["AWS"], principals)
+              v["Condition"]["StringNotEquals"]["aws:sourceVpce"] = append_list(v["Condition"]["StringNotEquals"]["aws:sourceVpce"], vpce_ids)
+
+              print(f"policy:{p}")
+              return json.dumps(p)
+
+          def setup_cross_account_permissions(
+              accounts, 
+              principal_role_name, 
+              setup_role_name,
+              bucket_name,
+              kms_key_id,
+              s3_vpce_ssm_param_names,
+              kms_vpce_ssm_pram_names
+          ):
+              principals = [f"arn:aws:iam::{a}:role/{principal_role_name}" for a in accounts]
+
+              # update S3 bucket policy
+              s3.put_bucket_policy(
+                  Bucket=bucket_name, 
+                  Policy=setup_policy(
+                      policy=s3.get_bucket_policy(Bucket=bucket_name)["Policy"],
+                      principals=principals,
+                      vpce_ids=get_ssm_parameters(accounts, setup_role_name, s3_vpce_ssm_param_names)
+                  ))
+
+              # update KMS key policy
+              kms.put_key_policy(
+                  KeyId=kms_key_id, 
+                  PolicyName="default",
+                  Policy=setup_policy(
+                      policy=kms.get_key_policy(KeyId=kms_key_id)["Policy"],
+                      principals=principals,
+                      vpce_ids=get_ssm_parameters(accounts, setup_role_name, kms_vpce_ssm_pram_names)
+                  ))
+
+              return "SUCCESS"    
+
+      Description: Setup cross-account permissions in resource policies
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role: !If
+          - IAMRolesCondition
+          - !GetAtt EnvironmentIAMRoles.Outputs.SetupLambdaExecutionRoleArn
+          - !Ref SetupLambdaExecutionRoleArn 
+      Runtime: python3.8
+      Timeout: 60
       Tags:
         - Key: EnvironmentName
           Value: !Ref EnvName

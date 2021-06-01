@@ -24,13 +24,4 @@ aws cloudformation update-stack \
         ParameterKey=SCMLOpsProductLaunchRoleArn,ParameterValue=$LAUNCH_ROLE_ARN
 
 
-# Update SageMaker Service Catalog Project roles
-STACK_NAME="sm-mlops-core-IAMSCSageMakerProjectRoles-136RA0IGCAFK7"
 
-aws s3 cp build/$AWS_DEFAULT_REGION/core-iam-sc-sm-projects-roles.yaml s3://$S3_BUCKET_NAME/sagemaker-mlops/core-iam-sc-sm-projects-roles.yaml
-
-aws cloudformation update-stack \
-    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-iam-sc-sm-projects-roles.yaml \
-    --region $AWS_DEFAULT_REGION \
-    --stack-name $STACK_NAME \
-    --capabilities CAPABILITY_NAMED_IAM
