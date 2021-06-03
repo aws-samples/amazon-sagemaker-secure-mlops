@@ -146,4 +146,5 @@ samconfig.*
 *.pdf
 *snapshot.json
 
+internal-documents
 internal-resources.md

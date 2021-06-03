@@ -169,7 +169,10 @@ The following roles should be created in each of the accounts which belong to th
 
 
 ## AWS Organizations setup for multi-account ML model deployment
-This solution uses a multi-account AWS environment setup in [AWS Organizations](https://aws.amazon.com/organizations/). OUs should be based on function or common set of controls rather than mirroring company’s reporting structure.
+This solution uses a multi-account AWS environment setup in [AWS Organizations](https://aws.amazon.com/organizations/). Organizational units (OUs) should be based on function or common set of controls rather than mirroring company’s reporting structure. The proper setup of the AWS Organizations OU structure is mandatory for proper functioning of the solution.
+
+📜 Generallly, the use of AWS organizations is not mandatory for multi-account MLOps setup. The same permission logic and account structure can be implemented with IAM cross-account permissions. 
+
 
 ### OU setup for multi-account deployment
 The implemented ML model multi-account deployment project assumes a specific OU setup pattern:
@@ -184,12 +187,15 @@ Root
 ```
 
 ### Single-account setup
-The solution also implements full functionality with single-account setup. All examples, workflows and pipelines work in the single (development) data science account. We do not recommend to use a single-account setup for any production use of SageMaker and SageMaker studio, but for testing and experimentation purposes it is a good option to choose.
+The solution also implements full functionality with single-account setup. All examples, workflows and pipelines work in the single (development) data science account. We do not recommend to use a single-account setup for any production use of SageMaker and SageMaker studio, but for testing and experimentation purposes it is a fast and cost-effective option to choose.
+
+### Multi-account setup
+Please refer to the [Deployment section](README.md#Deployment) for a detailed description what is required for a proper multi-account setup.
 
 ## SageMaker secure deployment in VPC 
 The following deployment architecture is implemented by this solution:
 
-![SageMaker deployment in VPC](design/ml-ops-vpc-deployment.drawio.svg)
+![SageMaker deployment in VPC](design/ml-ops-vpc-infrastructure.drawio.svg)
 
 The main design principles and decisions are:
 + Amazon SageMaker Studio domain is deployed in a dedicated VPC. Each [elastic network interface (ENI)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html) used by SageMaker domain is created within a private dedicated subnet and attached to the specified security groups
@@ -290,6 +296,7 @@ The main design principles are:
 + MLOps project templates are deployed via SageMaker Studio
 + Dedicated IAM user and execution roles used to perform assigned actions/tasks in the environment
 + All project artefacts are connected via SageMaker ProjectId ensuring a strong data governance and lineage
++ Multi-account deployment approach is used for secure deployment of your SageMaker models
 
 The solution delivers two MLOps project templates:
 + Model build, train, validate
@@ -378,7 +385,7 @@ This solution delivers two MLOps project as SageMaker project templates:
 - Model build, train, validate pipeline
 - Multi-account model deploy pipeline
 
-These project are fully functional examples integrated with exising security controls such as VPC, subnets, security groups, and dedicated IAM execution roles. 
+These project are fully functional examples integrated with exising multi-layer security controls such as VPC, subnets, security groups, and dedicated IAM execution roles. 
 
 ## MLOps project template to build, train, validate the model
 The solution is based on the [SageMaker project template](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) for model building, training, and deployment. You can find in-depth review of this MLOps project in the blog post [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
@@ -436,6 +443,8 @@ These execution roles are deployed to the target accounts automatically during t
                   --parameter-overrides \
                   EnvName=$ENV_NAME \
                   EnvType=<ENIRONMENT STAGE> \
+                  SageMakerModelExecutionRoleName=<ROLE NAME - MUST BE SAME FOR ALL TARGET ACCOUNTS> \
+                  StackSetExecutionRoleName=<ROLE NAME - MUST BE SAME FOR ALL TARGET ACCOUNTS> \
                   PipelineExecutionRoleArn=arn:aws:iam::<DATA SCIENCE ACCOUNT ID>:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole \
                   AdministratorAccountId=<DATA SCIENCE ACCOUNT ID> \
                   ModelS3KMSKeyArn=<AWS KMS Key for S3 model bucket> \
@@ -446,15 +455,17 @@ The model execution role in the staging and production accounts is assumed by `A
 
 _Alternatively_ you can choose to use single-account deployment. In this case the ML model will be deployed in the data science account. You do not need to setup AWS Organizations and provide OU Ids as deployment variables.
 
-❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`.
+❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`:
+
+![multi-account-deployment-flag](img/multi-account-deployment-flag.png)
 
 ### Model deployment pre-requisites
 The following pre-requisites are common for both single- and multi-account deployment. **These pre-requisites are automatically provisioned if you use provided CLoudFormation templates.**
 
 + SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment will fail as it requires at least two AZs to deploy an endpoint
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
-  - `StackSetAdministrationRole`: This role must exist in the data science account and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
-  - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production OUs. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts
+  - `StackSetAdministrationRole`: This role must exist in the **data science account** and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
+  - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production OUs. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts. This role must have `iam:PassRole` permission for the model execution role
 
 ### Work with Model deployment project
 You can find a step-by-step instruction, implementation details, and usage patterns of the multi-account model deployment project in the provided [Jupyter Notebook file](mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb), delivered as part of the seed code.
@@ -599,6 +610,58 @@ The IAM part can be deployed using the delivered CloudFormation templates or com
 You will provide the ARNs for the IAM roles as CloudFormation template parameters to deploy the Data Science environment.
 
 See [Appendix B](#appendix-b)
+
+## Multi-account model deployment workflow pre-requisites
+
+One-off setup is needed to enable multi-account model deployment workflow via SageMaker MLOps projects.
+You can use the delivered CloudFormation template `env-iam-setup-stacksest-role.yaml` or own process of provisioning of an IAM role.
+
+### Step 1
+```bash
+# STEP 1:
+# SELF_MANAGED stack set permission model:
+# Deploy a stack set execution role to _EACH_ of the target accounts in both staging and prod OUs
+# This stack set execution role used to deploy the target accounts stack sets in env-main.yaml
+ENV_NAME="sm-mlops"
+ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
+STACK_NAME=$ENV_NAME-setup-stackset-role
+ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
+
+aws cloudformation delete-stack --stack-name $STACK_NAME
+
+aws cloudformation deploy \
+                --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
+                --stack-name $STACK_NAME \
+                --capabilities CAPABILITY_NAMED_IAM \
+                --parameter-overrides \
+                EnvName=$ENV_NAME \
+                EnvType=$ENV_TYPE \
+                StackSetExecutionRoleName=$SETUP_STACKSET_ROLE_NAME \
+                AdministratorAccountId=$ADMIN_ACCOUNT_ID
+
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+```
+
+The name of the provisioned IAM role `StackSetExecutionRoleName` must be passed to the `env-main.yaml` template as `SetupStackSetExecutionRoleName` parameter.
+
+
+### Step 2
+```bash
+# STEP 2:
+# Register a delegated administrator to enable AWS Organizations API permission for non-management account
+# Must be run under administrator in the AWS Organizations _management account_
+aws organizations register-delegated-administrator \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com \
+    --account-id=$ADMIN_ACCOUNT_ID
+
+aws organizations list-delegated-administrators  \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com
+```
+
 
 ## Multi-region deployment considerations
 The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of a single AWS account. The following limitations and considerations apply:
@@ -854,6 +917,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [R15]: [SageMaker cross-account model](https://aws.amazon.com/premiumsupport/knowledge-center/sagemaker-cross-account-model/)
 - [R16]: [Use Amazon CloudWatch custom metrics for real-time monitoring of Amazon Sagemaker model performance](https://aws.amazon.com/blogs/machine-learning/use-amazon-cloudwatch-custom-metrics-for-real-time-monitoring-of-amazon-sagemaker-model-performance/)
 - [R17]: [Automate feature engineering pipelines with Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/automate-feature-engineering-pipelines-with-amazon-sagemaker/)
+- [R18]: [Build a Secure Enterprise Machine Learning Platform on AWS](https://docs.aws.amazon.com/whitepapers/latest/build-secure-enterprise-ml-platform/build-secure-enterprise-ml-platform.html)
 
 
 ## AWS Solutions

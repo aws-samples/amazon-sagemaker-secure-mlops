@@ -21,36 +21,33 @@ def lambda_handler(event, context):
                 setup_role_name=event['ResourceProperties']['SetupRoleName'],
                 bucket_name=event['ResourceProperties']['S3BucketName'],
                 kms_key_id=event['ResourceProperties']['KMSKeyId'],
-                s3_vpce_ssm_param_names=event['ResourceProperties']['S3VPCESSMParamNames'],
-                kms_vpce_ssm_pram_names=event['ResourceProperties']['KMSVPCESSMParamNames'],
+                s3_vpce_ssm_param_name=event['ResourceProperties']['S3VPCESSMParamName'],
+                kms_vpce_ssm_pram_name=event['ResourceProperties']['KMSVPCESSMParamName'],
             )
             
         cfnresponse.send(event, context, response_status, r, '')
 
-    except ClientError as exception:
-        print(exception)
-        cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+    except Exception as e:
+        print(str(e))
+        cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(e))
 
-def get_ssm_parameters(accounts, role, p_names):
+def get_ssm_parameter(accounts, role, p_name):
     values = []
     for account_id in accounts:
         print(f"assume the role {role} in {account_id}")
         stsresponse = sts.assume_role(
             RoleArn=f"arn:aws:iam::{account_id}:role/{role}",
-            RoleSessionName=f"newsession-{role}"
+            RoleSessionName=f"newsession"
         )
 
-        r = boto3.client("ssm",
-            aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
-            aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
-            aws_session_token=stsresponse["Credentials"]["SessionToken"]
-            ).get_parameters(Names=p_names)
+        values.append(
+            boto3.client("ssm",
+                aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
+                aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
+                aws_session_token=stsresponse["Credentials"]["SessionToken"]
+                ).get_parameter(Name=p_name)["Parameter"]["Value"]
+        )
 
-        if len(r["Parameters"]) != 1:
-            print(f"multiple values retireved for the parameter names {p_names} in {account_id}")
-        else:
-            values.append(r["Parameters"][0]["Value"])
-    
     print(f"values retrieved: {values}")
     return values
 
@@ -82,8 +79,8 @@ def setup_cross_account_permissions(
     setup_role_name,
     bucket_name,
     kms_key_id,
-    s3_vpce_ssm_param_names,
-    kms_vpce_ssm_pram_names
+    s3_vpce_ssm_param_name,
+    kms_vpce_ssm_pram_name
 ):
     principals = [f"arn:aws:iam::{a}:role/{principal_role_name}" for a in accounts]
 
@@ -93,7 +90,7 @@ def setup_cross_account_permissions(
         Policy=setup_policy(
             policy=s3.get_bucket_policy(Bucket=bucket_name)["Policy"],
             principals=principals,
-            vpce_ids=get_ssm_parameters(accounts, setup_role_name, s3_vpce_ssm_param_names)
+            vpce_ids=get_ssm_parameter(accounts, setup_role_name, s3_vpce_ssm_param_name)
         ))
 
     # update KMS key policy
@@ -101,9 +98,9 @@ def setup_cross_account_permissions(
         KeyId=kms_key_id, 
         PolicyName="default",
         Policy=setup_policy(
-            policy=kms.get_key_policy(KeyId=kms_key_id)["Policy"],
+            policy=kms.get_key_policy(KeyId=kms_key_id,PolicyName="default")["Policy"],
             principals=principals,
-            vpce_ids=get_ssm_parameters(accounts, setup_role_name, kms_vpce_ssm_pram_names)
+            vpce_ids=get_ssm_parameter(accounts, setup_role_name, kms_vpce_ssm_pram_name)
         ))
 
     return "SUCCESS"

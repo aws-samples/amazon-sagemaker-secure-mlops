@@ -119,10 +119,12 @@ Resources:
         Statement:
           - Sid: AllowCrossAccount
             Action:
-              - s3:GetObject
-              - s3:ListBucket
+              - 's3:GetObject'
+              - 's3:ListBucket'
             Effect: Allow
-            Principal: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
             Resource:
               - !Sub "arn:aws:s3:::${ModelBucket}/*"
               - !Sub "arn:aws:s3:::${ModelBucket}"

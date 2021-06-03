@@ -18,16 +18,19 @@ aws s3 mb s3://${CFN_BUCKET_NAME} --region $AWS_DEFAULT_REGION
 ```
 
 ## 1 Replace S3 placeholder links with actual S3 path
-In the file `core-sc-shared-portfolio.yaml` replace all `< S3_CFN_STAGING_BUCKET_PATH >` with `<your new bucket name>/<project name>`
+For each of the files:
++ `core-sc-shared-portfolio.yaml` 
++ `env-sc-portfolio.yaml` 
++ `env-main.yaml`
+
+Replace all `< S3_CFN_STAGING_BUCKET_PATH >` with `<your new bucket name>/<project name>`
 ```bash
-atom core-sc-shared-portfolio.yaml
+atom <file>
 ```
-or use your OS-dependent string replacement utility, e.g.
+or use your OS-dependent string replacement utility, e.g. for Mac OS:
 ```bash
 sed -ie "s/< S3_CFN_STAGING_BUCKET_PATH >/<your S3 bucket name>\/<project name>/" .
 ```
-
-Repeat the same with the file `env-sc-portfolio.yaml`
 
 ## 2 Package CloudFormation templates
 For each of the files:
@@ -68,27 +71,24 @@ aws cloudformation package \
 
 ## 3 Copy CloudFormation templates to the S3 bucket
 For each of the files:
-+ `core-main.yaml-<region>`
-+ `env-main.yaml-<region>`
++ `core-main.yaml-packaged`
++ `env-main.yaml-packaged`
++ `env-sc-portfolio.yaml` 
++ `env-iam-target-account-roles.yaml` 
++ `env-vpc.yaml` 
++ `project-model-deploy.yaml` 
++ `project-model-build-train.yaml`
 
 run the following commands:
 
 ```bash
-FILE=core-main.yaml
+FILE=
 PROJECT_NAME=sagemaker-poc
 
-aws s3 cp $FILE-$AWS_DEFAULT_REGION  s3://$CFN_BUCKET_NAME/$PROJECT_NAME/$FILE
+aws s3 cp $FILE-packaged s3://$CFN_BUCKET_NAME/$PROJECT_NAME/$FILE
 
 echo https://s3.${AWS_DEFAULT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${FILE}
 ```
 
-```bash
-FILE=env-main.yaml
-PROJECT_NAME=sagemaker-poc
-
-aws s3 cp $FILE-$AWS_DEFAULT_REGION  s3://$CFN_BUCKET_NAME/$PROJECT_NAME/$FILE
-
-echo https://s3.${AWS_DEFAULT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${FILE}
-```
 
 Now you can go to AWS CloudFormation console and deploy templates via S3 URLs

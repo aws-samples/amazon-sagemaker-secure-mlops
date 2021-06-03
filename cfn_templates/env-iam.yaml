@@ -636,7 +636,7 @@ Resources:
             Resource: !GetAtt SageMakerExecutionRole.Arn
           - Sid: AssumeTargetAccountRole
             Action:
-              sts:AssumeRole
+              - sts:AssumeRole
             Resource:
               - 'arn:*:iam::*:role/*StackSetExecutionRole*'
             Effect: Allow

@@ -312,3 +312,14 @@ aws cloudformation deploy \
     SageMakerSecurityGroupIds=$SM_SG_ID \
     VolumeKmsKeyArn=$EBS_KMS_KEY_ID \
     OrgUnitId=$OU_ID
+
+
+aws cloudformation deploy \
+    --template-file build/$AWS_DEFAULT_REGION/env-s3.yaml \
+    --stack-name env-s3-test \
+    --parameter-overrides \
+        EnvName=$ENV_NAME \
+        EnvType=$ENV_TYPE \
+        DataBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-data \
+        ModelBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-models \
+        VPCEndpointS3Id="xxxx" 

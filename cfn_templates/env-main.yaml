@@ -21,7 +21,6 @@ Metadata:
         Parameters:
           - CreateEnvironmentIAMRoles
           - CreateEnvironmentS3Buckets
-          - CreateSageMakerStudioDomain
           - UseSharedServicesPyPiMirror
       - Label:
           default: Environment IAM Roles ARNs (only needed if created outside of this stack)
@@ -154,8 +153,6 @@ Metadata:
         default: Create ECR VPC endpoint
       CreateKMSVPCEndpoint:
         default: Create KMS VPC endpoint
-      CreateSageMakerStudioDomain:
-        default: Create SageMaker Studio domain
       UseSharedServicesPyPiMirror:
         default: Use shared services PyPI mirror
       DSTeamAdministratorRoleArn:
@@ -254,10 +251,7 @@ Outputs:
   
   SageMakerDomainId:
     Description: SageMaker Domain Id
-    Value: !If
-      - SageMakerStudioDomainCondition
-      - !GetAtt EnvironmentSageMakerStudio.Outputs.SageMakerDomainId
-      - '' 
+    Value: !GetAtt EnvironmentSageMakerStudio.Outputs.SageMakerDomainId
   
   GetOUAccountsLambdaArn:
     Description: Lambda function to retrieve the accounts id from the parent OUs
@@ -442,14 +436,6 @@ Parameters:
 
   CreateKMSVPCEndpoint:
     Description: Set to NO to disable creation of a KMS VPC endpoint
-    Type: String
-    AllowedValues:
-      - 'YES'
-      - 'NO'
-    Default: 'YES'
-
-  CreateSageMakerStudioDomain:
-    Description: Select YES if you want to create SageMaker Studio domain
     Type: String
     AllowedValues:
       - 'YES'
@@ -718,7 +704,6 @@ Conditions:
   IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
-  SageMakerStudioDomainCondition: !Equals [ !Ref CreateSageMakerStudioDomain, 'YES' ]
   MultiAccountDeploymentCondition: !And
     - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
     - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
@@ -1349,7 +1334,6 @@ Resources:
   # SageMaker Studio domain, user profiles and SageMaker applications
   EnvironmentSageMakerStudio:
     Type: AWS::CloudFormation::Stack
-    Condition: SageMakerStudioDomainCondition
     Properties:
       Parameters:
         EnvName: !Ref EnvName
@@ -1402,7 +1386,7 @@ Resources:
   SetupCrossAccountPermissionsStaging:
     Type: Custom::SetupCrossAccountPermissions
     Condition: MultiAccountDeploymentCondition
-    DependsOn: EnvironmentVPC
+    DependsOn: EnvironmentSageMakerStudio
     Properties:
       ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
       Accounts: !GetAtt GetOUAccountsStaging.Accounts
@@ -1419,13 +1403,14 @@ Resources:
             - !GetAtt EnvironmentS3.Outputs.ModelBucketName
             - !Ref ModelBucketName
       KMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
-      S3VPCESSMParamNames: !Sub '${EnvName}-${EnvTypeStagingName}-s3-vpce-id'
-      KMSVPCESSMParamNames: !Sub '${EnvName}-${EnvTypeStagingName}-kms-vpce-id'
+      S3VPCESSMParamName: !Sub '${EnvName}-${EnvTypeStagingName}-s3-vpce-id'
+      KMSVPCESSMParamName: !Sub '${EnvName}-${EnvTypeStagingName}-kms-vpce-id'
   
+  # Called _after_ SetupCrossAccountPermissionsStaging because these two calls update the same policies
   SetupCrossAccountPermissionsProd:
     Type: Custom::SetupCrossAccountPermissions
     Condition: MultiAccountDeploymentCondition
-    DependsOn: EnvironmentVPC
+    DependsOn: SetupCrossAccountPermissionsStaging
     Properties:
       ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
       Accounts: !GetAtt GetOUAccountsProd.Accounts
@@ -1442,8 +1427,8 @@ Resources:
             - !GetAtt EnvironmentS3.Outputs.ModelBucketName
             - !Ref ModelBucketName
       KMSKeyId: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyId
-      S3VPCESSMParamNames: !Sub '${EnvName}-${EnvTypeProdName}-s3-vpce-id'
-      KMSVPCESSMParamNames: !Sub '${EnvName}-${EnvTypeProdName}-kms-vpce-id'
+      S3VPCESSMParamName: !Sub '${EnvName}-${EnvTypeProdName}-s3-vpce-id'
+      KMSVPCESSMParamName: !Sub '${EnvName}-${EnvTypeProdName}-kms-vpce-id'
 
   SetupCrossAccountPermissionsLambda:
     Type: AWS::Lambda::Function
@@ -1473,36 +1458,33 @@ Resources:
                           setup_role_name=event['ResourceProperties']['SetupRoleName'],
                           bucket_name=event['ResourceProperties']['S3BucketName'],
                           kms_key_id=event['ResourceProperties']['KMSKeyId'],
-                          s3_vpce_ssm_param_names=event['ResourceProperties']['S3VPCESSMParamNames'],
-                          kms_vpce_ssm_pram_names=event['ResourceProperties']['KMSVPCESSMParamNames'],
+                          s3_vpce_ssm_param_name=event['ResourceProperties']['S3VPCESSMParamName'],
+                          kms_vpce_ssm_pram_name=event['ResourceProperties']['KMSVPCESSMParamName'],
                       )
                       
                   cfnresponse.send(event, context, response_status, r, '')
 
-              except ClientError as exception:
-                  print(exception)
-                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
+              except Exception as e:
+                  print(str(e))
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(e))
 
-          def get_ssm_parameters(accounts, role, p_names):
+          def get_ssm_parameter(accounts, role, p_name):
               values = []
               for account_id in accounts:
                   print(f"assume the role {role} in {account_id}")
                   stsresponse = sts.assume_role(
                       RoleArn=f"arn:aws:iam::{account_id}:role/{role}",
-                      RoleSessionName=f"newsession-{role}"
+                      RoleSessionName=f"newsession"
                   )
 
-                  r = boto3.client("ssm",
-                      aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
-                      aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
-                      aws_session_token=stsresponse["Credentials"]["SessionToken"]
-                      ).get_parameters(Names=p_names)
+                  values.append(
+                      boto3.client("ssm",
+                          aws_access_key_id=stsresponse["Credentials"]["AccessKeyId"],
+                          aws_secret_access_key=stsresponse["Credentials"]["SecretAccessKey"],
+                          aws_session_token=stsresponse["Credentials"]["SessionToken"]
+                          ).get_parameter(Name=p_name)["Parameter"]["Value"]
+                  )
 
-                  if len(r["Parameters"]) != 1:
-                      print(f"multiple values retireved for the parameter names {p_names} in {account_id}")
-                  else:
-                      values.append(r["Parameters"][0]["Value"])
-              
               print(f"values retrieved: {values}")
               return values
 
@@ -1534,8 +1516,8 @@ Resources:
               setup_role_name,
               bucket_name,
               kms_key_id,
-              s3_vpce_ssm_param_names,
-              kms_vpce_ssm_pram_names
+              s3_vpce_ssm_param_name,
+              kms_vpce_ssm_pram_name
           ):
               principals = [f"arn:aws:iam::{a}:role/{principal_role_name}" for a in accounts]
 
@@ -1545,7 +1527,7 @@ Resources:
                   Policy=setup_policy(
                       policy=s3.get_bucket_policy(Bucket=bucket_name)["Policy"],
                       principals=principals,
-                      vpce_ids=get_ssm_parameters(accounts, setup_role_name, s3_vpce_ssm_param_names)
+                      vpce_ids=get_ssm_parameter(accounts, setup_role_name, s3_vpce_ssm_param_name)
                   ))
 
               # update KMS key policy
@@ -1553,12 +1535,12 @@ Resources:
                   KeyId=kms_key_id, 
                   PolicyName="default",
                   Policy=setup_policy(
-                      policy=kms.get_key_policy(KeyId=kms_key_id)["Policy"],
+                      policy=kms.get_key_policy(KeyId=kms_key_id,PolicyName="default")["Policy"],
                       principals=principals,
-                      vpce_ids=get_ssm_parameters(accounts, setup_role_name, kms_vpce_ssm_pram_names)
+                      vpce_ids=get_ssm_parameter(accounts, setup_role_name, kms_vpce_ssm_pram_name)
                   ))
 
-              return "SUCCESS"    
+              return "SUCCESS"
 
       Description: Setup cross-account permissions in resource policies
       Handler: index.lambda_handler
