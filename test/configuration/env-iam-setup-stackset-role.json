@@ -1,0 +1,7 @@
+{
+    "Parameters" : {
+        "EnvName":"sm-mlops",
+        "EnvType":"dev",
+        "StackSetExecutionRoleName":"sm-mlops-setup-stackset-execution-role"
+      }
+}

@@ -20,9 +20,10 @@ make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGI
 ENV_NAME="sm-mlops"
 ENV_TYPE="staging"
 STACK_NAME=$ENV_NAME-setup-stackset-role
-ADMIN_ACCOUNT_ID="340327315379"
+ADMIN_ACCOUNT_ID=#Data science account with SageMaker Studio
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
+# Delete stack if it exists
 aws cloudformation delete-stack --stack-name $STACK_NAME
 
 aws cloudformation deploy \
@@ -59,7 +60,7 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME  \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME
 
@@ -113,10 +114,10 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test13-deploy" "test14-train" "test14-deploy-2" "test15-train" "test-15-deploy" "test16-deploy")
-MLOPS_PROJECT_ID_LIST=("p-kvlei5fppycr" "p-i3lk9uyyehvb" "p-pztgsttjgxgx" "p-hazt2ippwqwf" "p-vcskqtwv9mfc" "p-2bvoygn0jkbz")
-SM_DOMAIN_ID="d-cnqdix9holma"
-STACKSET_NAME_LIST=("sagemaker-test14-deploy-2-p-pztgsttjgxgx-deploy-staging" "sagemaker-test14-deploy-2-p-pztgsttjgxgx-deploy-prod" "sagemaker-test-15-deploy-p-vcskqtwv9mfc-deploy-staging" "sagemaker-test-15-deploy-p-vcskqtwv9mfc-deploy-prod")
+MLOPS_PROJECT_NAME_LIST=("test17-deploy")
+MLOPS_PROJECT_ID_LIST=("p-mcguwrfnj0kq")
+SM_DOMAIN_ID="d-uxslkk0bzdzm"
+STACKSET_NAME_LIST=("")
 ACCOUNT_IDS="340327315379"
 
 # This works only for single-account deployment

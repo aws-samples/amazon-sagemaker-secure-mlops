@@ -613,10 +613,16 @@ See [Appendix B](#appendix-b)
 
 ## Multi-account model deployment workflow pre-requisites
 
-One-off setup is needed to enable multi-account model deployment workflow via SageMaker MLOps projects.
-You can use the delivered CloudFormation template `env-iam-setup-stacksest-role.yaml` or own process of provisioning of an IAM role.
+One-off setup is needed to enable **multi-account** model deployment workflow with SageMaker MLOps projects. You **don't need** to perform this setup if you are going to use single-account deployment only.
 
 ### Step 1
+The provisioning of a data science environment uses CloudFormation stack set to deploy the IAM roles and VPC infrastructure into the target accounts.
+The solution uses `SELF_MANAGED` stack set permission model and needs two IAM roles:
+- `AdministratorRole` in the development account (main account)
+- `StackSetExecutionRole` in each of the target accounts
+
+You must provision these roles **before** starting the solution deployment. You can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](cfn_templates/env-iam-setup-stacksest-role.yaml) or your own process of provisioning of an IAM role.
+
 ```bash
 # STEP 1:
 # SELF_MANAGED stack set permission model:
@@ -628,6 +634,7 @@ STACK_NAME=$ENV_NAME-setup-stackset-role
 ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
+# Delete stack if it exists
 aws cloudformation delete-stack --stack-name $STACK_NAME
 
 aws cloudformation deploy \
@@ -646,10 +653,11 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
-The name of the provisioned IAM role `StackSetExecutionRoleName` must be passed to the `env-main.yaml` template as `SetupStackSetExecutionRoleName` parameter.
-
+The name of the provisioned IAM role `StackSetExecutionRoleName` must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
 
 ### Step 2
+Since the solution is using AWS Organizations, a delegated administrator account must be registred in order to enable any stack set operations. If the data science account is the management account in the AWS Organizations, this step must be skipped.
+
 ```bash
 # STEP 2:
 # Register a delegated administrator to enable AWS Organizations API permission for non-management account
@@ -661,7 +669,6 @@ aws organizations register-delegated-administrator \
 aws organizations list-delegated-administrators  \
     --service-principal=member.org.stacksets.cloudformation.amazonaws.com
 ```
-
 
 ## Multi-region deployment considerations
 The solution is designed for multi-region deployment. You can deploy end-to-end stack in any region of a single AWS account. The following limitations and considerations apply:
@@ -698,6 +705,10 @@ This option deploys the end-to-end infrastructure and a Data Science Environment
 You can change only few deployment options. The majority of the options are set to their default values.
   
 📜 Use this option if you want to provision a _completely new set_ of the infrastructure and do not want to parametrize the deployment.
+
+❗ With Quickstart deployment type you can uses single-account model deployment only. Do not select `YES` for `MultiAccountDeployment` parameter for model deploy SageMaker project template:
+
+![multi-account-deployment-flag](img/multi-account-deployment-flag.png)
 
 The only deployment options you can change are:
 + `CreateSharedServices`: default `NO`. Set to `YES` if you want to provision a shared services VPC with a private PyPI mirror (_not implemeted at this stage_)
@@ -740,6 +751,8 @@ Using this option you provision a Data Science environment in two steps, each wi
 📜 Use this option if you want to parametrize every aspect of the deployment based on your specific requirements and enviroment.
 
 ❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the correspoinding CloudFormation parameters to names and ARNs or your existing resources.
+
+❗ You must specify the valid OU ids for the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters for the `env-main.yaml` template to enable multi-account model deployment.
 
 #### Step 1: Deploy the core infrastructure
 In this step you deploy the _shared core infrastructure_ into your AWS Account. The stack (`core-main.yaml`) will provision:
@@ -822,21 +835,45 @@ You can change any deployment options via CloudFormation parameters for [`core-m
 
 Run command providing the deployment options for your environment. The following command uses the minimal set of the options:
 ```sh
-STACK_NAME="sagemaker-mlops-env"
-ENV_NAME="sagemaker-mlops"
-AVAILABILITY_ZONES=${AWS_DEFAULT_REGION}a
+STACK_NAME="sm-mlops-env"
+ENV_NAME="sm-mlops"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+    --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
-        ParameterKey=AvailabilityZones,ParameterValue=$AVAILABILITY_ZONES \
-        ParameterKey=NumberOfAZs,ParameterValue=1
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=NumberOfAZs,ParameterValue=2
+```
+
+If you would like to use multi-account model deployment, you must provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole`:
+```sh 
+STACK_NAME="sm-mlops-env"
+ENV_NAME="sm-mlops"
+STAGING_OU_ID="ou-fi18-56v340tb"
+PROD_OU_ID="ou-fi18-9fex2edg"
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
+
+aws cloudformation create-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --disable-rollback \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=EnvName,ParameterValue=$ENV_NAME \
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=NumberOfAZs,ParameterValue=2 \
+        ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
+        ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
+        ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
+        ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 ```
 
 ### Cleanup
@@ -880,7 +917,7 @@ Click on the product name and and then on the **Launch product** on the product 
 
 ![service-catalog-launch-product](img/service-catalog-launch-product.png)
 
-Fill the product parameters with values specific for your environment. 
+Fill the product parameters with values specific for your environment. Provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole` if you would like to enable multi-account model deployment.
 
 Wait until AWS Service Catalog finishes the provisioning of the Data Science environment stack and the product status becomes **Available**. The data science environmetn provisioning takes about 20 minutes to complete.
 

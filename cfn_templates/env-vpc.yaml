@@ -3,7 +3,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template create a Multi-AZ, multi-subnet VPC infrastructure with optional managed NAT gateways in the public subnet for each AZ
+  This template create a Multi-AZ, multi-subnet VPC infrastructure with optional managed NAT gateways in the public subnet for each AZ and VPC endpoints for PrivateLink access to AWS services
 
 Outputs:
   VPCId:

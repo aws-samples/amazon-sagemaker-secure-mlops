@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: Creates necessary IAM role in target accounts (staging, prod) for StackSet operations and multi-account model deployment
+Description: Creates necessary IAM roles in target accounts (staging, prod) for StackSet operations and multi-account model deployment
 
 Parameters:
   EnvName:

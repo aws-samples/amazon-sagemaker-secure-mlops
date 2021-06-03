@@ -17,7 +17,7 @@ aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
 # Deploy a new CI/CD stack
-ACCOUNT_ID=<ACCOUNT_ID>
+ACCOUNT_ID=949335012047
 S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
 REPOSITORY_ARN=arn:aws:codecommit:$AWS_DEFAULT_REGION:${ACCOUNT_ID}:sagemaker-secure-mlops
 SNS_NOTIFICATION_ARN=arn:aws:sns:$AWS_DEFAULT_REGION:${ACCOUNT_ID}:ilyiny-demo-us-east-1-code-pipeline-sns

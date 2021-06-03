@@ -379,7 +379,7 @@ Resources:
                 Action:
                   - 'codepipeline:StartPipelineExecution'
                 Resource: 
-                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
+                  - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${SetupEnvironmentPipeline}'
                   - !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${BaseDeployPipeline}'
                   - !If
                     - TestDSQuickstartCondition
@@ -424,17 +424,17 @@ Resources:
           Id: !Sub commit-${BaseDeployPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
         -
-          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
-          Id: !Sub commit-${AutomationLambdaDeployPipeline}
+          Arn: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${SetupEnvironmentPipeline}'
+          Id: !Sub commit-${SetupEnvironmentPipeline}
           RoleArn: !GetAtt CloudWatchEventsTriggerRole.Arn
 
   ########################################################################
   # Pipelines
   ########################################################################
-  AutomationLambdaDeployPipeline:
+  SetupEnvironmentPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      Name: !Sub '${ProjectName}-${AWS::Region}-automation'
+      Name: !Sub '${ProjectName}-${AWS::Region}-setup-environment'
       RoleArn: !GetAtt CodePipelineServiceRole.Arn
       ArtifactStores:
         -
@@ -520,6 +520,31 @@ Resources:
                 RunOrder: 1
 
               # Action 2
+              - Name: !Sub '${AWS::Region}-SetupStackSetRole'
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: CloudFormation
+                  Version: '1'
+                Region: !Ref AWS::Region
+                InputArtifacts:
+                  - Name: BuildArtifact
+                OutputArtifacts:
+                  - Name: !Sub 'SetupStackSet-${AWS::Region}'
+                Configuration:
+                  ActionMode: 'REPLACE_ON_FAILURE'
+                  StackName: !Sub '${ProjectName}-setup-stackset-execution-role'
+                  Capabilities: 'CAPABILITY_NAMED_IAM'
+                  RoleArn: !GetAtt CodePipelineDeployRole.Arn
+                  TemplatePath: 'BuildArtifact::env-iam-setup-stackset-role.yaml'
+                  OutputFileName: 'setup-stackset-output.json'
+                  TemplateConfiguration: 'BuildArtifact::env-iam-setup-stackset-role.json'
+                  ParameterOverrides: !Sub '{
+                    "AdministratorAccountId": "${AWS::AccountId}"
+                  }'
+                RunOrder: 1
+
+              # Action 3
               - Name: !Sub '${TestDSQuickstartRegion}-AutomationLambdas'
                 ActionTypeId:
                   Category: Deploy
@@ -541,7 +566,7 @@ Resources:
                   TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
                 RunOrder: 1
   
-              # Action 3
+              # Action 4
               - Name: !Sub '${Test2StepCFNRegion}-AutomationLambdas'
                 ActionTypeId:
                   Category: Deploy
@@ -563,7 +588,7 @@ Resources:
                   TemplateConfiguration: 'BuildArtifact::automation-pipeline.json'
                 RunOrder: 1
   
-              # Action 4
+              # Action 5
               - Name: !Sub '${TestServiceCatalogRegion}-AutomationLambdas'
                 ActionTypeId:
                   Category: Deploy
@@ -591,8 +616,8 @@ Resources:
       DetailType: 'FULL'
       EventTypeIds:
         - 'codepipeline-pipeline-pipeline-execution-failed'
-      Name: !Sub '${AutomationLambdaDeployPipeline}-notifications'
-      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${AutomationLambdaDeployPipeline}'
+      Name: !Sub '${SetupEnvironmentPipeline}-notifications'
+      Resource: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${SetupEnvironmentPipeline}'
       Status: 'ENABLED'
       Targets:
           - 
