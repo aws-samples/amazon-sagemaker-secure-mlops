@@ -113,10 +113,10 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test11-deploy" "test12-train")
-MLOPS_PROJECT_ID_LIST=("p-6dyr0oam0c9s" "p-9ivfr0pdp2g0")
-SM_DOMAIN_ID="d-gzu9ypibxwdc"
-STACKSET_NAME_LIST=("" "")
+MLOPS_PROJECT_NAME_LIST=("test13-deploy" "test14-train" "test14-deploy-2" "test15-train" "test-15-deploy" "test16-deploy")
+MLOPS_PROJECT_ID_LIST=("p-kvlei5fppycr" "p-i3lk9uyyehvb" "p-pztgsttjgxgx" "p-hazt2ippwqwf" "p-vcskqtwv9mfc" "p-2bvoygn0jkbz")
+SM_DOMAIN_ID="d-cnqdix9holma"
+STACKSET_NAME_LIST=("sagemaker-test14-deploy-2-p-pztgsttjgxgx-deploy-staging" "sagemaker-test14-deploy-2-p-pztgsttjgxgx-deploy-prod" "sagemaker-test-15-deploy-p-vcskqtwv9mfc-deploy-staging" "sagemaker-test-15-deploy-p-vcskqtwv9mfc-deploy-prod")
 ACCOUNT_IDS="340327315379"
 
 # This works only for single-account deployment
@@ -150,6 +150,9 @@ aws cloudformation delete-stack-instances \
     --regions $AWS_DEFAULT_REGION \
     --no-retain-stacks \
     --accounts $ACCOUNT_IDS
+
+aws cloudformation delete-stack-set --stack-set-name ""
+# end multi-account clean-up
 
 echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
 for p in ${MLOPS_PROJECT_NAME_LIST[@]};
