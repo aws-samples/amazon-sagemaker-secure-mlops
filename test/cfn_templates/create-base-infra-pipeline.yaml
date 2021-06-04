@@ -540,7 +540,9 @@ Resources:
                   OutputFileName: 'setup-stackset-output.json'
                   TemplateConfiguration: 'BuildArtifact::env-iam-setup-stackset-role.json'
                   ParameterOverrides: !Sub '{
-                    "AdministratorAccountId": "${AWS::AccountId}"
+                    "AdministratorAccountId": "${AWS::AccountId}",
+                    "ModelS3KMSKeyArn":"*",
+                    "ModelBucketName":"*${AWS::Region}-models"
                   }'
                 RunOrder: 1
 
