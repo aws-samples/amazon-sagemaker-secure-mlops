@@ -540,9 +540,7 @@ Resources:
                   OutputFileName: 'setup-stackset-output.json'
                   TemplateConfiguration: 'BuildArtifact::env-iam-setup-stackset-role.json'
                   ParameterOverrides: !Sub '{
-                    "AdministratorAccountId": "${AWS::AccountId}",
-                    "ModelS3KMSKeyArn":"*",
-                    "ModelBucketName":"*${AWS::Region}-models"
+                    "AdministratorAccountId": "${AWS::AccountId}"
                   }'
                 RunOrder: 1
 
@@ -775,10 +773,11 @@ Resources:
                   ParameterOverrides: !Sub '{
                       "EnvName":"${ProjectName}",
                       "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole",
-                      "AdministratorAccountId":"${AWS::AccountId}"
+                      "AdministratorAccountId":"${AWS::AccountId}",
+                      "ModelS3KMSKeyArn":"*",
+                      "ModelBucketName":"*${AWS::Region}-models"
                     }'
                 RunOrder: 1
-
               # Action 5
               - Name: BaseVPCTestPipeline
                 ActionTypeId:

@@ -38,7 +38,7 @@ aws cloudformation deploy \
 STACK_NAME=
 aws cloudformation delete-stack \
     --stack-name $STACK_NAME \
-    --role-arn arn:aws:iam::ACCOUNT_ID:role/sagemaker-secure-mlops-codepipeline-deploy-role
+    --role-arn arn:aws:iam::$ACCOUNT_ID:role/sagemaker-secure-mlops-codepipeline-deploy-role
              
 aws cloudformation delete-stack --stack-name t
 aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
