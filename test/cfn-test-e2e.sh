@@ -7,13 +7,17 @@
 # 2nd level-templates 
 # These templates contain nested templates and need packaging via `aws cloudformation package`
 # To deploy the 2nd level-templates we call `aws cloudformation create-stack`
+#
+# This scrip contains commands to provision a data science environment via deployment of two 
+# CloudFormation stacks: core-main.yaml and env-main.yaml
 #############################################################################################
 # Package templates
 S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
 make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
 
-# ONE-OFF SETUP -----------------------------------------------------------------------------
-# STEP 1:
+# ONE-OFF SETUP - ONLY NEEDED IF YOU ARE GOING TO USE MULTI-ACCOUNT MODEL DEPLOYMENT --------
+
+# STEP 1 one-off setup:
 # SELF_MANAGED stack set permission model:
 # Deploy a stack set execution role to EACH of the target accounts
 # This stack set execution role used to deploy the target account roles stack set in env-main.yaml
@@ -41,7 +45,7 @@ aws cloudformation describe-stacks \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
-# STEP 2:
+# STEP 2 one-off setup:
 # Register a delegated administrator to enable AWS Organizations API permission for non-management account
 # Must be run in under administrator in the AWS Organizations _management account_
 aws organizations register-delegated-administrator \
@@ -52,7 +56,8 @@ aws organizations list-delegated-administrators  \
     --service-principal=member.org.stacksets.cloudformation.amazonaws.com
 # END OF ONE-OFF SETUP ----------------------------------------------------------------------
 
-# core-main.yaml
+# Data Science environment deployment
+# PART 1: core-main.yaml
 STACK_NAME="sm-mlops-core"
 
 aws cloudformation create-stack \
@@ -69,7 +74,7 @@ aws cloudformation create-stack \
     ParameterKey=DSAdministratorRoleArn,ParameterValue= \
     ParameterKey=SCLaunchRoleArn,ParameterValue= 
 
-# env-main.yaml
+# PART 2: env-main.yaml
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 STAGING_OU_ID="ou-fi18-56v340tb"
@@ -88,6 +93,7 @@ aws cloudformation create-stack \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
         ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
+        # This parameter block is only needed for multi-account model deployment
         ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
         ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
         ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
@@ -95,6 +101,7 @@ aws cloudformation create-stack \
 
 #####################################################################################################################
 # Clean up - *** THIS IS A DESTRUCTIVE ACTION - ALL SAGEMAKER DATA, NOTEBOOKS, PROJECTS, ARTIFACTS WILL BE DELETED***
+#####################################################################################################################
 
 # Get SageMaker domain id
 aws cloudformation describe-stacks \
@@ -114,11 +121,11 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test17-deploy")
-MLOPS_PROJECT_ID_LIST=("p-mcguwrfnj0kq")
-SM_DOMAIN_ID="d-uxslkk0bzdzm"
-STACKSET_NAME_LIST=("")
-ACCOUNT_IDS="340327315379"
+MLOPS_PROJECT_NAME_LIST=("test3-deploy" "test4-train" "test4-deploy")
+MLOPS_PROJECT_ID_LIST=("p-mc3zkgsbl8v3" "p-uode4b0qf2un" "p-y1iloulknggg")
+SM_DOMAIN_ID="d-hlnftwb2ywkw"
+STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-y1iloulknggg-deploy-staging" "sagemaker-test4-deploy-p-y1iloulknggg-deploy-prod")
+ACCOUNT_IDS="949335012047"
 
 # This works only for single-account deployment
 echo "Delete stack instances"

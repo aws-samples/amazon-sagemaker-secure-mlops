@@ -421,6 +421,10 @@ This MLOps project consists of the following parts:
 5. Production AWS account
 6. SageMaker endpoints with the given model [hosted in your private VPC](https://docs.aws.amazon.com/sagemaker/latest/dg/host-vpc.html)
 
+The following diagram shows how the trained and approved model is deployed into the taget accounts.
+
+![model deployment](design/ml-ops-deployment.drawio.svg)
+
 ### Multi-account model deployment pre-requisites
 Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and production organizational units (OUs). For a proper functioning of the **multi-account** deployment solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail.
 
@@ -487,12 +491,15 @@ The seed repository contains fully functional source code used by the CI/CD pipe
 
 If you would like to develop the seed code and update the MLOps project templates with new version of the code, please refer to the [Appendix G](#appendix-g)
 
-## Clean up 
+## Clean up after MLOps project templates
 After you have finished working and experimenting with MLOps projects you should perform clean up of the provisioned SageMaker resources to avoid charges.
 The following resources should be removed:
 - staging and production SageMaker endpoint (in case if they were deployed by Model deploy pipeline)
 - CloudFormation stack set (in case you run Model deploy pipeline)
-- SageMaker projects
+- SageMaker projects and corresponding S3 buckets with project artifacts
+- Any data in the data and model S3 buckets
+
+For the full clean-up scrip please refer to the `Clean-up` secion in the delivered [shell script](test/cfn-test-e2e.sh).
 
 ❗ **This is a destructive action. All data on in Amazon S3 buckets for MLOps pipelines, ML data, and ML models will be permanently deleted. All MLOps project seed code repository will be permanently removed from your AWS environment.**
 
@@ -507,7 +514,10 @@ STACKSET_NAME_LIST=("<stack-set-staging>" "<stack-set-prod>")
 ACCOUNT_IDS="<AWS ACCOUNT_ID"
 ```
 
-**Step 2**: delete SageMaker endpoints and CloudFormation stack sets:
+**Step 2**: 
+#### Single-account model deployment
+
+Delete SageMaker endpoints and CloudFormation stack sets:
 ```sh
 echo "Delete stack instances"
 for ss in ${STACKSET_NAME_LIST[@]};
@@ -524,6 +534,26 @@ do
     echo "delete stack set $ss"
     aws cloudformation delete-stack-set --stack-set-name $ss
 done
+```
+#### Multi-account model deployment
+For multi-account deployment get the list of stack instances:
+```sh
+for ss in ${STACKSET_NAME_LIST[@]};
+do
+    aws cloudformation list-stack-instances \
+        --stack-set-name $ss
+done
+```
+Delete stack instances for all accounts returned by the previous call:
+```sh
+ACCOUNT_IDS="" #comma-delimited account list return from the previous call
+aws cloudformation delete-stack-instances \
+    --stack-set-name "" \
+    --regions $AWS_DEFAULT_REGION \
+    --no-retain-stacks \
+    --accounts $ACCOUNT_IDS
+
+aws cloudformation delete-stack-set --stack-set-name ""
 ```
 
 **Step 3**: delete SageMaker projects:
@@ -601,7 +631,8 @@ You have a choice of different independent deployment options using the delivere
 + **Two-step deployment via CloudFormation**: deploy the core infrastructure in the first step and then deploy a Data Science Environment, both as CloudFormation templates. CLI `aws cloudformation create-stack` is used for deployment. _You can change any deployment option_
 + **Two-step deployment via CloudFormation and AWS Service Catalog**: deploy the core infrastructure in the first step via `aws cloudformation create-stack` and then deploy a Data Science Environment via [AWS Service Catalog](https://aws.amazon.com/servicecatalog/). _You can change any deployment option_
 
-The following sections give step-by-step deployment instructions for each of the options.
+The following sections give step-by-step deployment instructions for each of the options.<br/>
+You can also find all CLI commands in the delivered shell scripts in the project folder `test`.
 
 ## Special deployment options
 This special type of deployment is designed for an environment, where all **IAM-altering** operations, such as role and policy creation, are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process following the **separation of duties** principle.
@@ -612,14 +643,20 @@ You will provide the ARNs for the IAM roles as CloudFormation template parameter
 See [Appendix B](#appendix-b)
 
 ## Multi-account model deployment workflow pre-requisites
+Multi-account model deployment requires VPC infrastructure and specific execution roles to be provisioned in the target accounts in the staging and production OUs. The provisioning of the infrastructure and the roles is done during the deployment of the data science environment as a part of the overall deployment process.
 
+This diagram shows how the CloudFormation stack sets are used to deploy the needed infrastructure to the target accounts.
+
+![multi-account infrastructure setup](design/ml-ops-setup-target-accounts.drawio.svg)
+
+Two stack sets - one for the VPC infrastructure and another for the roles - are deployed for each envrionment type, staging and production. <br/>
 One-off setup is needed to enable **multi-account** model deployment workflow with SageMaker MLOps projects. You **don't need** to perform this setup if you are going to use single-account deployment only.
 
 ### Step 1
 The provisioning of a data science environment uses CloudFormation stack set to deploy the IAM roles and VPC infrastructure into the target accounts.
 The solution uses `SELF_MANAGED` stack set permission model and needs two IAM roles:
 - `AdministratorRole` in the development account (main account)
-- `StackSetExecutionRole` in each of the target accounts
+- `SetupStackSetExecutionRole` in each of the target accounts
 
 You must provision these roles **before** starting the solution deployment. You can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](cfn_templates/env-iam-setup-stacksest-role.yaml) or your own process of provisioning of an IAM role.
 
@@ -696,6 +733,10 @@ Alternatively, you can run the following script from the solution directory:
 SM_DOMAIN_ID=#SageMaker domain id
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 ```
+For the full clean-up scrip please refer to the `Clean-up` secion in the delivered [shell script](test/cfn-test-e2e.sh) and instructions in [MLOps project section](#clean-up-after-MLOps-project-templates).
+
+## Additional clean-up for MLOps projects and multi-account operations
+If you use delivered MLOps project templates and multi-account model deployment, you need to remove SageMaker projects, stack set instances in the target account and stack sets.
 
 ## Deployment types
 The following three sections describes each deployment type and deployment use case in detail.
@@ -753,6 +794,8 @@ Using this option you provision a Data Science environment in two steps, each wi
 ❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the correspoinding CloudFormation parameters to names and ARNs or your existing resources.
 
 ❗ You must specify the valid OU ids for the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters for the `env-main.yaml` template to enable multi-account model deployment.
+
+You can use the provided [shell script](test/cfn-test-e2e.sh) to run this deployment type or following the commands below.
 
 #### Step 1: Deploy the core infrastructure
 In this step you deploy the _shared core infrastructure_ into your AWS Account. The stack (`core-main.yaml`) will provision:
@@ -851,7 +894,7 @@ aws cloudformation create-stack \
         ParameterKey=NumberOfAZs,ParameterValue=2
 ```
 
-If you would like to use multi-account model deployment, you must provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole`:
+If you would like to use **multi-account model deployment**, you must provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole`:
 ```sh 
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
