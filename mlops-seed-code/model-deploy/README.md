@@ -43,11 +43,9 @@ A description of some of the artifacts is provided below.
   - **Add your custom endpoing test logic to this file**
 
 ## AWS Organizations setup for MLOps model deploy
-You must have a proper AWS Orgainzations setup with the data science account and the two additional accounts for a proper functioning of this MLOps model deployment project.
+You must have a proper AWS Orgainzations setup with the data science account and the two additional organizational units (OUs) with at least one AWS account in the each OU for a proper functioning of this MLOps model deployment project.
 
-Each account must be added to a different [organizational unit (OU)](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_getting-started_concepts.html).
-
-Your Organizations structure should look like the following:
+Your Organizations structure can look like the following:
 + Root
     - multi-account-deployment (OU)
         * `111111111111` (data science development account with SageMaker Studio)
