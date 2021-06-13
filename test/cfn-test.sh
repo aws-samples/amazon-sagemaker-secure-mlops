@@ -238,7 +238,8 @@ aws cloudformation create-stack \
         ParameterKey=CreateVPCFlowLogsToCloudWatch,ParameterValue=NO \
         ParameterKey=CreateVPCFlowLogsRole,ParameterValue=NO \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c \
-        ParameterKey=NumberOfAZs,ParameterValue=3
+        ParameterKey=NumberOfAZs,ParameterValue=3 \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME 
 
 # Clean up
 aws cloudformation delete-stack --stack-name ds-team-env

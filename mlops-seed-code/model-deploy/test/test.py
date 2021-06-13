@@ -55,7 +55,6 @@ if __name__ == "__main__":
     parser.add_argument("--log-level", type=str, default=os.environ.get("LOGLEVEL", "INFO").upper())
     parser.add_argument("--build-config", type=str, required=True)
     parser.add_argument("--test-results-output", type=str, required=True)
-    parser.add_argument("--multi-account-deployment", type=str, required=True)
     args, _ = parser.parse_known_args()
 
     # Configure logging to output the line number and message
@@ -68,23 +67,13 @@ if __name__ == "__main__":
 
     boto_sts=boto3.client('sts')
 
-    # get the caller account for single-account deployment
-    account_ids = [boto_sts.get_caller_identity()["Account"]]
-
-    if args.multi_account_deployment == "YES":
-        # Multi-account deployment to all accounts in the OU if multi-account-deployment set to YES   
-        if config["OrgUnitId"]:
-            account_ids = [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=config["OrgUnitId"])['Accounts']]        
-        else:
-            error_message = (
-                f"OU is not provided for multi-account-deployment"
-            )
-            logger.error(error_message)
-            raise Exception(error_message)
-
-        logger.info(f"Multi-account deployment enabled. Test endpoint for the accounts {account_ids} in {config['OrgUnitId']}")
-
-    # Test the endpoint in each account of the target organizational unit
+    # Get the target account list  
+    if config["Accounts"]:
+        account_ids = config["Accounts"].split(",")
+    else: # get the caller account for single-account deployment
+        account_ids = [boto_sts.get_caller_identity()["Account"]]
+      
+    # Test the endpoint in each account of the target account list
     logger.info(f"Test endpoint for the accounts: {account_ids}")
     for account_id in account_ids:
         # Request to assume the specified role in the target account

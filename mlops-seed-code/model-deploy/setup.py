@@ -18,8 +18,8 @@ if __name__ == "__main__":
     parser.add_argument("--sagemaker-project-id", type=str, required=True)
     parser.add_argument("--sagemaker-project-name", type=str, required=True)
     parser.add_argument("--model-package-group-name", type=str, required=True)
-    parser.add_argument("--organizational-unit-staging-id", type=str, default='')
-    parser.add_argument("--organizational-unit-prod-id", type=str, default='')
+    parser.add_argument("--staging-accounts", type=str, default='')
+    parser.add_argument("--prod-accounts", type=str, default='')
     parser.add_argument("--env-name", type=str, required=True)
     parser.add_argument("--env-type", type=str, required=True)
     parser.add_argument("--multi-account-deployment", type=str, required=True)
@@ -62,22 +62,19 @@ if __name__ == "__main__":
             raise e
 
     if args.multi_account_deployment == "YES":
-        staging_ou_id = args.organizational_unit_staging_id
-        prod_ou_id = args.organizational_unit_prod_id
 
-        if not staging_ou_id or not prod_ou_id:
+        if not len(args.staging_accounts) or not len(args.prod_accounts.split):
             error_message = (
-                f"Staging OU {staging_ou_id} or production OU {prod_ou_id} are not provided for multi-account-deployment"
+                f"Staging accounts {args.staging_accounts} or production accounts {args.prod_accounts.split} are not provided for multi-account-deployment"
             )
             logger.error(error_message)
             raise Exception(error_message)
 
-        logger.info(f"Staging OU: {staging_ou_id} and Production OU: {prod_ou_id} are provided. Setting up the permissions...")
+        logger.info(f"Staging accounts: {args.staging_accounts} and production accounts: {args.prod_accounts} are provided. Setting up the permissions...")
 
-        # Get the account ids based on staging and prod ids
+        # Construct the principals for the account ids 
         principals = [f"arn:aws:iam::{acc}:root" for acc in
-                [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=staging_ou_id)['Accounts']] +
-                [i['Id'] for i in org_client.list_accounts_for_parent(ParentId=prod_ou_id)['Accounts']]]
+                        args.staging_accounts.split(",") + args.prod_accounts.split(",")]
 
         # create policy for cross-account access to the ModelPackageGroup
         sm_client.put_model_package_group_policy(

@@ -15,10 +15,6 @@ Parameters:
     Type: String
     Description: Service generated Id of the project.
 
-  SeedCodeS3BucketName:
-    Type: String
-    Description: S3 bucket name where the seed code for MLOps projects for CodeCommit repository is stored
-
   ModelPackageGroupName:
     Type: String
     Description: Model package group name to monitor for model package state changes. Leave 'Auto' to auto generate.
@@ -38,24 +34,6 @@ Conditions:
   MultiAccountDeploymentCondition: !Equals [ !Ref MultiAccountDeployment, 'YES' ]
 
 Resources:
-  # Retrieve accounts from the staging OU
-  GetOUAccountsStaging:
-    Type: Custom::GetOUAccounts
-    Condition: MultiAccountDeploymentCondition
-    Properties:
-      ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
-      OUIds: 
-        - !GetAtt GetEnvironmentConfiguration.OUStagingId
-
-  # Retrieve accounts from the production OU
-  GetOUAccountsProd:
-    Type: Custom::GetOUAccounts
-    Condition: MultiAccountDeploymentCondition
-    Properties:
-      ServiceToken: !ImportValue 'ds-ou-accounts-lambda-arn'
-      OUIds: 
-        - !GetAtt GetEnvironmentConfiguration.OUProdId
-
   # Retrieve the environment variables
   GetEnvironmentConfiguration:
     Type: Custom::GetEnvironmentConfiguration
@@ -85,6 +63,12 @@ Resources:
           VariableName: 'OUProdId'
           ParameterName: 'ou-prod-id'
         - 
+          VariableName: 'ProdAccountList'
+          ParameterName: 'production-account-list'
+        - 
+          VariableName: 'StagingAccountList'
+          ParameterName: 'staging-account-list'
+        - 
           VariableName: 'ModelExecutionRole'
           ParameterName: 'sm-model-execution-role-name'
         - 
@@ -102,6 +86,9 @@ Resources:
         -
           VariableName: 'EnvTypeProdName'
           ParameterName: 'env-type-prod-name'
+        - 
+          VariableName: 'SeedCodeS3BucketName'
+          ParameterName: 'seed-code-s3bucket-name'
         
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
@@ -192,7 +179,7 @@ Resources:
       RepositoryDescription: !Sub SageMaker Endpoint deployment infrastructure as code for the project ${SageMakerProjectName}
       Code:
         S3:
-          Bucket: !Ref SeedCodeS3BucketName 
+          Bucket: !GetAtt GetEnvironmentConfiguration.SeedCodeS3BucketName 
           Key: sagemaker-mlops/seed-code/mlops-model-deploy-v1.0.zip
         BranchName: main
       Tags:
@@ -245,10 +232,16 @@ Resources:
             Value: !Ref AWS::Region
           - Name: MULTI_ACCOUNT_DEPLOYMENT
             Value: !Ref MultiAccountDeployment
-          - Name: ORGANIZATIONAL_UNIT_STAGING_ID
-            Value: !GetAtt GetEnvironmentConfiguration.OUStagingId
-          - Name: ORGANIZATIONAL_UNIT_PROD_ID
-            Value: !GetAtt GetEnvironmentConfiguration.OUProdId
+          - Name: STAGING_ACCOUNT_LIST
+            Value: !If 
+                  - MultiAccountDeploymentCondition
+                  - !GetAtt GetEnvironmentConfiguration.StagingAccountList
+                  - !Ref 'AWS::AccountId'
+          - Name: PROD_ACCOUNT_LIST
+            Value: !If 
+                  - MultiAccountDeploymentCondition
+                  - !GetAtt GetEnvironmentConfiguration.ProdAccountList
+                  - !Ref 'AWS::AccountId'
           - Name: STAGING_CONFIG_NAME
             Value: 'staging-config'
           - Name: PROD_CONFIG_NAME
@@ -304,8 +297,6 @@ Resources:
             Value: 'staging-config'
           - Name: TEST_RESULTS
             Value: 'test-results'
-          - Name: MULTI_ACCOUNT_DEPLOYMENT
-            Value: !Ref MultiAccountDeployment
 
       Source:
         Type: CODEPIPELINE
@@ -406,7 +397,7 @@ Resources:
                 # For a self-managed model, targets can only be AWS accounts
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
-                  - !Join [',', !GetAtt GetOUAccountsStaging.Accounts]
+                  - !GetAtt GetEnvironmentConfiguration.StagingAccountList
                   - !Ref 'AWS::AccountId'
                 Regions: !Ref 'AWS::Region'
               RunOrder: 1
@@ -437,13 +428,16 @@ Resources:
                 Provider: Manual
               Configuration:
                 CustomData: !Sub 
-                  - "Model ${ModelPackageGroupName} for the project ${SageMakerProjectName} is deployed to the staging accounts for OU ${OUStagingId}"
+                  - "Model ${ModelPackageGroupName} for the project ${SageMakerProjectName} is deployed to the staging accounts ${AccountList}"
                   - ModelPackageGroupName: !If 
                       - GenerateModelPackageNameCondition
                       - !Sub '${SageMakerProjectName}-${SageMakerProjectId}'
                       - !Ref ModelPackageGroupName
                     SageMakerProjectName: !Ref SageMakerProjectName
-                    OUStagingId: !GetAtt GetEnvironmentConfiguration.OUStagingId
+                    AccountList: !If 
+                      - MultiAccountDeploymentCondition
+                      - !GetAtt GetEnvironmentConfiguration.StagingAccountList
+                      - !Ref 'AWS::AccountId'
                 ExternalEntityLink: !Sub 'https://${AWS::Region}.console.aws.amazon.com/codesuite/codepipeline/pipelines/sagemaker-${SageMakerProjectName}-${SageMakerProjectId}-modeldeploy/view?region=${AWS::Region}'
               RunOrder: 3
 
@@ -470,7 +464,7 @@ Resources:
                 # For a self-managed model, targets can only be AWS accounts
                 DeploymentTargets: !If 
                   - MultiAccountDeploymentCondition
-                  - !Join [',', !GetAtt GetOUAccountsProd.Accounts]
+                  - !GetAtt GetEnvironmentConfiguration.ProdAccountList
                   - !Ref 'AWS::AccountId'
                 Regions: !Ref 'AWS::Region'
               RunOrder: 1

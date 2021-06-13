@@ -40,10 +40,16 @@ Metadata:
           - DataBucketName
           - ModelBucketName
       - Label:
-          default: Organizational Unit Ids for multi-account model deployment
+          default: S3 Bucket Name with MLOps Seed Code
+        Parameters:
+          - SeedCodeS3BucketName
+      - Label:
+          default: Multi-account model deployment setup
         Parameters:
           - OrganizationalUnitStagingId
           - OrganizationalUnitProdId
+          - StagingAccountList
+          - ProductionAccountList
       - Label:
           default: Infrastructure setup in the target accounts in staging and production OUs (multi-account only)
         Parameters:
@@ -117,6 +123,8 @@ Metadata:
         default: Existing S3 bucket name to store ML data (only if created outside of this stack)
       ModelBucketName:
         default: Existing S3 bucket name to store ML models (only if created outside of this stack)
+      SeedCodeS3BucketName:
+        default: Existing S3 bucket name where MLOps seed code will be stored
       CreateEnvironmentIAMRoles:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
@@ -177,6 +185,10 @@ Metadata:
         default: OU Id for the organizational unit with data science staging account. Leave empty for single-account deployment
       OrganizationalUnitProdId:
         default: OU Id for the organizational unit with data science production account. Leave empty for single-account deployment
+      StagingAccountList:
+        default: Comma-delimited list of the staging accounts for multi-account model deployment. Leave empty for single-account deployment
+      ProductionAccountList:
+        default: Comma-delimited list of the production accounts for multi-account model deployment. Leave empty for single-account deployment
       SetupStackSetExecutionRoleName:
         default: Stack set execution role name for initial infrastructure setup in the target accounts in the staging and production OUs
       CreateTargetAccountNetworkInfra:
@@ -297,6 +309,10 @@ Parameters:
     Description: S3 bucket name to store models (only if created outside of this stack)
     Type: String
     Default: ''
+  
+  SeedCodeS3BucketName:
+    Description: S3 bucket name to store MLOps seed code (the S3 bucket must exist)
+    Type: String
 
   CreateEnvironmentIAMRoles:
     Description: If YES, all IAM Roles for Data Science environment will be automatically provisioned. If NO, you have to provide the IAM roles
@@ -505,6 +521,16 @@ Parameters:
     Description: OU Id of the organizational unit that holds the data science production account   
     Default: ''
 
+  StagingAccountList:
+    Type: String
+    Description: Comma-delimited list of staging account ids for multi-account model deployment
+    Default: ''
+
+  ProductionAccountList:
+    Type: String
+    Description: Comma-delimited list of production account ids for multi-account model deployment
+    Default: ''
+
   SetupStackSetExecutionRoleName:
     Type: String
     Description: Stack set execution role name for initial infrastructure setup in the target accounts (staging and production OUs).
@@ -704,9 +730,15 @@ Conditions:
   IAMRoles&VPCFlowLogsRoleCondition: !And [ !Condition IAMRolesCondition, !Condition VPCFlowLogsRoleCondition]
   S3BucketsConditions: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
   SharedServicesPyPiMirrorCondition: !Equals [ !Ref UseSharedServicesPyPiMirror, 'YES' ]
-  MultiAccountDeploymentCondition: !And
-    - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
-    - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
+  OrganizationalUnitCondition: !And
+      - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, ''] ]
+      - !Not [ !Equals [ !Ref OrganizationalUnitProdId, ''] ]
+  AccountListCondition: !And
+      - !Not [ !Equals [ !Ref StagingAccountList, ''] ]
+      - !Not [ !Equals [ !Ref ProductionAccountList, ''] ]
+  MultiAccountDeploymentCondition: !Or
+    - !Condition OrganizationalUnitCondition
+    - !Condition AccountListCondition
   IAMRolesStackSetDeploymentCondition: !And 
     - !Condition MultiAccountDeploymentCondition
     - !Condition IAMRolesCondition
@@ -714,6 +746,7 @@ Conditions:
   NetworkInfraStackSetDeploymentCondition: !And
     - !Condition MultiAccountDeploymentCondition
     - !Condition TargetAccountNetworkInfraCondition
+
 
 Rules:
   IAMRoles:
@@ -737,17 +770,29 @@ Rules:
       - Assert: !Equals [ !Ref CreateVPCFlowLogsRole, 'NO' ] 
         AssertDescription: Create VPC Flow Logs execution role cannot be set to YES if Create environemtn IAM Roles is set NO
   
-  OrganizationalUnitStagingId: 
-    RuleCondition: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
+  OrganizationalUnitIds: 
+    RuleCondition: !Or 
+      - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, '' ] ]
+      - !Not [ !Equals [ !Ref OrganizationalUnitProdId, '' ] ]
     Assertions:
-      - Assert: !Equals [ !Ref OrganizationalUnitProdId, '' ]
-        AssertDescription: OU Ids for both staging and production OUs must be provided if one (staging or production) id is provided
+      - Assert: !And
+        - !Not [ !Equals [ !Ref OrganizationalUnitProdId, '' ] ]
+        - !Not [ !Equals [ !Ref OrganizationalUnitStagingId, '' ] ]
+        - !Equals [ !Ref StagingAccountList, '']
+        - !Equals [ !Ref ProductionAccountList, '']
+        AssertDescription: Both staging and production OU ids must be provided if one OU id is provided and both StagingAccountList and ProductionAccountList must be empty
 
-  OrganizationalUnitProdId: 
-    RuleCondition: !Equals [ !Ref OrganizationalUnitProdId, '' ]
+  AccountList: 
+    RuleCondition: !Or 
+      - !Not [ !Equals [ !Ref StagingAccountList, '' ] ]
+      - !Not [ !Equals [ !Ref ProductionAccountList, '' ] ]
     Assertions:
-      - Assert: !Equals [ !Ref OrganizationalUnitStagingId, '' ]
-        AssertDescription: OU Ids for both staging and production OUs must be provided if one (staging or production) id is provided
+      - Assert: !And
+        - !Equals [ !Ref OrganizationalUnitProdId, '' ]
+        - !Equals [ !Ref OrganizationalUnitStagingId, '' ]
+        - !Not [ !Equals [ !Ref StagingAccountList, ''] ]
+        - !Not [ !Equals [ !Ref ProductionAccountList, ''] ]
+        AssertDescription: Both StagingAccountList and ProductionAccountList must be provided if one list is provided and both OrganizationalUnitProdId and OrganizationalUnitProdId must be empty
 
   SetupStackSetExecutionRole:
     RuleCondition: !And
@@ -849,7 +894,11 @@ Resources:
           Regions: 
             - !Ref AWS::Region
           DeploymentTargets:
-            Accounts: !GetAtt GetOUAccountsStaging.Accounts
+            Accounts: !If 
+              - OrganizationalUnitCondition
+              - !GetAtt GetOUAccountsStaging.Accounts
+              - !Split [',', !Ref StagingAccountList]
+
       StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-roles'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
       Tags:
@@ -900,7 +949,11 @@ Resources:
           Regions: 
             - !Ref AWS::Region
           DeploymentTargets:
-            Accounts: !GetAtt GetOUAccountsProd.Accounts
+            Accounts: !If 
+              - OrganizationalUnitCondition 
+              - !GetAtt GetOUAccountsProd.Accounts
+              - !Split [',', !Ref ProductionAccountList]
+
       StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-roles'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
       Tags:
@@ -1134,7 +1187,11 @@ Resources:
           Regions: 
             - !Ref AWS::Region
           DeploymentTargets:
-            Accounts: !GetAtt GetOUAccountsStaging.Accounts
+            Accounts: !If 
+              - OrganizationalUnitCondition
+              - !GetAtt GetOUAccountsStaging.Accounts
+              - !Split [',', !Ref StagingAccountList]
+
       StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-vpc'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
       Tags:
@@ -1252,7 +1309,11 @@ Resources:
           Regions: 
             - !Ref AWS::Region
           DeploymentTargets:
-            Accounts: !GetAtt GetOUAccountsProd.Accounts
+            Accounts: !If 
+              - OrganizationalUnitCondition
+              - !GetAtt GetOUAccountsProd.Accounts
+              - !Split [',', !Ref ProductionAccountList]
+
       StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-vpc'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
       Tags:
@@ -1389,7 +1450,10 @@ Resources:
     DependsOn: EnvironmentSageMakerStudio
     Properties:
       ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
-      Accounts: !GetAtt GetOUAccountsStaging.Accounts
+      Accounts: !If 
+        - OrganizationalUnitCondition
+        - !GetAtt GetOUAccountsStaging.Accounts
+        - !Split [',', !Ref StagingAccountList]
       PrincipalRoleName: !If
           - IAMRolesCondition
           - !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
@@ -1413,7 +1477,10 @@ Resources:
     DependsOn: SetupCrossAccountPermissionsStaging
     Properties:
       ServiceToken: !GetAtt SetupCrossAccountPermissionsLambda.Arn
-      Accounts: !GetAtt GetOUAccountsProd.Accounts
+      Accounts: !If 
+        - OrganizationalUnitCondition
+        - !GetAtt GetOUAccountsProd.Accounts
+        - !Split [',', !Ref ProductionAccountList]
       PrincipalRoleName: !If
           - IAMRolesCondition
           - !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
@@ -1704,9 +1771,33 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
-  OrganizationalUnitStagingIdSSM:
+  StagingAccountListSSM:
     Type: 'AWS::SSM::Parameter'
     Condition: MultiAccountDeploymentCondition
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType}-staging-account-list'
+      Type: String
+      Value: !If 
+        - AccountListCondition
+        - !Ref StagingAccountList
+        - !Join [',', !GetAtt GetOUAccountsStaging.Accounts]
+      Description: !Sub 'List of staging accounts for model deployment for ${EnvName}-${EnvType} data science environment'
+
+  ProductionAccountListSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: MultiAccountDeploymentCondition
+    Properties:
+      Name: !Sub '${EnvName}-${EnvType}-production-account-list'
+      Type: String
+      Value: !If
+        - AccountListCondition
+        - !Ref ProductionAccountList
+        - !Join [',', !GetAtt GetOUAccountsProd.Accounts]
+      Description: !Sub 'List of production accounts for model deployment for ${EnvName}-${EnvType} data science environment'
+
+  OrganizationalUnitStagingIdSSM:
+    Type: 'AWS::SSM::Parameter'
+    Condition: OrganizationalUnitCondition
     Properties:
       Name: !Sub '${EnvName}-${EnvType}-ou-staging-id'
       Type: String
@@ -1715,7 +1806,7 @@ Resources:
 
   OrganizationalUnitProdIdSSM:
     Type: 'AWS::SSM::Parameter'
-    Condition: MultiAccountDeploymentCondition
+    Condition: OrganizationalUnitCondition
     Properties:
       Name: !Sub '${EnvName}-${EnvType}-ou-prod-id'
       Type: String
@@ -1797,3 +1888,11 @@ Resources:
       Type: String
       Value: !Ref EnvTypeProdName
       Description: Environment name for production environment
+
+  SeedCodeS3BucketNameSSM:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: !Sub "${EnvName}-${EnvType}-seed-code-s3bucket-name"
+      Type: String
+      Value: !Ref SeedCodeS3BucketName
+      Description: S3 bucket name where MLOps seed code is stored

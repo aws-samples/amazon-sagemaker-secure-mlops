@@ -15,10 +15,6 @@ Parameters:
     Type: String
     Description: Service generated Id of the project.
 
-  SeedCodeS3BucketName:
-    Type: String
-    Description: S3 bucket name where the seed code for MLOps projects for CodeCommit repository is stored
-
 Conditions:
   MLOpsArtifactBucketCondition: !Equals [ 'true', 'true' ]
 
@@ -30,15 +26,22 @@ Resources:
       ServiceToken: !ImportValue 'ds-get-environment-configuration-lambda-arn'
       SageMakerProjectName: !Ref SageMakerProjectName
       SSMParams:
-        - VariableName: 'DataBucketName'
+        - 
+          VariableName: 'DataBucketName'
           ParameterName: 'data-bucket-name'
-        - VariableName: 'ModelBucketName'
+        - 
+          VariableName: 'ModelBucketName'
           ParameterName: 'model-bucket-name'
-        - VariableName: 'S3KmsKeyId'
+        - 
+          VariableName: 'S3KmsKeyId'
           ParameterName: 'kms-s3-key-arn'
-        - VariableName: 'PipelineExecutionRole'
+        - 
+          VariableName: 'PipelineExecutionRole'
           ParameterName: 'sm-pipeline-execution-role-arn'
-      
+        - 
+          VariableName: 'SeedCodeS3BucketName'
+          ParameterName: 'seed-code-s3bucket-name'
+
   MlOpsArtifactsBucket:
     Type: AWS::S3::Bucket
     Condition: MLOpsArtifactBucketCondition
@@ -102,7 +105,7 @@ Resources:
       RepositoryDescription: !Sub SageMaker Model building infrastructure as code for the project ${SageMakerProjectName}
       Code:
         S3:
-          Bucket: !Ref SeedCodeS3BucketName 
+          Bucket: !GetAtt GetEnvironmentConfiguration.SeedCodeS3BucketName 
           Key: sagemaker-mlops/seed-code/mlops-model-build-train-v1.0.zip
         BranchName: main
       Tags:

@@ -30,6 +30,10 @@ Metadata:
         Parameters:
           - CreateSharedServices
       - Label:
+          default: S3 Bucket Name with MLOps Seed Code
+        Parameters:
+          - SeedCodeS3BucketName
+      - Label:
           default: Network Configuration
         Parameters:
           - VPCCIDR
@@ -47,6 +51,8 @@ Metadata:
         default: Environment type
       CreateSharedServices:
         default: Create Shared Services (PyPI mirror)
+      SeedCodeS3BucketName:
+        default: Existing S3 bucket name where MLOps seed code will be stored
       VPCCIDR:
         default: VPC CIDR block
       PrivateSubnet1ACIDR:
@@ -93,6 +99,10 @@ Parameters:
         - 'YES'
         - 'NO'
     Description: Set to YES if you do want to provision the shared services VPC network and PyPi mirror repository
+
+  SeedCodeS3BucketName:
+    Description: S3 bucket name to store MLOps seed code (the S3 bucket must exist)
+    Type: String
 
   VPCCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
@@ -194,6 +204,7 @@ Resources:
         PrivateSubnet2ACIDR: !Ref PrivateSubnet2ACIDR
         PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
         PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        SeedCodeS3BucketName: !Ref SeedCodeS3BucketName
       TemplateURL: env-main.yaml
       Tags:
         - Key: EnvironmentName

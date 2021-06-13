@@ -915,7 +915,8 @@ aws cloudformation create-stack \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
-        ParameterKey=NumberOfAZs,ParameterValue=2
+        ParameterKey=NumberOfAZs,ParameterValue=2 \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME
 ```
 
 If you would like to use **multi-account model deployment**, you must provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole`:
@@ -938,10 +939,13 @@ aws cloudformation create-stack \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
         ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME \
         ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
         ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
         ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 ```
+
+If you do not have an AWS Organization setup, you can omit the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters from the previous call.
 
 ### Cleanup
 First, delete the two root stacks from AWS CloudFormation console or command line:
@@ -974,6 +978,7 @@ aws cloudformation describe-stacks \
 
 Copy and paste the `AssumeDSAdministratorRole` link to a web browser and switch role to DS Administrator.
 Go to AWS Service Catalog in the AWS console and select **Products** on the left pane:
+
 ![service-catalog-end-user-products](img/service-catalog-end-user-products.png)
 
 You will see the list of available products for your user role:
@@ -984,7 +989,7 @@ Click on the product name and and then on the **Launch product** on the product 
 
 ![service-catalog-launch-product](img/service-catalog-launch-product.png)
 
-Fill the product parameters with values specific for your environment. Provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole` if you would like to enable multi-account model deployment.
+Fill the product parameters with values specific for your environment. Provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole` if you would like to enable multi-account model deployment, otherwise keep these parameters empty.
 
 Wait until AWS Service Catalog finishes the provisioning of the Data Science environment stack and the product status becomes **Available**. The data science environmetn provisioning takes about 20 minutes to complete.
 
@@ -1145,6 +1150,26 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM 
 ```
 
+Deploy the setup stack set execution role in each of the staging and target accounts. This step is only needed if:
+1. You are going to use multi-account model deployment option
+2. You want that the deployment of the data science environment provisions the network infrastructure and IAM roles in the target accounts.
+
+```sh
+ENV_NAME=ds-team
+ADMIN_ACCOUNT_ID=#Data science account with SageMaker Studio
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-role
+
+aws cloudformation deploy \
+      --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
+      --stack-name $ENV_NAME-setup-stackset-execution-role \
+      --capabilities CAPABILITY_NAMED_IAM \
+      --parameter-overrides \
+      EnvName=$ENV_NAME \
+      EnvType=$ENV_TYPE \
+      StackSetExecutionRoleName=$SETUP_STACKSET_ROLE_NAME \
+      AdministratorAccountId=$ADMIN_ACCOUNT_ID
+```
+
 Deploy IAM shared roles:
 ```bash
 STACK_SET_NAME=ds-team
@@ -1172,6 +1197,8 @@ aws cloudformation deploy \
     EnvType=dev
 ```
 
+If you want to provision the target account infrastructure during the data science environment deployment, you must provide the value for the `SetupStackSetExecutionRoleName` parameter.
+
 Deploy SageMaker model deployment roles in development, staging, and production AWS accounts:
 ```bash
 aws cloudformation deploy \
@@ -1181,10 +1208,14 @@ aws cloudformation deploy \
     --parameter-overrides \
     EnvName=$ENV_NAME \
     EnvType=dev \
-    PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole \
+    PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/
+    AmazonSageMakerServiceCatalogProductsUseRole \
+    AdministratorAccountId=<DATA SCIENCE ACCOUNT ID>  \
     ModelS3KMSKeyArn=<AWS KMS Key for S3 model bucket> \
     ModelBucketName=<S3 Model bucket name>
 ```
+
+If you do not use multi-account deployment, you do not need to deploy these roles into the staging and production accounts. Deploy to the development account only.
 
 Show IAM role ARNs:
 ```bash
@@ -1271,7 +1302,8 @@ aws cloudformation create-stack \
         ParameterKey=CreateVPCFlowLogsToCloudWatch,ParameterValue=NO \
         ParameterKey=CreateVPCFlowLogsRole,ParameterValue=NO \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b\\,${AWS_DEFAULT_REGION}c \
-        ParameterKey=NumberOfAZs,ParameterValue=3
+        ParameterKey=NumberOfAZs,ParameterValue=3 \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME
 ```
 
 ## Clean-up

@@ -116,6 +116,9 @@ do
         aws s3 cp ${CFN_OUTPUT_DIR}/${fname} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname}
     fi
 
+    echo "To validate template ${fname}:"
+    echo "aws cloudformation validate-template --template-url https://s3.${DEPLOYMENT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname}"
+
     echo "To deploy stack execute:"
     echo "aws cloudformation create-stack --template-url https://s3.${DEPLOYMENT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${fname} --region ${DEPLOYMENT_REGION} --stack-name <STACK_NAME> --disable-rollback --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --parameters ParameterKey=,ParameterValue=" 
 

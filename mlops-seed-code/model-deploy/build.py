@@ -61,7 +61,7 @@ def prepare_config(args, model_package_arn, config_name, params):
     # Optional: Add validation of config parameters if needed
 
     # Add deployment-time parameters
-    config.append({ "ParameterKey": "OrgUnitId", "ParameterValue": params["OUId"] })
+    config.append({ "ParameterKey": "Accounts", "ParameterValue": params["Accounts"] })
     config.append({ "ParameterKey": "ExecutionRoleName", "ParameterValue": params["ExecutionRoleName"] })
     config.append({ "ParameterKey": "SageMakerProjectName", "ParameterValue": args.sagemaker_project_name, })
     config.append({ "ParameterKey": "SageMakerProjectId", "ParameterValue": args.sagemaker_project_id })
@@ -86,8 +86,8 @@ if __name__ == "__main__":
     parser.add_argument("--prod-config-name", type=str, default="prod-config")
     parser.add_argument("--sagemaker-execution-role-staging-name", type=str, required=True)
     parser.add_argument("--sagemaker-execution-role-prod-name", type=str, required=True)
-    parser.add_argument("--organizational-unit-staging-id", type=str, required=True)
-    parser.add_argument("--organizational-unit-prod-id", type=str, required=True)
+    parser.add_argument("--staging-accounts", type=str, default='')
+    parser.add_argument("--prod-accounts", type=str, default='')
     parser.add_argument("--env-name", type=str, required=True)
     parser.add_argument("--ebs-kms-key-arn", type=str, required=True)
     parser.add_argument("--env-type-staging-name", type=str, required=True)
@@ -106,12 +106,12 @@ if __name__ == "__main__":
     for k, v in {
                 args.staging_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_staging_name, 
-                    "OUId":args.organizational_unit_staging_id,
+                    "Accounts":args.staging_accounts,
                     "EnvType":args.env_type_staging_name
                     }, 
                  args.prod_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_prod_name, 
-                    "OUId":args.organizational_unit_prod_id,
+                    "Accounts":args.prod_accounts,
                     "EnvType":args.env_type_prod_name
                     }
                  }.items():

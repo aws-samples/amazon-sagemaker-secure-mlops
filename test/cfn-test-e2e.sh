@@ -79,6 +79,8 @@ STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 STAGING_OU_ID="ou-fi18-56v340tb"
 PROD_OU_ID="ou-fi18-9fex2edg"
+STAGING_ACCOUNTS="322676557848"
+PROD_ACCOUNTS="404668521988"
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
@@ -92,10 +94,12 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
-        # This parameter block is only needed for multi-account model deployment
+        ParameterKey=StartKernelGatewayApps,ParameterValue=NO \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME \
         ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
         ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
+        ParameterKey=StagingAccountList,ParameterValue=$STAGING_ACCOUNTS \
+        ParameterKey=ProductionAccountList,ParameterValue=$PROD_ACCOUNTS \
         ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 
 
@@ -121,9 +125,9 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test3-deploy" "test4-train" "test4-deploy")
-MLOPS_PROJECT_ID_LIST=("p-mc3zkgsbl8v3" "p-uode4b0qf2un" "p-y1iloulknggg")
-SM_DOMAIN_ID="d-hlnftwb2ywkw"
+MLOPS_PROJECT_NAME_LIST=("test18-train" "test20-deploy")
+MLOPS_PROJECT_ID_LIST=("p-jetabw9lhqhl" "p-1cmngbt4ogao")
+SM_DOMAIN_ID="d-h9kgl9eqt4ia"
 STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-y1iloulknggg-deploy-staging" "sagemaker-test4-deploy-p-y1iloulknggg-deploy-prod")
 ACCOUNT_IDS="949335012047"
 
@@ -192,7 +196,7 @@ aws sagemaker delete-app \
     --app-type KernelGateway \
     --app-name 
 
-# The following commands are only for manual deployment (not with CI/CD pipelines)
+# The following commands are for clean-up after for manual deployment only (and not after automated tests with CI/CD pipelines)
 echo "Delete data science stack"
 aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 
