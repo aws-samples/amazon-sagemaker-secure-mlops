@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
     if args.multi_account_deployment == "YES":
 
-        if not len(args.staging_accounts) or not len(args.prod_accounts.split):
+        if not len(args.staging_accounts) or not len(args.prod_accounts):
             error_message = (
                 f"Staging accounts {args.staging_accounts} or production accounts {args.prod_accounts.split} are not provided for multi-account-deployment"
             )

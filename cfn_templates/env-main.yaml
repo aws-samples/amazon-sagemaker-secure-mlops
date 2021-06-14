@@ -849,26 +849,23 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
-  # These two stack set deploys the IAM roles in the target accounts - staging and production - defined by the provided OU Ids
+  # These two stack set deploys the IAM roles in the target accounts - staging and production - defined by the provided OU Ids or account lists
   # Using 'SELF_MANAGED' permission model for this deployment
 
-  # Deploy IAM roles into the staging OU
-  EnvironmentTargetAccountRolesStackSetStaging:
+  # Deploy IAM roles into the target accounts (staging and production)
+  EnvironmentTargetAccountRolesStackSet:
     Type: AWS::CloudFormation::StackSet
     Condition: IAMRolesStackSetDeploymentCondition
     Properties:
       AdministrationRoleARN: !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
       Capabilities: 
         - CAPABILITY_NAMED_IAM
-      Description: Deploys stack set execution and model execution roles to the target accounts in the staging OU
+      Description: Deploys stack set execution and model execution roles to the target accounts
       ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
       Parameters:
         - 
           ParameterKey: 'EnvName'
           ParameterValue: !Ref EnvName
-        -
-          ParameterKey: 'EnvType'
-          ParameterValue: !Ref EnvTypeStagingName
         -
           ParameterKey: 'SageMakerModelExecutionRoleName'
           ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
@@ -898,63 +895,24 @@ Resources:
               - OrganizationalUnitCondition
               - !GetAtt GetOUAccountsStaging.Accounts
               - !Split [',', !Ref StagingAccountList]
-
-      StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-roles'
-      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
-      Tags:
-        - Key: EnvironmentName
-          Value: !Ref EnvName
-        - Key: EnvironmentType
-          Value: !Ref EnvType
-
-  # Deploy IAM roles into the production OU
-  EnvironmentTargetAccountRolesStackSetProd:
-    Type: AWS::CloudFormation::StackSet
-    Condition: IAMRolesStackSetDeploymentCondition
-    Properties:
-      AdministrationRoleARN: !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
-      Capabilities: 
-        - CAPABILITY_NAMED_IAM
-      Description: Deploys stack set execution and model execution roles to the target accounts in production OU
-      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
-      Parameters:
-        - 
-          ParameterKey: 'EnvName'
-          ParameterValue: !Ref EnvName
+          ParameterOverrides: 
+            - 
+              ParameterKey: 'EnvType'
+              ParameterValue: !Ref EnvTypeStagingName
         -
-          ParameterKey: 'EnvType'
-          ParameterValue: !Ref EnvTypeProdName
-        -
-          ParameterKey: 'SageMakerModelExecutionRoleName'
-          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.SageMakerModelExecutionRoleName
-        -
-          ParameterKey: 'StackSetExecutionRoleName'
-          ParameterValue: !GetAtt EnvironmentTargetAccountRoles.Outputs.StackSetExecutionRoleName
-        -
-          ParameterKey: 'PipelineExecutionRoleArn'
-          ParameterValue: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
-        -
-          ParameterKey: 'AdministratorAccountId'
-          ParameterValue: !Ref AWS::AccountId
-        - 
-          ParameterKey: 'ModelS3KMSKeyArn'
-          ParameterValue: !GetAtt EnvironmentKMSKeys.Outputs.S3BucketKMSKeyArn
-        -
-          ParameterKey: "ModelBucketName"
-          ParameterValue: !GetAtt EnvironmentVPC.Outputs.ModelBucketName
-
-      PermissionModel: 'SELF_MANAGED'
-      StackInstancesGroup:  
-        - 
-          Regions: 
+          Regions:
             - !Ref AWS::Region
           DeploymentTargets:
             Accounts: !If 
-              - OrganizationalUnitCondition 
+              - OrganizationalUnitCondition
               - !GetAtt GetOUAccountsProd.Accounts
               - !Split [',', !Ref ProductionAccountList]
+          ParameterOverrides: 
+            - 
+              ParameterKey: 'EnvType'
+              ParameterValue: !Ref EnvTypeProdName
 
-      StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-roles'
+      StackSetName: !Sub '${EnvName}-${AWS::Region}-target-account-roles'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-iam-target-account-roles.yaml'
       Tags:
         - Key: EnvironmentName

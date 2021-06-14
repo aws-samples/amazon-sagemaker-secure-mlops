@@ -33,7 +33,8 @@ phases:
           --env-name "$ENV_NAME" \
           --ebs-kms-key-arn "$SAGEMAKER_EBS_KMS_KEY_ARN" \
           --env-type-staging-name "$ENV_TYPE_STAGING_NAME" \
-          --env-type-prod-name "$ENV_TYPE_PROD_NAME"
+          --env-type-prod-name "$ENV_TYPE_PROD_NAME" \
+          --multi-account-deployment "$MULTI_ACCOUNT_DEPLOYMENT"
 
       # Package the CloudFormation template defined in cfn-sm-endpoint-template.yml in the source code repository.
       - aws cloudformation package --template ${CFN_TEMPLATE_NAME}-template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template ${CFN_TEMPLATE_NAME}.yaml

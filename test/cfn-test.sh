@@ -264,7 +264,8 @@ aws cloudformation create-stack \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
-        ParameterKey=EnvType,ParameterValue=dev
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME
 
 
 

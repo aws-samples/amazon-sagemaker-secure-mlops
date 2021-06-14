@@ -983,6 +983,9 @@ Resources:
                   TemplatePath: 'BuildArtifact::data-science-environment-quickstart.yaml-packaged'
                   OutputFileName: 'quickstart-output.json'
                   TemplateConfiguration: 'BuildArtifact::data-science-environment-quickstart.json'
+                  ParameterOverrides: !Sub '{
+                  "SeedCodeS3BucketName":"${CfnArtifactS3BucketNamePrefix}-${AWS::Region}"
+                }'
                 RunOrder: 1
 
               # Action 2
@@ -1151,6 +1154,7 @@ Resources:
                 ParameterOverrides: !Sub '{
                   "EnvName":"${ProjectName}-env",
                   "AvailabilityZones":"${Test2StepCFNRegion}a,${Test2StepCFNRegion}b",
+                  "SeedCodeS3BucketName":"${CfnArtifactS3BucketNamePrefix}-${AWS::Region}",
                   "CreateEnvironmentIAMRoles":"YES",
                   "CreateS3VPCEndpoint":"YES",
                   "CreateVPC":"YES",
@@ -1366,7 +1370,6 @@ Resources:
                   "ProvisioningParameters":
                   [
                     {
-                      
                       "Key":"EnvName",
                       "Value":"ds-product"
                     },
@@ -1381,7 +1384,12 @@ Resources:
                     {
                       "Key":"NumberOfAZs",
                       "Value":"2"
+                    },
+                    {
+                      "Key":"SeedCodeS3BucketName",
+                      "Value":"${CfnArtifactS3BucketNamePrefix}-${AWS::Region}"
                     }
+
                   ],
                   "FileName":"core-main-output.json"
                 }'

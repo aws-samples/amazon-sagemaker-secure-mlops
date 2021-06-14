@@ -24,6 +24,11 @@ Parameters:
     Description: SNS ARN for pipeline events and manual approval events
     Type: String
 
+  CfnArtifactS3BucketNamePrefix:
+    Description: S3 bucket name prefix for artifact bucket
+    Type: String
+    Default: 'ilyiny-demo-cfn-artefacts'
+
   CodePipelineServiceRoleArn:
     Type: String
     Description: CodePipeline service role
@@ -197,7 +202,7 @@ Resources:
                 TemplatePath: 'BuildArtifact::env-main.yaml-packaged'
                 OutputFileName: 'env-main-output.json'
                 TemplateConfiguration: 'BuildArtifact::env-main.json'
-                ParameterOverrides: !Sub '{"DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}","DataScientistRoleArn":"${DataScientistRoleArn}","SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}","SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}","SageMakerModelExecutionRoleName":"${SageMakerModelExecutionRoleName}","StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}","StackSetExecutionRoleName":"${StackSetExecutionRoleName}","SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}","SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}","ExistingVPCId":"${VPCId}","ExistingS3VPCEndpointId":"${S3VPCEndpointId}"}'
+                ParameterOverrides: !Sub '{"DSTeamAdministratorRoleArn":"${DSTeamAdministratorRoleArn}","DataScientistRoleArn":"${DataScientistRoleArn}","SageMakerExecutionRoleArn":"${SageMakerExecutionRoleArn}","SageMakerPipelineExecutionRoleArn":"${SageMakerPipelineExecutionRoleArn}","SageMakerModelExecutionRoleName":"${SageMakerModelExecutionRoleName}","StackSetAdministrationRoleArn":"${StackSetAdministrationRoleArn}","StackSetExecutionRoleName":"${StackSetExecutionRoleName}","SetupLambdaExecutionRoleArn":"${SetupLambdaExecutionRoleArn}","SCProjectLaunchRoleArn":"${SCProjectLaunchRoleArn}","ExistingVPCId":"${VPCId}","ExistingS3VPCEndpointId":"${S3VPCEndpointId}","SeedCodeS3BucketName":"${CfnArtifactS3BucketNamePrefix}-${AWS::Region}"}'
               RunOrder: 2
 
             # Action 3

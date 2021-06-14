@@ -92,6 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("--ebs-kms-key-arn", type=str, required=True)
     parser.add_argument("--env-type-staging-name", type=str, required=True)
     parser.add_argument("--env-type-prod-name", type=str, required=True)
+    parser.add_argument("--multi-account-deployment", type=str, required=True)
 
     args, _ = parser.parse_known_args()
 
@@ -102,16 +103,22 @@ if __name__ == "__main__":
     # Get the latest approved package
     model_package_arn = get_approved_package(args.model_package_group_name)
 
+    staging_accounts, prod_accounts = "", ""
+    if args.multi_account_deployment == "YES":
+        staging_accounts, prod_accounts = args.staging_accounts, args.prod_accounts
+    else:
+        staging_accounts = prod_accounts = boto3.client('sts').get_caller_identity()["Account"]
+
     # Write the staging and prod template configuration files for CodePipeline
     for k, v in {
                 args.staging_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_staging_name, 
-                    "Accounts":args.staging_accounts,
+                    "Accounts":staging_accounts,
                     "EnvType":args.env_type_staging_name
                     }, 
                  args.prod_config_name:{
                     "ExecutionRoleName":args.sagemaker_execution_role_prod_name, 
-                    "Accounts":args.prod_accounts,
+                    "Accounts":prod_accounts,
                     "EnvType":args.env_type_prod_name
                     }
                  }.items():

@@ -10,7 +10,7 @@ This solution covers the main four topics:
 The solution recommends and implements the following development approach:
 + A dedicated AWS account per Data Science team and one Amazon SageMaker Studion domain per region per account
 + Dedicated AWS accounts for staging and production of AI/ML models
-+ Usage of AWS Organizations to enable trust and security control policies for member AWS accounts
++ Optional usage of AWS Organizations to enable trust and security control policies for member AWS accounts
 
 [Jump to solution deployment](#deployment)
 
@@ -170,14 +170,15 @@ The following roles should be created in each of the accounts which belong to th
 + `StackSetExecutionRole`: used for CloudFormation stack set operations in the staging and production accounts. This role is assumed by `StackSetAdministrationRole` in the development account
 + `SetupStackSetExecutionRole`: this role is needed for stac set opertions for the initial provisioning of the data science environment in multi-account deployment use case
 
-## AWS Organizations setup for multi-account ML model deployment
-This solution uses a multi-account AWS environment setup in [AWS Organizations](https://aws.amazon.com/organizations/). Organizational units (OUs) should be based on function or common set of controls rather than mirroring company’s reporting structure. The proper setup of the AWS Organizations OU structure is mandatory for proper functioning of the solution.
+## Multi-account ML model deployment
+To use multi-account ML model deployment with this solution, you have two options how to provide staging and production accounts ids: 
+- use AWS Organizations organizational units (OUs)
+- use AWS account lists
 
-📜 Generallly, the use of AWS organizations is not needed for a generic multi-account MLOps setup. The same permission logic and account structure can be implemented with IAM cross-account permissions without need for AWS organizations. 
+### Option 1: OU setup for multi-account deployment
+This solution can use a multi-account AWS environment setup in [AWS Organizations](https://aws.amazon.com/organizations/). Organizational units (OUs) should be based on function or common set of controls rather than mirroring company’s reporting structure.
 
-
-### OU setup for multi-account deployment
-You must have a proper AWS Orgainzations setup with the data science account and the two additional organizational units (OUs) with at least one AWS account in the each OU for a proper functioning of the multi-account model deployment project.
+If you use an AWS Organization setup option, you must provide **two organizational unit ids** (OU ids) for the staging and production unit and setup the data science account as the **delegated administrator** for AWS Organizations.
 
 Your AWS Organizations structure can look like the following:
 ```
@@ -190,11 +191,15 @@ Root
             |--- Production accounts
 ```
 
-### Single-account setup
-The solution also implements full functionality with single-account setup. All examples, workflows and pipelines work in the single (development) data science account. We do not recommend to use a single-account setup for any production use of SageMaker and SageMaker studio, but for testing and experimentation purposes it is a fast and cost-effective option to choose.
+Please refer to the [Deployment section](#deployment) for the details how to setup the delegated administrator.
 
-### Multi-account setup
-Please refer to the [Deployment section](#deployment) for a detailed description what is required for a multi-account model deployment setup.
+### Option 2: providing account list for multi-account deployment
+Use of AWS Organizations is not needed for a multi-account MLOps setup. The same permission logic and account structure can be implemented with IAM cross-account permissions without need for AWS organizations. This solution also works without AWS Organizations setup. You can provide **lists with staging and production AWS account ids** during the provisioning of the data science environment.
+
+Please refer to the [Deployment section](#deployment) for the description of corresponding CloudFormation parameters.
+
+### Single-account setup
+The solution also implements full MLOps functionality with single-account setup. All examples, workflows and pipelines work in the single (development) data science account. We do not recommend to use a single-account setup for any production use of SageMaker and SageMaker studio, but for testing and experimentation purposes it is a fast and cost-effective option to choose.
 
 ## SageMaker secure deployment in VPC 
 The following deployment architecture is implemented by this solution:
@@ -433,19 +438,12 @@ To access the model artifacts and a KMS encryption key an additional cross-accou
 ![multi-account model deployment permission setup](design/ml-ops-multi-account-model-secure-infrastructure.drawio.svg)
 
 ### Multi-account model deployment pre-requisites
-Multi-account model deployment uses the AWS Organizations setup to deploy model to the staging and production organizational units (OUs). For a proper functioning of the **multi-account** deployment solution, the following pre-requisites must be fulfilled, otherwise the deployment process will fail.
+Multi-account model deployment can use the AWS Organizations setup to deploy model to the staging and production organizational units (OUs) **or** provided staging and production account lists. For a proper functioning of the **multi-account** deployment process the cross-account access and specific execution roles in the target accounts must be configured.
 
-+ AWS Organizations with an OU structure like the following:
-  + Root
-      - multi-account-deployment (OU)
-          * `111111111111` (data science development account with SageMaker Studio)
-          * staging (OU)
-              * `222222222222` (data science staging AWS account)
-          * production (OU)
-              * `333333333333` (data science production AWS account)
-+ [Enabled trusted access with AWS Organizations](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-enable-trusted-access.html) - “Enable all features” and “Enable trusted access in the StackSets”. This will allow your data science account to provision resources (SageMaker endpoints) in all staging and production accounts which belongs to the staging and production OUs.
-+ Execution roles `SageMakerModelExecutionRole` and `StackSetExecutionRole` must be deployed in all target accounts. Target accounts are all accounts which are member of the staging and production OUs. 
-These execution roles are deployed to the target accounts automatically during the provisioning of the data science enviroment if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you are responsible for provisioning of the execution roles in all accounts in the staging and production OUs. You can use the `env-iam-target-account-roles.yaml` CloudFormation template to deploy these roles into the staging and production accounts:
+#### Execution roles
+Execution roles `SageMakerModelExecutionRole` and `StackSetExecutionRole` must be deployed in all target accounts. Target accounts are all accounts which are member of the staging and production OUs or provided in the staging and production account lists at data science environment provisioning time.
+  
+These execution roles are deployed to the target accounts automatically during the provisioning of the data science enviroment if the parameter `CreateEnvironmentIAMRoles` is set to `YES`. If this parameter is set to `NO`, you are responsible for provisioning of the execution roles in all target accounts. You can use the `env-iam-target-account-roles.yaml` CloudFormation template to deploy these roles into the staging and production accounts:
 ```bash
   aws cloudformation deploy \
                   --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
@@ -464,7 +462,7 @@ These execution roles are deployed to the target accounts automatically during t
 
 The model execution role `SageMakerModelExecutionRole` in the staging and production accounts is assumed by `AmazonSageMakerServiceCatalogProductsUseRole` in the data science environment account to test the endpoints in the target accounts. 
 
-_Alternatively_ you can choose to use single-account deployment. In this case the ML model will be deployed in the data science account. You do not need to setup AWS Organizations and provide OU Ids as deployment variables.
+_Alternatively_ you can choose to use single-account deployment. In this case the ML model will be deployed in the data science account. You do not need to setup target account execution roles and provide OU Ids or account lists as deployment parameters.
 
 ❗ If you use single-account deployment, the `MultiAccountDeployment` variable for MLOps Model Deploy project must be set to `NO`:
 
@@ -662,7 +660,7 @@ You will provide the ARNs for the IAM roles as CloudFormation template parameter
 See [Appendix B](#appendix-b)
 
 ## Multi-account model deployment workflow pre-requisites
-Multi-account model deployment requires VPC infrastructure and specific execution roles to be provisioned in the target accounts in the staging and production OUs. The provisioning of the infrastructure and the roles is done during the deployment of the data science environment as a part of the overall deployment process. **To enable multi-account setup you must provide the staging and production organizational unit (OUs) ids as CloudFormation parameters for the deployment.**
+Multi-account model deployment requires VPC infrastructure and specific execution roles to be provisioned in the target accounts. The provisioning of the infrastructure and the roles is done automatically during the deployment of the data science environment as a part of the overall deployment process. **To enable multi-account setup you must provide the staging and production organizational unit (OUs) ids OR staging and production lists as CloudFormation parameters for the deployment.**
 
 This diagram shows how the CloudFormation stack sets are used to deploy the needed infrastructure to the target accounts.
 
@@ -684,6 +682,7 @@ You must provision these roles **before** starting the solution deployment. You 
 # SELF_MANAGED stack set permission model:
 # Deploy a stack set execution role to _EACH_ of the target accounts in both staging and prod OUs
 # This stack set execution role used to deploy the target accounts stack sets in env-main.yaml
+# !!!!!!!!!!!! RUN THIS COMMAND IN EACH OF THE TARGET ACCOUNTS !!!!!!!!!!!!
 ENV_NAME="sm-mlops"
 ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
 STACK_NAME=$ENV_NAME-setup-stackset-role
@@ -712,7 +711,8 @@ aws cloudformation describe-stacks \
 The name of the provisioned IAM role `StackSetExecutionRoleName` must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
 
 ### Step 2
-Since the solution is using AWS Organizations, a delegated administrator account must be registred in order to enable any stack set operations. If the data science account is the management account in the AWS Organizations, this step must be skipped.
+**This step is only needed if you use AWS Organizations setup.**<br/>
+A delegated administrator account must be registred in order to enable `ListAccountsForParent` AWS Organization API call. If the data science account is already the management account in the AWS Organizations, this step must be skipped.
 
 ```bash
 # STEP 2:
@@ -792,7 +792,8 @@ aws cloudformation create-stack \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=EnvName,ParameterValue=$ENV_NAME \
-        ParameterKey=EnvType,ParameterValue=dev
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME
 ```
 
 The full end-to-end deployment takes about 25 minutes.
@@ -812,7 +813,7 @@ Using this option you provision a Data Science environment in two steps, each wi
 
 ❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the correspoinding CloudFormation parameters to names and ARNs or your existing resources.
 
-❗ You must specify the valid OU ids for the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters for the `env-main.yaml` template to enable multi-account model deployment.
+❗ You must specify the valid OU ids for the `OrganizationalUnitStagingId`/`OrganizationalUnitProdId` **or** `StagingAccountList`/`ProductionAccountList` parameters for the `env-main.yaml` template to enable multi-account model deployment.
 
 You can use the provided [shell script](test/cfn-test-e2e.sh) to run this deployment type or follow the commands below.
 
@@ -893,10 +894,10 @@ The Data Science environment deployment will provision the following resources i
 + AWS Service Catalog portfolio with environment-specific products
 + SageMaker Studio domain and default user profile
 
-If you choose the multi-account model deployment option by providing values for `OrganizationalUnitStagingId` and `OrganizationalUnitProdId`, the deployment will provision the following resources in the target accounts:
-+ VPC with a private subnet in each of the AZs
-+ Security groups
-+ Execution roles for stack set operations and SageMaker model
+If you choose the multi-account model deployment option by providing values for `OrganizationalUnitStagingId`/`OrganizationalUnitProdId` **or** `StagingAccountList`/`ProductionAccountList`, the deployment will provision the following resources in the target accounts:
++ VPC with a private subnet in each of the AZs, **no internet connectivity**
++ Security groups for SageMaker model hosting and VPC endpoints
++ Execution roles for stack set operations and SageMaker models
 
 You can change any deployment options via CloudFormation parameters for [`core-main.yaml`](cfn_templates/core-main.yaml) and [`env-main.yaml`](cfn_templates/env-main.yaml) templates.
 
@@ -919,12 +920,12 @@ aws cloudformation create-stack \
         ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME
 ```
 
-If you would like to use **multi-account model deployment**, you must provide the valid values for OU ids and the name for the `SetupStackSetExecutionRole`:
+If you would like to use **multi-account model deployment**, you must provide the valid values for OU ids **or** account lists and the name for the `SetupStackSetExecutionRole`:
 ```sh 
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
-STAGING_OU_ID="ou-fi18-56v340tb"
-PROD_OU_ID="ou-fi18-9fex2edg"
+STAGING_OU_ID=<OU id>
+PROD_OU_ID=<OU id>
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
@@ -945,7 +946,17 @@ aws cloudformation create-stack \
         ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 ```
 
-If you do not have an AWS Organization setup, you can omit the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters from the previous call.
+If you use account list multi-account option, you must provide the values for `StagingAccountList` and `ProductionAccountList` parameters omit the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters from the previous call:
+```sh
+STAGING_ACCOUNTS=<comma-delimited account list>
+PROD_ACCOUNTS=<comman-delimited account list>
+
+...
+        ParameterKey=StagingAccountList,ParameterValue=$STAGING_ACCOUNTS \
+        ParameterKey=ProductionAccountList,ParameterValue=$PROD_ACCOUNTS \
+...
+
+```
 
 ### Cleanup
 First, delete the two root stacks from AWS CloudFormation console or command line:

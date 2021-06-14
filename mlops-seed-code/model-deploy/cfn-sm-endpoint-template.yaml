@@ -57,8 +57,8 @@ Parameters:
     Type: String
     Description: The ARN of a KMS key that Amazon SageMaker uses to encrypt data on the storage volume attached endpoint
 
-  OrgUnitId:
-    Description: Organizatinal OU Id where the model will be deployed
+  Accounts:
+    Description: Comma-delimited list of target accounts where the model will be deployed
     Type: String
     Default: ''
 
