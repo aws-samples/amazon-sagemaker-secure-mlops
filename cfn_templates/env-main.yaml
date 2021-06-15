@@ -862,6 +862,8 @@ Resources:
         - CAPABILITY_NAMED_IAM
       Description: Deploys stack set execution and model execution roles to the target accounts
       ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      OperationPreferences: 
+        MaxConcurrentPercentage: 100
       Parameters:
         - 
           ParameterKey: 'EnvName'
@@ -1034,10 +1036,10 @@ Resources:
       Value: !GetAtt EnvironmentVPC.Outputs.PrivateSubnetIds
       Description: !Sub 'Private subnets for SageMaker deployment for ${EnvName}-${EnvTypeProdName} environment'
   
-  # VPC stack set for model hosting in the target accounts in the staging and production OUs
+  # VPC stack set for model hosting in the target accounts in the staging and production OUs or account lists
 
-  # Deploy VPC infrastructure into the staging OU
-  EnvironmentVPCStackSetStaging:
+  # Deploy VPC infrastructure into the target accounts
+  EnvironmentVPCStackSet:
     Type: AWS::CloudFormation::StackSet
     Condition: NetworkInfraStackSetDeploymentCondition
     Properties:
@@ -1045,15 +1047,14 @@ Resources:
         - IAMRolesCondition
         - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
         - !Ref StackSetAdministrationRoleArn
-      Description: Deploys VPC infrastructure for model hosting to the target accounts in the staging OU
+      Description: Deploys VPC infrastructure for model hosting to the target accounts
       ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
+      OperationPreferences: 
+        MaxConcurrentPercentage: 100
       Parameters:
         - 
           ParameterKey: 'EnvName'
           ParameterValue: !Ref EnvName
-        -
-          ParameterKey: 'EnvType'
-          ParameterValue: !Ref EnvTypeStagingName
         -
           ParameterKey: 'AvailabilityZones'
           ParameterValue: !Join [ ',', !Ref AvailabilityZones ]
@@ -1149,120 +1150,10 @@ Resources:
               - OrganizationalUnitCondition
               - !GetAtt GetOUAccountsStaging.Accounts
               - !Split [',', !Ref StagingAccountList]
-
-      StackSetName: !Sub '${EnvName}-${EnvTypeStagingName}-${AWS::Region}-target-account-vpc'
-      TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
-      Tags:
-        - Key: EnvironmentName
-          Value: !Ref EnvName
-        - Key: EnvironmentType
-          Value: !Ref EnvType
-
-  # Deploy VPC infrastructure into the production OU
-  EnvironmentVPCStackSetProd:
-    Type: AWS::CloudFormation::StackSet
-    Condition: NetworkInfraStackSetDeploymentCondition
-    Properties:
-      AdministrationRoleARN: !If
-        - IAMRolesCondition
-        - !GetAtt EnvironmentIAMRoles.Outputs.StackSetAdministrationRoleArn
-        - !Ref StackSetAdministrationRoleArn
-      Description: Deploys VPC infrasturcture for model hosting to the target accounts in the production OU
-      ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
-      Parameters:
-        - 
-          ParameterKey: 'EnvName'
-          ParameterValue: !Ref EnvName
-        -
-          ParameterKey: 'EnvType'
-          ParameterValue: !Ref EnvTypeProdName
-        -
-          ParameterKey: 'AvailabilityZones'
-          ParameterValue: !Join [ ',', !Ref AvailabilityZones ]
-        -
-          ParameterKey: 'NumberOfAZs'
-          ParameterValue: !Ref NumberOfAZs
-        -
-          ParameterKey: 'CreateNATGateways'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'VPCCIDR'
-          ParameterValue: !Ref VPCCIDR
-        -
-          ParameterKey: 'PrivateSubnet1ACIDR'
-          ParameterValue: !Ref PrivateSubnet1ACIDR
-        -
-          ParameterKey: 'PrivateSubnet2ACIDR'
-          ParameterValue: !Ref PrivateSubnet2ACIDR
-        -
-          ParameterKey: 'PrivateSubnet3ACIDR'
-          ParameterValue: !Ref PrivateSubnet3ACIDR
-        -
-          ParameterKey: 'PrivateSubnet4ACIDR'
-          ParameterValue: !Ref PrivateSubnet4ACIDR
-        -
-          ParameterKey: 'CreateS3VPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateSSMVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateCWVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateCWLVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateSageMakerAPIVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateSageMakerRuntimeVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateSageMakerNotebookVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateSTSVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateServiceCatalogVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateCodeCommitVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateCodeCommitAPIVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateCodePipelineVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateCodeBuildVPCEndpoint'
-          ParameterValue: 'NO'
-        -
-          ParameterKey: 'CreateECRAPIVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateECRVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'CreateKMSVPCEndpoint'
-          ParameterValue: 'YES'
-        -
-          ParameterKey: 'DataBucketName'
-          ParameterValue: !If 
-            - S3BucketsConditions
-            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
-            - !Ref DataBucketName
-        -
-          ParameterKey: 'ModelBucketName'
-          ParameterValue: !If 
-            - S3BucketsConditions
-            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
-            - !Ref ModelBucketName
-
-      PermissionModel: 'SELF_MANAGED'
-      StackInstancesGroup:  
+          ParameterOverrides: 
+            - 
+              ParameterKey: 'EnvType'
+              ParameterValue: !Ref EnvTypeStagingName
         - 
           Regions: 
             - !Ref AWS::Region
@@ -1271,8 +1162,12 @@ Resources:
               - OrganizationalUnitCondition
               - !GetAtt GetOUAccountsProd.Accounts
               - !Split [',', !Ref ProductionAccountList]
+          ParameterOverrides: 
+            - 
+              ParameterKey: 'EnvType'
+              ParameterValue: !Ref EnvTypeProdName
 
-      StackSetName: !Sub '${EnvName}-${EnvTypeProdName}-${AWS::Region}-target-account-vpc'
+      StackSetName: !Sub '${EnvName}-${AWS::Region}-target-account-vpc'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
       Tags:
         - Key: EnvironmentName

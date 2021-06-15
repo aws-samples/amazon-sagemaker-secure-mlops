@@ -382,12 +382,6 @@ Resources:
                   - cloudformation:TagResource
                 Resource: "*"
                 Effect: Allow
-              #- 
-              #  Action:
-              #    - organizations:DescribeOrganizationalUnit
-              #    - organizations:ListAccountsForParent
-              #  Effect: Allow
-              #  Resource: "arn:aws:organizations::*:ou/o-*/ou-*"
               - 
                 Action:
                   - cloudwatch:PutMetricData

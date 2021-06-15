@@ -125,9 +125,9 @@ ENV_STACK_NAME="sm-mlops-env"
 CORE_STACK_NAME="sm-mlops-core"
 
 ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test1-deploy" "test2-deploy")
-MLOPS_PROJECT_ID_LIST=("p-ct6tlw9szgbw" "p-agh5oozshkak")
-SM_DOMAIN_ID="d-as5iiaqjknmo"
+MLOPS_PROJECT_NAME_LIST=("test4-deploy")
+MLOPS_PROJECT_ID_LIST=("p-xjrlizu2pxe4")
+SM_DOMAIN_ID="d-vvgnmi9gko8o"
 STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-y1iloulknggg-deploy-staging" "sagemaker-test4-deploy-p-y1iloulknggg-deploy-prod")
 ACCOUNT_IDS="949335012047"
 

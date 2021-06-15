@@ -142,7 +142,7 @@ The following diagram shows the provisioned IAM roles for personas/users and exe
 More information and examples about the best practices and security setup for multi-project and multi-team environments you can find in the blog post [Configuring Amazon SageMaker Studio for teams and groups with complete resource isolation](https://aws.amazon.com/fr/blogs/machine-learning/configuring-amazon-sagemaker-studio-for-teams-and-groups-with-complete-resource-isolation/) on [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
 
 ### Multi-account setup for IAM roles
-For this solution we use three AWS Organizations organizational units (OUs) to simulate development, staging, and production environments. The following describes how the IAM roles should be mapped to the accounts in the OUs:  
+For this solution we use three AWS Organizations organizational units (OUs) to simulate development, staging, and production environments. The following section describes how the IAM roles should be mapped to the accounts in the OUs.
 
 #### IAM role to account mapping
 **DEV account**:
@@ -165,7 +165,7 @@ The following IAM execution roles will be provisioned in the development account
   + `VPCFlowLogsRole`: optional role for VPC Flow Logs to write logs into a CloudWatch log group
 
 #### Staging and production accounts
-The following roles should be created in each of the accounts which belong to the staging and production organizational units (OUs):
+The following roles should be created in each of the accounts in the staging and production environments:
 + `ModelExecutionRole`: SageMaker uses this role to run inference endpoints and access the model artifacts during the provisioning of the endpoint. This role must have a trust policy for `sagemaker.amazonaws.com` service
 + `StackSetExecutionRole`: used for CloudFormation stack set operations in the staging and production accounts. This role is assumed by `StackSetAdministrationRole` in the development account
 + `SetupStackSetExecutionRole`: this role is needed for stac set opertions for the initial provisioning of the data science environment in multi-account deployment use case
@@ -474,7 +474,7 @@ The following pre-requisites are common for both single- and multi-account deplo
 + SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment will fail as it requires at least two AZs to deploy an endpoint
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
   - `StackSetAdministrationRole`: This role must exist in the **data science account** and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
-  - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production OUs. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts. This role must have `iam:PassRole` permission for the model execution role `SageMakerModelExecutionRole`
+  - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production environments. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts. This role must have `iam:PassRole` permission for the model execution role `SageMakerModelExecutionRole`
 
 ### Work with Model deployment project
 You can find a step-by-step instruction, implementation details, and usage patterns of the multi-account model deployment project in the provided [Jupyter Notebook file](mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb), delivered as part of the seed code.
@@ -1122,124 +1122,7 @@ aws cloudformation create-stack \
 ```
 
 ### Deploy IAM resources
-Deploy SageMaker Service Catalog project roles. 
-
-If you have SageMaker Service Catalog project roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsLaunchRole` already in your AWS account, you must delete them before deployment:
-
-```sh
-echo "Delete Service Catalog SageMaker Project roles"
-aws iam detach-role-policy \
-    --role-name AmazonSageMakerServiceCatalogProductsLaunchRole \
-    --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-
-aws iam detach-role-policy \
-    --role-name AmazonSageMakerServiceCatalogProductsLaunchRole \
-    --policy-arn "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-
-aws iam delete-role-policy \
-    --role-name AmazonSageMakerServiceCatalogProductsLaunchRole \
-    --policy-name "AmazonSageMakerServiceCatalogProductsLaunchRolePolicy"
-
-aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsLaunchRole
-
-aws iam detach-role-policy \
-    --role-name AmazonSageMakerServiceCatalogProductsUseRole \
-    --policy-arn "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
-
-aws iam delete-role-policy \
-    --role-name AmazonSageMakerServiceCatalogProductsUseRole \
-    --policy-name "AmazonSageMakerServiceCatalogProductsUseRolePolicy"
-
-aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
-```
-
-Now create the SageMaker Service Catalog project roles:
-```bash
-aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/core-iam-sc-sm-projects-roles.yaml \
-    --stack-name core-iam-sc-sm-projects-roles \
-    --capabilities CAPABILITY_NAMED_IAM 
-```
-
-Deploy the setup stack set execution role in each of the staging and target accounts. This step is only needed if:
-1. You are going to use multi-account model deployment option
-2. You want that the deployment of the data science environment provisions the network infrastructure and IAM roles in the target accounts.
-
-```sh
-ENV_NAME=ds-team
-ADMIN_ACCOUNT_ID=#Data science account with SageMaker Studio
-SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-role
-
-aws cloudformation deploy \
-      --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
-      --stack-name $ENV_NAME-setup-stackset-execution-role \
-      --capabilities CAPABILITY_NAMED_IAM \
-      --parameter-overrides \
-      EnvName=$ENV_NAME \
-      EnvType=$ENV_TYPE \
-      StackSetExecutionRoleName=$SETUP_STACKSET_ROLE_NAME \
-      AdministratorAccountId=$ADMIN_ACCOUNT_ID
-```
-
-Deploy IAM shared roles:
-```bash
-STACK_SET_NAME=ds-team
-
-aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/core-iam-shared-roles.yaml \
-    --stack-name core-iam-shared-roles \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-        DSAdministratorRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DataScienceAdministrator \
-        SageMakerDetectiveControlExecutionRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
-        SCLaunchRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
-```
-
-Deploy IAM DS environment roles:
-```bash
-ENV_NAME=ds-team
-
-aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/env-iam.yaml \
-    --stack-name env-iam-roles \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-    EnvName=$ENV_NAME \
-    EnvType=dev
-```
-
-If you want to provision the target account infrastructure during the data science environment deployment, you must provide the value for the `SetupStackSetExecutionRoleName` parameter.
-
-Deploy SageMaker model deployment roles in development, staging, and production AWS accounts:
-```bash
-aws cloudformation deploy \
-    --template-file build/$AWS_DEFAULT_REGION/env-iam-target-account-roles.yaml \
-    --stack-name env-iam-target-account-roles \
-    --capabilities CAPABILITY_NAMED_IAM \
-    --parameter-overrides \
-    EnvName=$ENV_NAME \
-    EnvType=dev \
-    PipelineExecutionRoleArn=arn:aws:iam::ACCOUNT_ID:role/service-role/
-    AmazonSageMakerServiceCatalogProductsUseRole \
-    AdministratorAccountId=<DATA SCIENCE ACCOUNT ID>  \
-    ModelS3KMSKeyArn=<AWS KMS Key for S3 model bucket> \
-    ModelBucketName=<S3 Model bucket name>
-```
-
-If you do not use multi-account deployment, you do not need to deploy these roles into the staging and production accounts. Deploy to the development account only.
-
-Show IAM role ARNs:
-```bash
-aws cloudformation describe-stacks \
-    --stack-name core-iam-shared-roles  \
-    --output table \
-    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
-
-aws cloudformation describe-stacks \
-    --stack-name env-iam-roles  \
-    --output table \
-    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
-```
+Deploy SageMaker Service Catalog project roles as describe in [this step-by-step instructions](predeploy-iam-setup.md)
 
 ## Deploy Data Science Environment
 Provide your specific parameter values for all deployment calls using `ParameterKey=<ParameterKey>,ParameterValue=<Value>` pairs in the following commands. Note, that the parameter `CreateIAMRoles` must be set to `NO` as the IAM roles are provided from outside of CloudFormation stack.
@@ -1318,13 +1201,27 @@ aws cloudformation create-stack \
 ```
 
 ## Clean-up
-```bash
+```sh
 aws cloudformation delete-stack --stack-name ds-team-env
+aws cloudformation wait stack-delete-complete --stack-name ds-team-env
+
 aws cloudformation delete-stack --stack-name ds-team-core
+aws cloudformation wait stack-delete-complete --stack-name ds-team-core
+
 aws cloudformation delete-stack --stack-name env-iam-target-account-roles
+aws cloudformation wait stack-delete-complete --stack-name env-iam-target-account-roles
+
 aws cloudformation delete-stack --stack-name env-iam-roles
+aws cloudformation wait stack-delete-complete --stack-name env-iam-roles
+
 aws cloudformation delete-stack --stack-name core-iam-shared-roles
+aws cloudformation wait stack-delete-complete --stack-name core-iam-shared-roles
+
+aws cloudformation delete-stack --stack-name core-iam-sc-sm-projects-roles
+aws cloudformation wait stack-delete-complete --stack-name core-iam-sc-sm-projects-roles
+
 aws cloudformation delete-stack --stack-name ds-team-vpc
+aws cloudformation wait stack-delete-complete --stack-name ds-team-vpc
 ```
 
 # Appendix C
