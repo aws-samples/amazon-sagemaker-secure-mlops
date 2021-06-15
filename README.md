@@ -1122,7 +1122,7 @@ aws cloudformation create-stack \
 ```
 
 ### Deploy IAM resources
-Deploy SageMaker Service Catalog project roles as describe in [this step-by-step instructions](predeploy-iam-setup.md)
+Deploy SageMaker Service Catalog project roles as described in [this step-by-step instructions].(predeploy-iam-setup.md)
 
 ## Deploy Data Science Environment
 Provide your specific parameter values for all deployment calls using `ParameterKey=<ParameterKey>,ParameterValue=<Value>` pairs in the following commands. Note, that the parameter `CreateIAMRoles` must be set to `NO` as the IAM roles are provided from outside of CloudFormation stack.

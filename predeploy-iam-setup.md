@@ -1,9 +1,9 @@
 # Pre-deployment IAM setup
 
-This document provides step-by-step instructions how to prepare your AWS environment for the solution deployment
+This document provides step-by-step instructions how to prepare your AWS environment for the solution deployment.
 
 ## Pre-requsites
-1. You need a console access with **Administrator** or **Power User** permission to all AWS accounts of your environment: **dev**, **staging** and **production** accounts. If you use single-account deployment, you need **dev** account only
+1. You need a console access with **Administrator** or **Power User** permission to all AWS accounts of your environment: **dev**, **staging** and **production** accounts. If you use single-account deployment, you need access to the **dev** account only
 2. You must install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it
 3. Clone the [github repository](https://github.com/aws-samples/amazon-sagemaker-secure-mlops):
 ```sh
@@ -25,7 +25,7 @@ aws cloudformation delete-stack --stack-name <core stack name>
 aws cloudformation wait stack-delete-complete --stack-name <core stack name>
 ```
 
-#### Delete previous CloudFormation stacks
+#### Delete previous IAM CloudFormation stacks
 Delete the previous deployment of IAM principals if exists:
 ```sh
 aws cloudformation delete-stack --stack-name env-iam-target-account-roles
