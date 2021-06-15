@@ -193,7 +193,7 @@ Root
 
 Please refer to the [Deployment section](#deployment) for the details how to setup the delegated administrator.
 
-### Option 2: providing account list for multi-account deployment
+### Option 2: provide account list for multi-account deployment
 Use of AWS Organizations is not needed for a multi-account MLOps setup. The same permission logic and account structure can be implemented with IAM cross-account permissions without need for AWS organizations. This solution also works without AWS Organizations setup. You can provide **lists with staging and production AWS account ids** during the provisioning of the data science environment.
 
 Please refer to the [Deployment section](#deployment) for the description of corresponding CloudFormation parameters.
@@ -317,18 +317,18 @@ This section describes security controls and best practices implemented by the s
 + All network traffic is transferred over private and secure network links
 + All ingress internet access is blocked for the private subnets and only allowed for NAT gateway route
 + Optionally you can block all internet egress creating a completely internet-free secure environment
-+ SageMaker endpoints with the trained, validated, and approved model are hosted in dedicated staging and production accounts
++ SageMaker endpoints with a trained, validated, and approved model are hosted in dedicated staging and production accounts in your private VPC
 
 ### Authentication
 + All access is managed by IAM and can be compliant with your corporate authentication standards
 + All user interfaces can be integrated with your Active Directory or SSO system
 
 ### Autorization
-+ Access to any resource is disabled by default (implicit deny) and must be explicitly authorized in permission or resource policies
++ Access to any resource is disabled by default (implicit deny) and must be explicitly authorized in permission or resource policies
 + You can limit access to data, code and training resources by role and job function
 
 ### Data protection
-+ All data is encrypted in-transit and at-rest using customer-managed AWS KMS keys
++ All data is encrypted in-transit and at-rest using [customer-managed AWS KMS keys](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk)
 
 ### Artifact management
 + You can block access to public libraries and frameworks
@@ -380,18 +380,18 @@ We use an Amazon S3 bucket policy explicitly denies all access which is **not or
 
 S3 VPC endpoint policy allows access only to the specified S3 project buckets with data, models and CI/CD pipeline artifacts, SageMaker-owned S3 bucket and S3 objects which are used for product provisioning.
 
-#### Detective
+#### Detective
 _Not implemented in this version_
 
 #### Responsive
 _Not implemented in this version_
 
 # MLOps projects
-This solution delivers two MLOps project as SageMaker project templates:
+This solution delivers two MLOps projects as SageMaker project templates:
 - Model build, train, validate pipeline
 - Multi-account model deploy pipeline
 
-These project are fully functional examples which are integrated with exising multi-layer security controls such as VPC, subnets, security groups, AWS account boundaries, and the dedicated IAM execution roles. 
+These projects are fully functional examples which are integrated with exising multi-layer security controls such as VPC, subnets, security groups, AWS account boundaries, and the dedicated IAM execution roles. 
 
 ## MLOps project template to build, train, validate the model
 The solution is based on the [SageMaker project template](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) for model building, training, and deployment. You can find in-depth review of this MLOps project in the blog post [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
@@ -500,8 +500,8 @@ If you would like to develop the seed code and update the MLOps project template
 ## Clean up after MLOps project templates
 After you have finished working and experimenting with MLOps projects you should perform clean up of the provisioned SageMaker resources to avoid charges.
 The following resources should be removed:
-- staging and production SageMaker endpoint (in case if they were deployed by Model deploy pipeline)
-- CloudFormation stack set (in case you run Model deploy pipeline)
+- staging and production SageMaker endpoints (in case if they were deployed by Model deploy pipeline) in target accounts (staging and production)
+- CloudFormation stack sets (in case you run Model deploy pipeline)
 - SageMaker projects and corresponding S3 buckets with project artifacts
 - Any data in the data and model S3 buckets
 
@@ -509,62 +509,48 @@ For the full clean-up script please refer to the `Clean-up` secion in the delive
 
 ❗ **This is a destructive action. All data on in Amazon S3 buckets for MLOps pipelines, ML data, and ML models will be permanently deleted. All MLOps project seed code repositories will be permanently removed from your AWS environment.**
 
+### Clean up with Studio notebook
+The provided [Studio notebook](mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb) contains the clean-up code to remove SageMaker endpoints and CloudFormation stack sets in the _Clean-up_ section. Run this code cell after you finished experimenting with model deployment:
+```python
+import time
+
+cf = boto3.client("cloudformation")
+
+for ss in [
+        f"sagemaker-{project_name}-{project_id}-deploy-{env_data['EnvTypeStagingName']}",
+        f"sagemaker-{project_name}-{project_id}-deploy-{env_data['EnvTypeProdName']}"
+        ]:
+    accounts = [a["Account"] for a in cf.list_stack_instances(StackSetName=ss)["Summaries"]]
+    print(f"delete stack set instances for {ss} stack set for the accounts {accounts}")
+    r = cf.delete_stack_instances(
+        StackSetName=ss,
+        Accounts=accounts,
+        Regions=[boto3.session.Session().region_name],
+        RetainStacks=False,
+    )
+    print(r)
+
+    time.sleep(180)
+
+    print(f"delete stack set {ss}")
+    r = cf.delete_stack_set(
+        StackSetName=ss
+    )
+```
+
 ### CLI commands to perform clean up
 The following commands must be run under Administrator or PowerUser permissions.
-<br/>
+  
 **Step 1**: set variables:
 ```sh
 ENV_NAME="<data science environment name>"
-MLOPS_PROJECT_NAME_LIST=("<name1>" "<name2>")
+MLOPS_PROJECT_NAME_LIST=("<project name1>" "<project name2>")
 MLOPS_PROJECT_ID_LIST=("<p-id-1>" "p-id-2")
 SM_DOMAIN_ID="<SageMaker domain id>"
-STACKSET_NAME_LIST=("<stack-set-staging>" "<stack-set-prod>")
 ACCOUNT_IDS="<AWS ACCOUNT_ID"
 ```
 
-**Step 2**: delete SageMaker endpoints and stack sets:
-#### Single-account model deployment
-
-Delete SageMaker endpoints and CloudFormation stack sets:
-```sh
-echo "Delete stack instances"
-for ss in ${STACKSET_NAME_LIST[@]};
-do
-    echo "delete stack instances for $ss"
-    aws cloudformation delete-stack-instances \
-        --stack-set-name $ss \
-        --regions $AWS_DEFAULT_REGION \
-        --no-retain-stacks \
-        --accounts $ACCOUNT_IDS
-    
-    sleep 180
-
-    echo "delete stack set $ss"
-    aws cloudformation delete-stack-set --stack-set-name $ss
-done
-```
-#### Multi-account model deployment
-For multi-account deployment get the list of stack instances:
-```sh
-for ss in ${STACKSET_NAME_LIST[@]};
-do
-    aws cloudformation list-stack-instances \
-        --stack-set-name $ss
-done
-```
-Delete stack instances for all accounts returned by the previous call:
-```sh
-ACCOUNT_IDS="account1,account2" #comma-delimited account list return from the previous call
-aws cloudformation delete-stack-instances \
-    --stack-set-name "" \
-    --regions $AWS_DEFAULT_REGION \
-    --no-retain-stacks \
-    --accounts $ACCOUNT_IDS
-
-aws cloudformation delete-stack-set --stack-set-name ""
-```
-
-**Step 3**: delete SageMaker projects:
+**Step 2**: delete SageMaker projects:
 ```sh
 echo "Clean up SageMaker project(s): ${MLOPS_PROJECT_NAME_LIST}"
 for p in ${MLOPS_PROJECT_NAME_LIST[@]};
@@ -580,7 +566,7 @@ do
 done
 ```
 
-**Step 4**: empty Amazon S3 buckets for data and models:
+**Step 3**: empty Amazon S3 buckets for data and models:
 ```sh
 echo "Remove VPC-only access policy from the data and model S3 buckets"
 aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
