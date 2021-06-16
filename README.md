@@ -1024,6 +1024,7 @@ Second, do the steps from **Clean-up considerations** section.
 - [R16]: [Use Amazon CloudWatch custom metrics for real-time monitoring of Amazon Sagemaker model performance](https://aws.amazon.com/blogs/machine-learning/use-amazon-cloudwatch-custom-metrics-for-real-time-monitoring-of-amazon-sagemaker-model-performance/)
 - [R17]: [Automate feature engineering pipelines with Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/automate-feature-engineering-pipelines-with-amazon-sagemaker/)
 - [R18]: [Build a Secure Enterprise Machine Learning Platform on AWS](https://docs.aws.amazon.com/whitepapers/latest/build-secure-enterprise-ml-platform/build-secure-enterprise-ml-platform.html)
+- [R19]: [Automate Amazon SageMaker Studio setup using AWS CDK](https://aws.amazon.com/blogs/machine-learning/automate-amazon-sagemaker-studio-setup-using-aws-cdk/)
 
 
 ## AWS Solutions
@@ -1101,19 +1102,20 @@ aws cloudformation create-stack \
     --region $AWS_DEFAULT_REGION \
     --stack-name $STACK_NAME \
     --disable-rollback \
-    --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
     --parameters \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2
 ```
 
 ### Deploy IAM resources
-Deploy SageMaker Service Catalog project roles as described in [this step-by-step instructions].(predeploy-iam-setup.md)
+Deploy SageMaker Service Catalog project roles as described in [this step-by-step instructions](predeploy-iam-setup.md)
 
 ## Deploy Data Science Environment
 Provide your specific parameter values for all deployment calls using `ParameterKey=<ParameterKey>,ParameterValue=<Value>` pairs in the following commands. Note, that the parameter `CreateIAMRoles` must be set to `NO` as the IAM roles are provided from outside of CloudFormation stack.
 
 ### Deploy core infrastructure
+Set the parameters `DSAdministratorRoleArn`, `SecurityControlExecutionRoleArn`, and `SCLaunchRoleArn` to the role ARNs returned in the output of the IAM role deployment stack.
+
 ```bash
 STACK_NAME="ds-team-core"
 
@@ -1130,25 +1132,42 @@ aws cloudformation create-stack \
         ParameterKey=SCLaunchRoleArn,ParameterValue=
 ```
 
-```bash
-# show the assume DSAdministrator role link
+Show the stack outputs:
+```sh
 aws cloudformation describe-stacks \
     --stack-name ds-team-core  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
-# show shared IAM roles
 aws cloudformation describe-stacks \
     --stack-name env-iam-roles  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 
-# show VPC info (only if you deployed the VPC stack `ds-team-vpc`)
 aws cloudformation describe-stacks \
     --stack-name ds-team-vpc  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
+
+### Setup target accounts
+To setup multi-account model deployment, you must provision the following resources in each of the target accounts:
+- VPC
+- at least two private subnets in two AZs
+- Security group for SageMaker model hosting
+- Security group for the VPC endpoints
+- VPC endpoints for the AWS services:
+  - CloudWatch
+  - ECR
+  - ECR API
+  - KMS
+  - S3
+  - SSM
+  - STS
+  - SageMaker Runtime
+  - SageMaker API
+
+You can use the provided CloudFormation template [`env-vpc`](cfn_templates/env-vpc.yaml) or your own provisioning process.
 
 ### Deploy DS environment
 Provide corresponding template parameters using `ParameterKey=<ParameterKey>,ParameterValue=<Value>` pairs:

@@ -27,7 +27,8 @@ Parameters:
 
   PipelineExecutionRoleArn:
     Type: String
-    Description: CI/CD execution role in the development account (AmazonSageMakerServiceCatalogProductsUseRole)
+    Description: CI/CD execution role in the development account. If empty, the name AmazonSageMakerServiceCatalogProductsUseRole is used
+    Default: ''
   
   AdministratorAccountId:
     Type: String
@@ -63,6 +64,7 @@ Outputs:
 Conditions:
   GenerateSageMakerModelExecutionRoleName: !Equals [ !Ref SageMakerModelExecutionRoleName, '']
   GenerateStackSetExecutionRoleName: !Equals [ !Ref StackSetExecutionRoleName, '']
+  PipelineExecutionRoleCondition: !Equals [ !Ref PipelineExecutionRoleArn, '']
 
 Resources:
 
@@ -84,7 +86,10 @@ Resources:
             -
               Effect: "Allow"
               Principal:
-                AWS: !Sub ${PipelineExecutionRoleArn}
+                AWS: !If 
+                  - PipelineExecutionRoleCondition
+                  - !Sub 'arn:aws:iam::${AdministratorAccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
+                  - !Sub ${PipelineExecutionRoleArn}
               Action:
                 - "sts:AssumeRole"
         Path: "/"

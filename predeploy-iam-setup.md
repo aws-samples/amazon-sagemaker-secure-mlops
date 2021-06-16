@@ -81,12 +81,13 @@ Run the follwing steps in the **dev** account. Dev account is the account where 
 #### Step 0
 Deploy the setup stack set execution role in each of the **staging** and **target** accounts. This step is only needed if:
 1. You are going to use multi-account model deployment option
-2. You want that the deployment of the data science environment provisions the network infrastructure and IAM roles in the target accounts.
+2. You want that the deployment process of the data science environment provisions the network infrastructure and IAM roles in the target accounts.
 
 ```sh
 ENV_NAME=ds-team
 ADMIN_ACCOUNT_ID=<id of the dev account where SageMaker Studio will be deployed>
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-role
+ENV_TYPE=<set staging for staging accounts and prod for production accounts>
 
 aws cloudformation deploy \
       --template-file cfn_templates/env-iam-setup-stackset-role.yaml \
@@ -136,7 +137,6 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
     EnvName=$ENV_NAME \
-    EnvType=dev \
     CreateIAMUserRoles=NO
 ```
 
@@ -151,8 +151,6 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
     EnvName=$ENV_NAME \
-    EnvType=dev \
-    PipelineExecutionRoleArn="arn:aws:iam::${ADMIN_ACCOUNT_ID}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" \
     AdministratorAccountId=$ADMIN_ACCOUNT_ID \
     ModelS3KMSKeyArn="*" \
     ModelBucketName="*$AWS_DEFAULT_REGION-models"
@@ -179,10 +177,22 @@ aws cloudformation describe-stacks \
 
 ### Staging and production accounts deployment
 For multi-account model deployment use case you must deploy the execution roles in **each** of the staging and production accounts.  
+❗ Now you must set two stack parameters `SageMakerModelExecutionRoleName` and `StackSetExecutionRoleName` to the values of the role names returned in the output of `env-iam-target-account-roles` stack which you have deployed in the dev account in the Step 4.
+
+Log in the **dev account** and get the output of the `env-iam-target-account-roles` stack:
+```sh
+aws cloudformation describe-stacks \
+    --stack-name env-iam-target-account-roles  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+```
+
 **You must log in in each of the staging and production accounts and run the following CLI command**:
 ```sh
 ADMIN_ACCOUNT_ID=<id of the dev account where SageMaker Studio will be deployed>
 ENV_TYPE=<set staging for staging accounts and prod for production accounts>
+MODEL_ROLE_NAME=<set to the value of SageMakerModelExecutionRoleName in env-iam-target-account-roles stack output>
+STACKSET_ROLE_NAME=<set to the value of StackSetExecutionRoleName in env-iam-target-account-roles stack output>
 
 aws cloudformation deploy \
     --template-file cfn_templates/env-iam-target-account-roles.yaml \
@@ -191,9 +201,10 @@ aws cloudformation deploy \
     --parameter-overrides \
     EnvName=$ENV_NAME \
     EnvType=$ENV_TYPE \
-    PipelineExecutionRoleArn="arn:aws:iam::${ADMIN_ACCOUNT_ID}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole" \
     AdministratorAccountId=$ADMIN_ACCOUNT_ID \
     ModelS3KMSKeyArn="*" \
-    ModelBucketName="*$AWS_DEFAULT_REGION-models"
+    ModelBucketName="*$AWS_DEFAULT_REGION-models" \
+    SageMakerModelExecutionRoleName=$MODEL_ROLE_NAME \
+    StackSetExecutionRoleName=$STACKSET_ROLE_NAME
 ```
 
