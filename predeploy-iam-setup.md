@@ -28,6 +28,8 @@ aws cloudformation wait stack-delete-complete --stack-name <core stack name>
 #### Delete previous IAM CloudFormation stacks
 Delete the previous deployment of IAM principals if exists:
 ```sh
+ENV_NAME=ds-team
+
 aws cloudformation delete-stack --stack-name env-iam-target-account-roles
 aws cloudformation wait stack-delete-complete --stack-name env-iam-target-account-roles
 
@@ -40,8 +42,8 @@ aws cloudformation wait stack-delete-complete --stack-name core-iam-shared-roles
 aws cloudformation delete-stack --stack-name core-iam-sc-sm-projects-roles
 aws cloudformation wait stack-delete-complete --stack-name core-iam-sc-sm-projects-roles
 
-aws cloudformation delete-stack --stack-name ds-team-setup-stackset-execution-role
-aws cloudformation wait stack-delete-complete --stack-name ds-team-setup-stackset-execution-role
+aws cloudformation delete-stack --stack-name $ENV_NAME-setup-stackset-execution-role
+aws cloudformation wait stack-delete-complete --stack-name $ENV_NAME-setup-stackset-execution-role
 ```
 
 #### Delete SageMaker service catalog product roles
@@ -75,7 +77,6 @@ aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
 ```
 
 ### Dev account deployment
-
 Run the follwing steps in the **dev** account. Dev account is the account where the SageMaker Studio environment will be deployed.
 
 #### Step 0
@@ -113,7 +114,7 @@ aws cloudformation deploy \
 Deploy core IAM shared roles.
 Set the parameter `DSAdministratorRoleName` to `$STACK_SET_NAME-$AWS_DEFAULT_REGION-DataScienceAdministrator` if you want to create a user IAM role, otherwise leave it empty if you create all user roles outside of this process:
 ```sh
-STACK_SET_NAME=ds-team
+ENV_NAME=ds-team
 
 aws cloudformation deploy \
     --template-file cfn_templates/core-iam-shared-roles.yaml \
@@ -121,8 +122,8 @@ aws cloudformation deploy \
     --capabilities CAPABILITY_NAMED_IAM \
     --parameter-overrides \
         DSAdministratorRoleName="" \
-        SageMakerDetectiveControlExecutionRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
-        SCLaunchRoleName=$STACK_SET_NAME-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
+        SageMakerDetectiveControlExecutionRoleName=$ENV_NAME-$AWS_DEFAULT_REGION-DSSageMakerDetectiveControlRole \
+        SCLaunchRoleName=$ENV_NAME-$AWS_DEFAULT_REGION-DSServiceCatalogLaunchRole
 ```
 
 #### Step 3
@@ -143,6 +144,7 @@ aws cloudformation deploy \
 #### Step 4
 Deploy target account roles (for a trival single-account deployment use case):
 ```sh
+ENV_NAME=ds-team
 ADMIN_ACCOUNT_ID=<id of the dev account where SageMaker Studio will be deployed>
 
 aws cloudformation deploy \
@@ -189,6 +191,7 @@ aws cloudformation describe-stacks \
 
 **You must log in in each of the staging and production accounts and run the following CLI command**:
 ```sh
+ENV_NAME=ds-team
 ADMIN_ACCOUNT_ID=<id of the dev account where SageMaker Studio will be deployed>
 ENV_TYPE=<set staging for staging accounts and prod for production accounts>
 MODEL_ROLE_NAME=<set to the value of SageMakerModelExecutionRoleName in env-iam-target-account-roles stack output>
