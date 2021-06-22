@@ -62,7 +62,7 @@ You can use the provided CloudFormation template [`env-vpc`](cfn_templates/env-v
 
 If you use the provided template to provision the needed network infrastructure, you must run the following commands in **each of the taget accounts**. 
 
-#### Deploy VPC into the staging and production accounts
+#### Deploy VPC into the staging and production accounts
 Create a VPC with private subnets and an S3 VPC endpoint (note the parameters `CreatePublicSubnets` and `CreateNATGateways` set to `false`):
 ```sh
 ENV_NAME=ds-team
@@ -87,7 +87,7 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
-#### Deploy network infrastructure into the staging and production accounts
+#### Deploy network infrastructure into the staging and production accounts
 Deploy network infrastructure for SageMaker endpoint hosting:
 ```sh
 ENV_NAME=ds-team
@@ -269,7 +269,7 @@ aws cloudformation create-stack \
 
 ## Clean-up
 
-### Clean-up dev account
+### Clean-up dev account
 ```sh
 ENV_NAME=ds-team
 

@@ -2,7 +2,7 @@
 
 This document provides step-by-step instructions how to prepare your AWS environment for the solution deployment.
 
-## Pre-requsites
+## Pre-requisites
 1. You need a console access with **Administrator** or **Power User** permission to all AWS accounts of your environment: **dev**, **staging** and **production** accounts. If you use single-account deployment, you need access to the **dev** account only
 2. You must install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it
 3. Clone the [github repository](https://github.com/aws-samples/amazon-sagemaker-secure-mlops):

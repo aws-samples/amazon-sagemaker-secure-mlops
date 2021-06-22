@@ -77,8 +77,8 @@ aws cloudformation create-stack \
 # PART 2: env-main.yaml
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
-STAGING_OU_ID="ou-fi18-56v340tb"
-PROD_OU_ID="ou-fi18-9fex2edg"
+STAGING_OU_ID=""
+PROD_OU_ID=""
 STAGING_ACCOUNTS="322676557848"
 PROD_ACCOUNTS="404668521988"
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
@@ -121,13 +121,13 @@ aws cloudformation describe-stacks \
 pipenv shell
 
 # Set variables of the environment
-ENV_STACK_NAME="sm-mlops-env"
-CORE_STACK_NAME="sm-mlops-core"
+ENV_NAME=ds-team
+ENV_STACK_NAME=$ENV_NAME-env
+CORE_STACK_NAME=$ENV_NAME-core
 
-ENV_NAME="sm-mlops-dev"
-MLOPS_PROJECT_NAME_LIST=("test4-deploy")
-MLOPS_PROJECT_ID_LIST=("p-xjrlizu2pxe4")
-SM_DOMAIN_ID="d-vvgnmi9gko8o"
+MLOPS_PROJECT_NAME_LIST=("test1-deploy" "test2-train" "test2-deploy")
+MLOPS_PROJECT_ID_LIST=("p-rd4twhwnflhm" "p-lusk24tg6ser" "p-frvxvijl1vo4")
+SM_DOMAIN_ID="d-jxmwq7ae4scs"
 STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-y1iloulknggg-deploy-staging" "sagemaker-test4-deploy-p-y1iloulknggg-deploy-prod")
 ACCOUNT_IDS="949335012047"
 
@@ -180,19 +180,19 @@ do
 done
 
 echo "Remove VPC-only access policy from the data and model S3 buckets"
-aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
-aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-models
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-data
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-models
 
 echo "Empty data S3 buckets"
-aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
-aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-data --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-models --recursive
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 aws sagemaker list-apps
 
 aws sagemaker delete-app \
     --domain-id $SM_DOMAIN_ID \
-    --user-profile-name $ENV_NAME-${AWS_DEFAULT_REGION}-user-profile \
+    --user-profile-name $ENV_NAME-dev-${AWS_DEFAULT_REGION}-user-profile \
     --app-type KernelGateway \
     --app-name 
 
