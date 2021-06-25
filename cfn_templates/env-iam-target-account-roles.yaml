@@ -116,17 +116,23 @@ Resources:
                 - # permission to create an ENI in the provided VPC
                   Effect: "Allow"
                   Action:
+                    - "ec2:DeleteNetworkInterfacePermission"
+                    - "ec2:DeleteNetworkInterface"
+                    - "ec2:CreateNetworkInterfacePermission"
+                    - "ec2:CreateNetworkInterface"
+                  Resource: 
+                    - !Sub 'arn:aws:ec2:*:${AWS::AccountId}:*'
+                -
+                  Effect: 'Allow'
+                  Action:
                     - "ec2:DescribeVpcEndpoints"
                     - "ec2:DescribeDhcpOptions"
                     - "ec2:DescribeVpcs"
                     - "ec2:DescribeSubnets"
                     - "ec2:DescribeSecurityGroups"
                     - "ec2:DescribeNetworkInterfaces"
-                    - "ec2:DeleteNetworkInterfacePermission"
-                    - "ec2:DeleteNetworkInterface"
-                    - "ec2:CreateNetworkInterfacePermission"
-                    - "ec2:CreateNetworkInterface"
-                  Resource: "*"
+                  Resource:
+                    - '*'
                 - # permission to download the model artifact from the S3 bucket in model account
                   Effect: 'Allow'
                   Action:
@@ -181,12 +187,55 @@ Resources:
             Version: "2012-10-17"
             Statement:
               -
-                Effect: "Allow"
+                Effect: Allow
                 Action:
-                  - "cloudformation:*"
-                  - "s3:*"
-                  - "sns:*"
-                Resource: "*"
+                  - 'cloudformation:Cancel*'
+                  - 'cloudformation:Continue*'
+                  - 'cloudformation:Create*'
+                  - 'cloudformation:Deactivate*'
+                  - 'cloudformation:Delete*'
+                  - 'cloudformation:Describe*'
+                  - 'cloudformation:Get*'
+                  - 'cloudformation:Detect*'
+                  - 'cloudformation:Execute*'
+                  - 'cloudformation:Estimate*'
+                  - 'cloudformation:List*'
+                  - 'cloudformation:Publish*'
+                  - 'cloudformation:Set*'
+                  - 'cloudformation:Register*'
+                  - 'cloudformation:Signal*'
+                  - 'cloudformation:Stop*'
+                  - 'cloudformation:Update*'
+                  - 'cloudformation:Validate*'
+                  - 'cloudformation:Test*'
+                Resource: 
+                - !Sub 'arn:aws:cloudformation:*:${AWS::AccountId}:*'
+              -
+                Effect: Allow
+                Action:
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3:Create*'
+                  - 's3:Head*'
+                  - 's3:Put*'
+                  - 's3:Upload*'
+                Resource:
+                  - 'arn:aws:s3:::*'
+              -
+                Effect: Allow
+                Action:
+                  - 'sns:Create*'
+                  - 'sns:Get*'
+                  - 'sns:List*'
+                  - 'sns:Publish'
+                  - 'sns:Set*'
+                  - 'sns:Subscribe'
+                  - 'sns:Tag*'
+                  - 'sns:Unsubscribe'
+                  - 'sns:Untag*'
+                  - 'sns:Add*'
+                Resource: 
+                  - 'arn:aws:sns:*:*:*'
               -
                 Effect: "Allow"
                 Action:

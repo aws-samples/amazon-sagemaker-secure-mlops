@@ -1079,10 +1079,15 @@ Resources:
       GroupDescription: Allow HTTPS/TLS for VPC Endpoints
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - Description: Ingress TCP 443 from SageMaker security group
+          IpProtocol: tcp
           FromPort: 443
           ToPort: 443
           SourceSecurityGroupId: !GetAtt SageMakerSecurityGroup.GroupId
+      SecurityGroupEgress:
+        - Description: All traffic is allowed outbound
+          IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub sg-vpce-${EnvName}-${EnvType}
@@ -1096,7 +1101,7 @@ Resources:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       CidrIp: !Ref 'VPCCIDR'
-      Description: Allow all traffic from the VPC
+      Description: Allow all traffic from own VPC
       IpProtocol: '-1'
       GroupId: !Ref VPCEndpointsSecurityGroup
 
@@ -1192,6 +1197,10 @@ Resources:
   SageMakerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
+      SecurityGroupEgress:
+        - Description: All traffic is allowed outbound
+          IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
       GroupDescription: 'Security Group for SageMaker Studio and all SageMaker workloads'
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
       Tags:
@@ -1206,6 +1215,7 @@ Resources:
   SageMakerSecurityGroupSelfIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
+      Description: Self-ingress to enable communication between intances within the same SG
       IpProtocol: '-1'
       SourceSecurityGroupId: !Ref SageMakerSecurityGroup
       GroupId: !Ref SageMakerSecurityGroup
@@ -1216,10 +1226,15 @@ Resources:
       GroupDescription: Allow HTTP ingress for shared services VPC Endpoint
       VpcId: !If [NewVPCCondition, !Ref 'VPC', !Ref ExistingVPCId]
       SecurityGroupIngress:
-        - IpProtocol: tcp
+        - Description: Ingress TCP 80 from SageMaker security group
+          IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !GetAtt SageMakerSecurityGroup.GroupId
+      SecurityGroupEgress:
+        - Description: All traffic is allowed outbound
+          IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: !Sub sg-shared-services-vpce-${EnvName}-${EnvType}

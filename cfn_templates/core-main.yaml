@@ -164,6 +164,7 @@ Resources:
   GetEnvironmentConfigurationLambda:
     Type: AWS::Lambda::Function
     Properties:
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -253,7 +254,8 @@ Resources:
                 Effect: Allow
                 Action:
                   - 'iam:GetRole'
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:*:iam::${AWS::AccountId}:*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Tags:
@@ -264,6 +266,7 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: IAMRolesCondition
     Properties:
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           import json

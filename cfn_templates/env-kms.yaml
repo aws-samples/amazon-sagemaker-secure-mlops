@@ -219,6 +219,7 @@ Resources:
   S3BucketKMSKey:
     Type: 'AWS::KMS::Key'
     Properties:
+      EnableKeyRotation: true
       Description: KMS key for S3 buckets for the Data Science environment
       KeyPolicy:
         Id: key-policy-1

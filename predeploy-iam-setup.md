@@ -26,7 +26,7 @@ aws cloudformation wait stack-delete-complete --stack-name <core stack name>
 ```
 
 #### Delete previous IAM CloudFormation stacks
-Delete the previous deployment of IAM principals if exists:
+Delete the previous deployment of IAM principals if exists (set `ENV_NAME` to your environment name prefix):
 ```sh
 ENV_NAME=ds-team
 
@@ -41,6 +41,14 @@ aws cloudformation wait stack-delete-complete --stack-name core-iam-shared-roles
 
 aws cloudformation delete-stack --stack-name core-iam-sc-sm-projects-roles
 aws cloudformation wait stack-delete-complete --stack-name core-iam-sc-sm-projects-roles
+
+aws cloudformation delete-stack --stack-name $ENV_NAME-setup-stackset-execution-role
+aws cloudformation wait stack-delete-complete --stack-name $ENV_NAME-setup-stackset-execution-role
+```
+
+Delete the setup stack set execution role from **all target accounts** if the role has been deployed to them:
+```sh
+ENV_NAME=ds-team
 
 aws cloudformation delete-stack --stack-name $ENV_NAME-setup-stackset-execution-role
 aws cloudformation wait stack-delete-complete --stack-name $ENV_NAME-setup-stackset-execution-role

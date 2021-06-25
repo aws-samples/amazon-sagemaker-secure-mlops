@@ -44,7 +44,7 @@ Metadata:
         Parameters:
           - SeedCodeS3BucketName
       - Label:
-          default: Multi-account model deployment setup
+          default: Multi-account model deployment setup (provide OU ids or account lists)
         Parameters:
           - OrganizationalUnitStagingId
           - OrganizationalUnitProdId
@@ -276,6 +276,7 @@ Parameters:
     Type: String
     AllowedPattern: '[a-z0-9\-]*'
     Description: Please specify your data science environment name.  Used as a suffix for environment resource names.
+    Default: 'sm-mlops'
 
   EnvType:
     Description: System Environment (e.g. dev, test, prod). Used as a suffix for environment resource names.
@@ -1051,6 +1052,7 @@ Resources:
       ExecutionRoleName: !Ref SetupStackSetExecutionRoleName
       OperationPreferences: 
         MaxConcurrentPercentage: 100
+        FailureTolerancePercentage: 0
       Parameters:
         - 
           ParameterKey: 'EnvName'
@@ -1167,7 +1169,7 @@ Resources:
               ParameterKey: 'EnvType'
               ParameterValue: !Ref EnvTypeProdName
 
-      StackSetName: !Sub '${EnvName}-${AWS::Region}-target-account-vpc'
+      StackSetName: !Sub '${EnvName}-${AWS::Region}-target-account-network'
       TemplateURL: 'https://s3.amazonaws.com/< S3_CFN_STAGING_BUCKET_PATH >/env-vpc.yaml'
       Tags:
         - Key: EnvironmentName
@@ -1353,6 +1355,7 @@ Resources:
   SetupCrossAccountPermissionsLambda:
     Type: AWS::Lambda::Function
     Properties:
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -1496,6 +1499,7 @@ Resources:
   GetOUAccountsLambda:
     Type: AWS::Lambda::Function
     Properties:
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -1564,6 +1568,7 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: ExistingPrivateSubnetsCondition
     Properties:
+      ReservedConcurrentExecutions: 1
       FunctionName: GetNetworkConfiguration
       Code:
         ZipFile: |

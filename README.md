@@ -34,7 +34,30 @@ The model registry provides the following features:
 # Solution architecture
 This section describes the overall solution architecture.
 
+## Overview
 ![Solution overview](design/ml-ops-solution-overview.drawio.svg)
+
+**1 – AWS Service Catalog**  
+The end-to-end deployment of the data science environment is delivered as an [AWS Service Catalog](https://aws.amazon.com/servicecatalog) self-provisioned product. One of the main advantages of using AWS Service Catalog for self- provisioning is that authorized users can configure and deploy available products and AWS resources on their own without needing full privileges or access to AWS services. The deployment of all AWS Service Catalog products happens under a specified service role with the defined set of permissions, which are unrelated to the user’s permissions.
+
+**2 – Amazon SageMaker Studio Domain**  
+The Data Science Environment product in the AWS Service Catalog creates an [Amazon SageMaker Studio domain](https://docs.aws.amazon.com/sagemaker/latest/dg/gs-studio-onboard.html), which consists of a list of authorized users, configuration settings, and an Amazon Elastic File System ([Amazon EFS](https://aws.amazon.com/efs/)) volume, which contains data for the users, including notebooks, resources, and artifacts.
+
+**3,4 – SageMaker MLOps project templates**  
+The solution delivers the customized versions of [SageMaker MLOps project templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-whatis.html). Each MLOps template provides an automated model building and deployment pipeline using continuous integration and continuous delivery (CI/CD). The delivered templates are configured for the secure multi-account model deployment and are fully integrated in the provisioned data science environment. The project templates are provisioned in the SageMaker Studio via AWS Service Catalog.
+
+**5,6 – CI/CD workflows**  
+The MLOps projects implement CI/CD using Amazon SageMaker pipelines and [AWS CodePipeline](https://aws.amazon.com/codepipeline/), [AWS CodeCommit](https://aws.amazon.com/codecommit/), and [AWS CodeBuild](https://aws.amazon.com/codebuild/) services. SageMaker pipelines are responsible for orchestrating workflows across each step of the ML process and task automation including data loading, data transformation, training, tuning and validation, and deployment. Each model is tracked via the [SageMaker model registry](https://docs.aws.amazon.com/sagemaker/latest/dg/model-registry.html), which stores the model metadata, such as training and validation metrics and data lineage, manages model versions and the approval status of the model.
+This solution supports secure multi-account model deployment using [AWS Organizations](https://aws.amazon.com/organizations/) or via simple target account lists.
+
+**7 – Secure infrastructure**  
+Amazon SageMaker Studio domain is deployed in a dedicated VPC. Each [elastic network interface (ENI)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html) used by SageMaker domain or workload is created within a private dedicated subnet and attached to the specified security groups. The data science environment VPC can be configured with internet access via an optional [NAT gateway](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html). You can also run this VPC in internet-free mode without any inbound or outbound internet access. 
+All access to the AWS public services is routed via [AWS PrivateLink](https://docs.aws.amazon.com/vpc/latest/privatelink/endpoint-services-overview.html). Traffic between your VPC and the AWS services does not leave the Amazon network and is not exposed to the public internet.
+
+**8 – Data security**  
+All data in the data science environment, which is stored in [Amazon S3 buckets](https://aws.amazon.com/s3/), [Amazon EBS](https://aws.amazon.com/ebs) and EFS volumes, is encrypted at rest using [customer-managed AWK Key Management Service (KMS) keys](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk). All data transfer between platform components, API calls, and inter-container communication is protected using Transport Layer Security (TLS 1.2) protocol. 
+Data access from the SageMaker Studio notebooks or any SageMaker workload to the environment Amazon S3 buckets is governed by the combination of the [Amazon S3 bucket and user policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-iam-policies.html) and [S3 VPC endpoint policy](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-access.html#vpc-endpoint-policies).
+
 
 ## AWS account, team, and project setup
 The following diagram shows the proposed team and AWS account structure for the solution:
@@ -68,7 +91,7 @@ The solution implements the following multi-account approach:
 + Optional usage of AWS Organizations to enable trust and security control policies for member AWS accounts
 
 Without loss of generality, this solution uses three account groups: 
-+ **Development** (data science) account: this account is used by data scientists and ML engineers to perform experimentation and development. Data science tools such as Amazon SageMaker Studio is used in the development account. Amazon S3 buckets with data and models, code repositories and CI/CD pipelines are hosted in this account. Models are build, trained, validated, and registered in the model repository in this account. 
++ **Development** (data science) account: this account is used by data scientists and ML engineers to perform experimentation and development. Data science tools such as Amazon SageMaker Studio is used in the development account. Amazon S3 buckets with data and models, code repositories and CI/CD pipelines are hosted in this account. Models are built, trained, validated, and registered in the model repository in this account. 
 + **Testing/staging/UAT** accounts: Validated and approved models are first deployed to the staging account, where the automated unit and integration tests are run. Data scientists and ML engineers do have read-only access to this account.
 + **Production** accounts: Tested models from the staging accounts are finally deployed to the production account for both online and batch inference.
 
@@ -451,6 +474,50 @@ To access the model artifacts and a KMS encryption key an additional cross-accou
 
 ![multi-account model deployment permission setup](design/ml-ops-multi-account-model-secure-infrastructure.drawio.svg)
 
+All access to the model artifacts happens via the S3 VPC endpoint **(1)**. This VPC endpoint allows access to the model and data S3 buckets. The model S3 bucket policy **(2)** grant access to the ModelExecutionRole principals **(5)** in each of the target accounts.
+
+```json
+"Sid": "AllowCrossAccount",
+"Effect": "Allow",
+"Principal": {
+    "AWS": [
+            "arn:aws:iam::<staging-account>:role/SageMakerModelExecutionRole",
+            "arn:aws:iam::<prod-account>:role/SageMakerModelExecutionRole",
+            "arn:aws:iam::<dev-account>:root"
+        ]
+}
+```
+
+We apply the same setup for the data encryption key **(3)**, whose policy **(4)** grant access to the principals in the target accounts. 
+SageMaker model-hosting endpoints are placed in the VPC **(6)** in each of the target accounts. Any access to S3 buckets and KMS keys happens via the corresponding VPC endpoints. The ids of these VPC endpoints are added to the Condition statement of the S3 bucket and KMS keys resource policies.
+
+```json
+"Sid": "DenyNoVPC",
+"Effect": "Deny",
+"Principal": "*",
+"Action": [
+    "s3:GetObject",
+    "s3:PutObject",
+    "s3:ListBucket",
+    "s3:GetBucketAcl",
+    "s3:GetObjectAcl",
+    "s3:PutBucketAcl",
+    "s3:PutObjectAcl"
+    ],
+    "Resource": [
+        "arn:aws:s3:::sm-mlops-dev-us-east-1-models/*",
+        "arn:aws:s3:::sm-mlops-dev-us-east-1-models"
+    ],
+    "Condition": {
+         "StringNotEquals": {
+              "aws:sourceVpce": [
+                   "vpce-0b82e29a828790da2",
+                   "vpce-07ef65869ca950e14",
+                   "vpce-03d9ed0a1ba396ff5"
+                    ]
+         }
+    }
+```
 
 ### Multi-account model deployment pre-requisites
 Multi-account model deployment can use the AWS Organizations setup to deploy model to the staging and production organizational units (OUs) **or** provided staging and production account lists. For a proper functioning of the **multi-account** deployment process the cross-account access and specific execution roles in the target accounts must be configured.
@@ -630,7 +697,7 @@ All operations are performed under the SageMaker execution role.
 # Pre-requisites
 To deploy the solution, you must have **Administrator** (or **Power User**) permissions to package the CloudFormation templates, stage templates in your Amazon S3 bucket, and run the deployment commands.
 
-You must also install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it.
+You must also install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it. If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
 
 To follow along with the deployment instructions, run the following commands in your terminal (all commands are for macOS/Linux and were tested for macOS 10.15.7)
 ```sh
@@ -642,6 +709,17 @@ make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGI
 ```
 
 You can specify either a name for an existing S3 bucket or a new name (an S3 bucket will be created for you). If you use the existing S3 bucket, it must be in **the same region** where you are deploying the CloudFormation templates.
+
+If you would like to run a security scan on the CloudFormation template using [`cfn_nag`](https://github.com/stelligent/cfn_nag) (recommended), you have to install `cfn_nag`:
+```sh
+brew install ruby brew-gem
+brew gem install cfn-nag
+```
+
+To initiate the security scan, run the following command:
+```sh
+make cfn_nag_scan
+```
 
 # Deployment options
 You have a choice of different independent deployment options using the delivered CloudFormation templates:
@@ -682,7 +760,7 @@ You must provision these roles **before** starting the solution deployment. The 
 # STEP 1:
 # SELF_MANAGED stack set permission model:
 # Deploy a stack set execution role to _EACH_ of the target accounts in both staging and prod OUs
-# This stack set execution role used to deploy the target accounts stack sets in env-main.yaml
+# This stack set execution role is used to deploy the target accounts stack sets in env-main.yaml
 # !!!!!!!!!!!! RUN THIS COMMAND IN EACH OF THE TARGET ACCOUNTS !!!!!!!!!!!!
 ENV_NAME="sm-mlops"
 ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
@@ -694,7 +772,7 @@ SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 aws cloudformation delete-stack --stack-name $STACK_NAME
 
 aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
+                --template-file cfn_templates/env-iam-setup-stackset-role.yaml \
                 --stack-name $STACK_NAME \
                 --capabilities CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
@@ -927,6 +1005,8 @@ STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 STAGING_OU_ID=<OU id>
 PROD_OU_ID=<OU id>
+STAGING_ACCOUNTS=<comma-delimited account list>
+PROD_ACCOUNTS=<comma-delimited account list>
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
@@ -940,23 +1020,13 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=StartKernelGatewayApps,ParameterValue=YES \
+        ParameterKey=StartKernelGatewayApps,ParameterValue=NO \
         ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME \
         ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
         ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
-        ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
-```
-
-If you use account list multi-account option, you must provide the values for `StagingAccountList` and `ProductionAccountList` parameters omit the `OrganizationalUnitStagingId` and `OrganizationalUnitProdId` parameters from the previous call:
-```sh
-STAGING_ACCOUNTS=<comma-delimited account list>
-PROD_ACCOUNTS=<comman-delimited account list>
-
-...
         ParameterKey=StagingAccountList,ParameterValue=$STAGING_ACCOUNTS \
         ParameterKey=ProductionAccountList,ParameterValue=$PROD_ACCOUNTS \
-...
-
+        ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
 ```
 
 ### Cleanup

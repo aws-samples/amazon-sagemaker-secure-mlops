@@ -30,4 +30,7 @@ build: clean
 package: build 
 		./package-cfn.sh $(CFN_BUCKET_NAME) $(AWS_DEFAULT_REGION)
 
+cfn_nag_scan: 
+	cfn_nag_scan --input-path ./cfn_templates
+
 

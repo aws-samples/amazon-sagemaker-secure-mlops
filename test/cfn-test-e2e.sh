@@ -22,7 +22,7 @@ make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGI
 # Deploy a stack set execution role to EACH of the target accounts
 # This stack set execution role used to deploy the target account roles stack set in env-main.yaml
 ENV_NAME="sm-mlops"
-ENV_TYPE="staging"
+ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
 STACK_NAME=$ENV_NAME-setup-stackset-role
 ADMIN_ACCOUNT_ID=#Data science account with SageMaker Studio
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
@@ -31,7 +31,7 @@ SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 aws cloudformation delete-stack --stack-name $STACK_NAME
 
 aws cloudformation deploy \
-                --template-file build/$AWS_DEFAULT_REGION/env-iam-setup-stackset-role.yaml \
+                --template-file cfn_templates/env-iam-setup-stackset-role.yaml \
                 --stack-name $STACK_NAME \
                 --capabilities CAPABILITY_NAMED_IAM \
                 --parameter-overrides \
@@ -121,15 +121,15 @@ aws cloudformation describe-stacks \
 pipenv shell
 
 # Set variables of the environment
-ENV_NAME=ds-team
+ENV_NAME=sm-mlops
 ENV_STACK_NAME=$ENV_NAME-env
 CORE_STACK_NAME=$ENV_NAME-core
 
-MLOPS_PROJECT_NAME_LIST=("test1-deploy" "test2-train" "test2-deploy")
-MLOPS_PROJECT_ID_LIST=("p-rd4twhwnflhm" "p-lusk24tg6ser" "p-frvxvijl1vo4")
-SM_DOMAIN_ID="d-jxmwq7ae4scs"
-STACKSET_NAME_LIST=("sagemaker-test4-deploy-p-y1iloulknggg-deploy-staging" "sagemaker-test4-deploy-p-y1iloulknggg-deploy-prod")
-ACCOUNT_IDS="949335012047"
+MLOPS_PROJECT_NAME_LIST=("test28-deploy" "test28-train" "test29-deploy" "test30-deploy-local" "test31-deploy")
+MLOPS_PROJECT_ID_LIST=("p-3xavef9imw2d" "p-uf50wjumvcld" "p-rjwik1ojpvfl" "p-sh2i5cmtp71w" "p-dznpmuxradal")
+SM_DOMAIN_ID="d-e00ik4f5hhrw"
+STACKSET_NAME_LIST=("" "")
+ACCOUNT_IDS=""
 
 # This works only for single-account deployment
 echo "Delete stack instances"
@@ -245,6 +245,7 @@ aws iam delete-role-policy \
 
 aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
 
+# delete setup stack set role from all the target accounts
 aws cloudformation delete-stack --stack-name sm-mlops-setup-stackset-role
 
 # Must be run in under administrator in the AWS Organizations management account

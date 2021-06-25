@@ -319,7 +319,7 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: SageMakerStudioDomain
     Properties:
-      FunctionName: EnableSagemakerProjects
+      ReservedConcurrentExecutions: 1
       Code:
         ZipFile: |
           # Function: EnableSagemakerProjects

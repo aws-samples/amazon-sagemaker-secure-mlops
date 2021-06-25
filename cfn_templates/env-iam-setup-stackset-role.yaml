@@ -67,14 +67,69 @@ Resources:
               -
                 Effect: Allow
                 Action:
-                  - 'cloudformation:*'
-                  - 's3:*'
-                  - 'sns:*'
-                Resource: '*'
+                  - 'cloudformation:Cancel*'
+                  - 'cloudformation:Continue*'
+                  - 'cloudformation:Create*'
+                  - 'cloudformation:Deactivate*'
+                  - 'cloudformation:Delete*'
+                  - 'cloudformation:Describe*'
+                  - 'cloudformation:Get*'
+                  - 'cloudformation:Detect*'
+                  - 'cloudformation:Execute*'
+                  - 'cloudformation:Estimate*'
+                  - 'cloudformation:List*'
+                  - 'cloudformation:Publish*'
+                  - 'cloudformation:Set*'
+                  - 'cloudformation:Register*'
+                  - 'cloudformation:Signal*'
+                  - 'cloudformation:Stop*'
+                  - 'cloudformation:Update*'
+                  - 'cloudformation:Validate*'
+                  - 'cloudformation:Test*'
+                Resource: 
+                - !Sub 'arn:aws:cloudformation:*:${AWS::AccountId}:*'
               -
                 Effect: Allow
                 Action:
-                  - 'iam:*'
+                  - 's3:Get*'
+                  - 's3:List*'
+                  - 's3:Create*'
+                  - 's3:Head*'
+                  - 's3:Put*'
+                  - 's3:Upload*'
+                Resource:
+                  - 'arn:aws:s3:::*'
+              -
+                Effect: Allow
+                Action:
+                  - 'sns:Create*'
+                  - 'sns:Get*'
+                  - 'sns:List*'
+                  - 'sns:Publish'
+                  - 'sns:Set*'
+                  - 'sns:Subscribe'
+                  - 'sns:Tag*'
+                  - 'sns:Unsubscribe'
+                  - 'sns:Untag*'
+                  - 'sns:Add*'
+                Resource: 
+                  - 'arn:aws:sns:*:*:*'
+              -
+                Effect: Allow
+                Action:
+                  - 'iam:Create*'
+                  - 'iam:Attach*'
+                  - 'iam:Add*'
+                  - 'iam:Delete*'
+                  - 'iam:Get*'
+                  - 'iam:Create*'
+                  - 'iam:List*'
+                  - 'iam:Put*'
+                  - 'iam:Tag*'
+                  - 'iam:Update*'
+                  - 'iam:Set*'
+                  - 'iam:Remove*'
+                  - 'iam:Detach*'
                 Resource:
                   - 'arn:*:iam::*:role/*StackSetExecution*'
                   - 'arn:*:iam::*:role/*SageMakerModelExecution*' 
@@ -84,14 +139,23 @@ Resources:
                   - 'ec2:CreateTags'
                   - 'ec2:DeleteTags'
                   - 'ec2:DescribeTags'
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
                   - 'ssm:AddTagsToResource'
                   - 'ssm:DeleteParameter'
-                  - 'ssm:DeleteParameters'
                   - 'ssm:GetParameter'
-                  - 'ssm:GetParameters'
                   - 'ssm:PutParameter'
                   - 'ssm:RemoveTagsFromResource'
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:aws:ssm:*:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action:
+                  - 'ssm:DeleteParameters'
+                  - 'ssm:GetParameters'
+                Resource:
+                  - '*'                             
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AmazonVPCFullAccess'
       Tags:

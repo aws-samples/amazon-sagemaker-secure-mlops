@@ -123,18 +123,19 @@ Resources:
                 Action:
                   - 'sagemaker:DeleteTags'
                   - 'sagemaker:DeleteEndpointConfig'
-                  - 'sagemaker:ListTags'
-                  - 'sagemaker:ListTransformJobs'
                   - 'sagemaker:StopTrainingJob'
                   - 'sagemaker:DeleteModel'
-                  - 'sagemaker:ListTrainingJobs'
-                  - 'sagemaker:ListHyperParameterTuningJobs'
                   - 'sagemaker:DeleteEndpoint'
-                  - 'sagemaker:ListModels'
                   - 'sagemaker:StopTransformJob'
                   - 'sagemaker:AddTags'
-                  - 'sagemaker:ListEndpoints'
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:aws:sagemaker:*:${AWS::AccountId}:*'
+              - 
+                Action:
+                  - 'sagemaker:List*'
+                Resource:
+                  - '*'
+                Effect: Allow
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
 
@@ -164,8 +165,21 @@ Resources:
               - Sid: LambdaPermission
                 Effect: Allow
                 Action:
-                  - 'lambda:*'
-                Resource: '*'
+                  - 'lambda:AddPermission'
+                  - 'lambda:CreateFunction'
+                  - 'lambda:DeleteFunction'
+                  - 'lambda:GetFunction'
+                  - 'lambda:GetFunctionConfiguration'
+                  - 'lambda:InvokeFunction'
+                  - 'lambda:RemovePermission'
+                  - 'lambda:PutFunctionConcurrency'
+                Resource: 
+                  - !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:ListFunctions'
+                Resource: 
+                  - '*'
               - Sid: SageMakerPermission
                 Effect: Allow
                 Action:
@@ -187,6 +201,7 @@ Resources:
                   - sagemaker:CreateNotebookInstanceLifecycleConfig
                   - sagemaker:DeleteNotebookInstanceLifecycleConfig
                   - sagemaker:DescribeNotebookInstanceLifecycleConfig
+                  - sagemaker:Disassociate*
                 Resource:
                   - !Sub "arn:${AWS::Partition}:sagemaker:*:*:domain/*"
                   - !Sub "arn:${AWS::Partition}:sagemaker:*:*:user-profile/*"
@@ -194,15 +209,36 @@ Resources:
               - Sid: SageMakerProjectsPermission
                 Effect: Allow
                 Action:
-                  - servicecatalog:AcceptPortfolioShare
                   - sagemaker:EnableSagemakerServicecatalogPortfolio
                   - sagemaker:DisableSagemakerServicecatalogPortfolio
-                Resource: '*'
+                Resource:
+                  - '*'
               - Sid: ServiceCatalogPermission
                 Effect: Allow
                 Action:
-                  - servicecatalog:*
-                Resource: '*'
+                  - 'servicecatalog:Accept*'
+                  - 'servicecatalog:Associate*'
+                  - 'servicecatalog:Create*'
+                  - 'servicecatalog:Delete*'
+                  - 'servicecatalog:Describe*'
+                  - 'servicecatalog:Disable*'
+                  - 'servicecatalog:Enable*'
+                  - 'servicecatalog:Execute*'
+                  - 'servicecatalog:Get*'
+                  - 'servicecatalog:Provision*'
+                  - 'servicecatalog:Scan*'
+                  - 'servicecatalog:Terminate*'
+                  - 'servicecatalog:Update*'
+                Resource: 
+                  - !Sub 'arn:aws:servicecatalog:*:${AWS::AccountId}:*'
+                  - !Sub 'arn:aws:catalog:*:${AWS::AccountId}:*'
+              -
+                Effect: Allow
+                Action:
+                  - 'servicecatalog:Disassociate*'
+                  - 'servicecatalog:List*'
+                Resource:
+                  - '*'
               - Sid: IAMPermission
                 Effect: Allow
                 Action:
@@ -214,54 +250,91 @@ Resources:
                   - 'iam:GetRole'
                   - 'iam:GetRolePolicy'
                   - 'iam:ListPolicyVersions'
-                  - 'iam:PassRole'
                   - 'iam:PutRolePolicy'
                   - 'iam:GetPolicy'
                   - 'iam:CreatePolicy'
                   - 'iam:DeletePolicy'
                   - 'iam:Tag*'
-                Resource: '*'
+                Resource: 
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:*'
+              - Sid: PassRolePermission
+                Action: 
+                  - iam:PassRole
+                Resource: 
+                  - !Sub 'arn:aws:iam::${AWS::AccountId}:role/*'
+                Effect: Allow
               - Sid: KMSPermission
                 Effect: Allow
                 Action:
                   - 'kms:CreateAlias'
                   - 'kms:CreateGrant'
-                  - 'kms:CreateKey'
                   - 'kms:Decrypt'
                   - 'kms:DeleteAlias'
                   - 'kms:DeleteCustomKeyStore'
                   - 'kms:DeleteImportedKeyMaterial'
                   - 'kms:DescribeKey'
                   - 'kms:EnableKey'
+                  - 'kms:ListAliases'
                   - 'kms:EnableKeyRotation'
                   - 'kms:GenerateDataKey'
-                  - 'kms:ListAliases'
                   - 'kms:PutKeyPolicy'
                   - 'kms:ScheduleKeyDeletion'
                   - 'kms:TagResource'
                   - 'kms:UpdateAlias'
                   - 'kms:UpdateCustomKeyStore'
                   - 'kms:UpdateKeyDescription'
-                Resource: '*'
-              - Sid: Policy1
+                Resource:
+                  - !Sub 'arn:aws:kms:*:${AWS::AccountId}:*'
+              -
+                Effect: Allow
+                Action:
+                  - 'kms:CreateKey'
+                Resource:
+                 - '*'
+              - 
                 Effect: Allow
                 Action:
                   - 'codecommit:CreateCommit'
                   - 'codecommit:CreateRepository'
                   - 'codecommit:DeleteRepository'
                   - 'codecommit:GetRepository'
-                  - 'codecommit:ListRepositories'
                   - 'codecommit:TagResource'
+                Resource: 
+                  - !Sub 'arn:aws:codecommit:*:${AWS::AccountId}:*'
+              -
+                Effect: Allow
+                Action:
+                  - 'codecommit:ListRepositories'
+                Resource:
+                 - '*'
+              -
+                Effect: Allow
+                Action:
                   - 'config:DescribeConfigurationRecorderStatus'
                   - 'config:DescribeConfigurationRecorders'
+                Resource: 
+                  - '*'
+              -
+                Effect: Allow
+                Action:
                   - 'ec2:DescribeAvailabilityZones'
                   - 'ec2:CreateTags'
                   - 'ec2:DeleteTags'
                   - 'ec2:DescribeTags'
+                Resource: 
+                  - '*'
+              -
+                Effect: Allow
+                Action:
                   - 'resource-groups:CreateGroup'
                   - 'resource-groups:DeleteGroup'
                   - 'resource-groups:Tag'
                   - 'resource-groups:Untag'
+                Resource: 
+                  - '*'
+              -
+                Effect: Allow
+                Action:
                   - 'ssm:AddTagsToResource'
                   - 'ssm:DeleteParameter'
                   - 'ssm:DeleteParameters'
@@ -269,7 +342,8 @@ Resources:
                   - 'ssm:GetParameters'
                   - 'ssm:PutParameter'
                   - 'ssm:RemoveTagsFromResource'
-                Resource: '*'
+                Resource: 
+                  - '*'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
         - 'arn:aws:iam::aws:policy/AWSCloudFormationFullAccess'

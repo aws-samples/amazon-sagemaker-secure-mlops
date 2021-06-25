@@ -74,14 +74,16 @@ Resources:
                   - 'apigateway:PUT'
                   - 'apigateway:PATCH'
                   - 'apigateway:DELETE'
-                Resource: '*'
+                Resource: 
+                  - '*'
                 Condition:
                   StringLike:
                     'aws:ResourceTag/sagemaker:launch-source': '*'
               - Effect: Allow
                 Action:
                   - 'apigateway:POST'
-                Resource: '*'
+                Resource:
+                  - '*'
                 Condition:
                   'ForAnyValue:StringLike':
                     'aws:TagKeys':
@@ -110,7 +112,8 @@ Resources:
                 Action:
                   - 'cloudformation:GetTemplateSummary'
                   - 'cloudformation:ValidateTemplate'
-                Resource: '*'
+                Resource:
+                  - '*'
               - Effect: Allow
                 Action:
                   - 'codebuild:CreateProject'
@@ -131,7 +134,8 @@ Resources:
               - Effect: Allow
                 Action:
                   - 'codecommit:ListRepositories'
-                Resource: '*'
+                Resource:
+                  - '*'
               - Effect: Allow
                 Action:
                   - 'codepipeline:CreatePipeline'
@@ -146,7 +150,8 @@ Resources:
               - Effect: Allow
                 Action:
                   - 'cognito-idp:CreateUserPool'
-                Resource: '*'
+                Resource:
+                  - '*'
                 Condition:
                   'ForAnyValue:StringLike':
                     'aws:TagKeys':
@@ -164,7 +169,8 @@ Resources:
                   - 'cognito-idp:DescribeUserPoolClient'
                   - 'cognito-idp:UpdateUserPool'
                   - 'cognito-idp:UpdateUserPoolClient'
-                Resource: '*'
+                Resource:
+                  - '*'
                 Condition:
                   StringLike:
                     'aws:ResourceTag/sagemaker:launch-source': '*'
@@ -193,7 +199,8 @@ Resources:
                   - 'firehose:StartDeliveryStreamEncryption'
                   - 'firehose:StopDeliveryStreamEncryption'
                   - 'firehose:UpdateDestination'
-                Resource: 'arn:aws:firehose:*:*:deliverystream/sagemaker-*'
+                Resource: 
+                  - 'arn:aws:firehose:*:*:deliverystream/sagemaker-*'
               - Action:
                   - 'glue:CreateDatabase'
                   - 'glue:DeleteDatabase'
@@ -212,7 +219,7 @@ Resources:
                   - 'glue:DeleteWorkflow'
                   - 'glue:StopCrawler'
                 Resource:
-                  - '*'
+                  - !Sub 'arn:aws:glue:*:${AWS::AccountId}:*'
                 Effect: Allow
               - Action:
                   - 'glue:CreateWorkflow'
@@ -251,6 +258,7 @@ Resources:
                   - 'lambda:GetFunctionConfiguration'
                   - 'lambda:InvokeFunction'
                   - 'lambda:RemovePermission'
+                  - 'lambda:PutFunctionConcurrency'
                 Resource:
                   - !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:*'
               - Effect: Allow
@@ -267,7 +275,8 @@ Resources:
                   - 'arn:aws:logs:*:*:log-group::log-stream:*'
               - Effect: Allow
                 Action: 's3:GetObject'
-                Resource: '*'
+                Resource: 
+                  - 'arn:aws:s3:::*'
                 Condition:
                   StringEquals:
                     's3:ExistingObjectTag/servicecatalog:provisioning': 'true'
@@ -302,9 +311,13 @@ Resources:
                   - 'sagemaker:DeleteModel'
                   - 'sagemaker:DeleteWorkteam'
                   - 'sagemaker:Describe*'
-                  - 'sagemaker:List*'
                 Resource:
                   - 'arn:aws:sagemaker:*:*:*'
+                Effect: Allow
+              - Action:
+                  - 'sagemaker:List*'
+                Resource:
+                  - '*'
                 Effect: Allow
               - Action:
                   - 'states:CreateStateMachine'
@@ -380,12 +393,14 @@ Resources:
                   - cloudformation:GetTemplate
                   - cloudformation:GetTemplateSummary
                   - cloudformation:TagResource
-                Resource: "*"
+                Resource: 
+                  - '*'
                 Effect: Allow
               - 
                 Action:
                   - cloudwatch:PutMetricData
-                Resource: "*"
+                Resource: 
+                  - !Sub 'arn:aws:cloudwatch:*:${AWS::AccountId}:*'
                 Effect: Allow
               - 
                 Action:
@@ -398,7 +413,8 @@ Resources:
               - 
                 Action:
                   - codebuild:ListCuratedEnvironmentImages
-                Resource: '*'
+                Resource: 
+                  - '*'
                 Effect: Allow
               -
                 Action:
@@ -427,7 +443,8 @@ Resources:
                 Action:
                   - ec2:CreateNetworkInterface
                   - ec2:DeleteNetworkInterface
-                Resource: "*"
+                Resource: 
+                  - !Sub 'arn:aws:ec2:*:${AWS::AccountId}:*'
                 Effect: Allow
               - 
                 Action:
@@ -442,7 +459,8 @@ Resources:
                   - ecr:ListImages
                   - ecr:GetAuthorizationToken
                   - ecr:GetDownloadUrlForLayer
-                Resource: "*"
+                Resource: 
+                  - '*'
                 Effect: Allow
               - 
                 Effect: Allow
@@ -531,7 +549,8 @@ Resources:
                   - logs:PutLogEvents
                   - logs:PutResourcePolicy
                   - logs:UpdateLogDelivery
-                Resource: "*"
+                Resource:
+                  - !Sub 'arn:aws:logs:*:${AWS::AccountId}:*'
                 Effect: Allow
               - 
                 Effect: Allow
@@ -550,8 +569,8 @@ Resources:
                   - s3:GetObjectVersion
                   - s3:PutObject
                 Resource:
-                  - arn:aws:s3:::aws-glue-*
-                  - arn:aws:s3:::sagemaker-*
+                  - 'arn:aws:s3:::aws-glue-*'
+                  - 'arn:aws:s3:::sagemaker-*'
                   - 'arn:aws:s3:::sm-mlops-cp-*'
                   - 'arn:aws:s3:::*-data*'
                   - 'arn:aws:s3:::*-data*/*'
@@ -560,12 +579,32 @@ Resources:
               - 
                 Effect: Allow
                 Action:
-                  - sagemaker:*
+                  - 'sagemaker:Create*'
+                  - 'sagemaker:Delete*'
+                  - 'sagemaker:Describe*'
+                  - 'sagemaker:Start*'
+                  - 'sagemaker:Stop*'
+                  - 'sagemaker:Update*'
+                  - 'sagemaker:Search*'
+                  - 'sagemaker:Add*'
+                  - 'sagemaker:Associate*'
+                  - 'sagemaker:Disassociate*'
+                  - 'sagemaker:Register*'
+                  - 'sagemaker:Send*'
+                  - 'sagemaker:Put*'
+                  - 'sagemaker:Get*'
+                  - 'sagemaker:Batch*'
                 NotResource:
                   - arn:aws:sagemaker:*:*:domain/*
                   - arn:aws:sagemaker:*:*:user-profile/*
                   - arn:aws:sagemaker:*:*:app/*
                   - arn:aws:sagemaker:*:*:flow-definition/*
+              - 
+                Action:
+                  - 'sagemaker:List*'
+                Resource:
+                  - '*'
+                Effect: Allow
               - 
                 Effect: Allow
                 Action:
@@ -593,7 +632,8 @@ Resources:
               - 
                 Action:
                   - states:ListStateMachines
-                Resource: "*"
+                Resource:
+                  - '*'
                 Effect: Allow
               - 
                 Action:
@@ -603,7 +643,8 @@ Resources:
                   - 'kms:Encrypt'
                   - 'kms:GenerateDataKey'
                   - 'kms:ListAliases'
-                Resource: '*'
+                Resource: 
+                  - '*'
                 Effect: Allow
               - 
                 Action:
