@@ -125,9 +125,9 @@ ENV_NAME=sm-mlops
 ENV_STACK_NAME=$ENV_NAME-env
 CORE_STACK_NAME=$ENV_NAME-core
 
-MLOPS_PROJECT_NAME_LIST=("test28-deploy" "test28-train" "test29-deploy" "test30-deploy-local" "test31-deploy")
-MLOPS_PROJECT_ID_LIST=("p-3xavef9imw2d" "p-uf50wjumvcld" "p-rjwik1ojpvfl" "p-sh2i5cmtp71w" "p-dznpmuxradal")
-SM_DOMAIN_ID="d-e00ik4f5hhrw"
+MLOPS_PROJECT_NAME_LIST=("test49-train" "test50-deploy" "test52-deploy" "test49-deploy" "test54-deploy")
+MLOPS_PROJECT_ID_LIST=("p-ptf6wnasszs7" "p-kto19npb91pl" "p-5spa6n7pg9h7" "p-et3logr45ktm-" "p-s4df89w09vrt")
+SM_DOMAIN_ID="d-h4pgjeecbmyb"
 STACKSET_NAME_LIST=("" "")
 ACCOUNT_IDS=""
 
