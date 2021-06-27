@@ -16,6 +16,12 @@ aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-central-1 --region eu-central-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-1 --region eu-west-1
 aws s3 mb s3://codepipeline-${PROJECT_NAME}-eu-west-2 --region eu-west-2
 
+# One-off: Deploy the SageMaker service catalog project roles
+aws cloudformation deploy \
+    --template-file cfn_templates/core-iam-sc-sm-projects-roles.yaml \
+    --stack-name core-iam-sc-sm-projects-roles \
+    --capabilities CAPABILITY_NAMED_IAM 
+
 # Deploy a new CI/CD stack
 ACCOUNT_ID=949335012047
 S3_BUCKET_NAME=ilyiny-demo-cfn-artefacts-$AWS_DEFAULT_REGION
@@ -45,8 +51,8 @@ aws cloudformation delete-stack --stack-name base-core-iam-shared-roles
 aws cloudformation delete-stack --stack-name e
 aws cloudformation delete-stack --stack-name sm-mlops-$AWS_DEFAULT_REGION-VPC-pipeline
 aws cloudformation delete-stack --stack-name base-vpc 
-aws cloudformation delete-stack --stack-name sm-mlops-automation
 
+aws cloudformation delete-stack --stack-name sm-mlops-automation
 aws cloudformation delete-stack --stack-name base-infra-$AWS_DEFAULT_REGION
 
 PROJECT_NAME=sm-mlops

@@ -10,6 +10,9 @@
         "CreateNATGateways":"NO",
         "CreatePrivateSubnets":"NO",
         "CreateVPCFlowLogsToCloudWatch":"NO",
-        "CreateVPCFlowLogsRole":"NO"
+        "CreateVPCFlowLogsRole":"NO",
+        "SeedCodeS3BucketName":"ilyiny-demo-cfn-artefacts-us-east-2",
+        "StackSetAdministrationRoleArn":"None",
+        "StackSetExecutionRoleName":"None"
     }
 }

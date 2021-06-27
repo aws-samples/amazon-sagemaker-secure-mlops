@@ -83,6 +83,7 @@ Resources:
                 Action: 
                   - lambda:CreateFunction
                   - lambda:DeleteFunction
+                  - lambda:PutFunctionConcurrency
                 Resource: 
                   - !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*GetEnvironmentConfiguration*'
                 Effect: Allow
