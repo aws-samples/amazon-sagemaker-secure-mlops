@@ -6,6 +6,7 @@ phases:
       python: 3.8
     commands:
       - pip install --upgrade --force-reinstall . awscli
+      - pip install --disable-pip-version-check -q sagemaker==2.47.1
   
   build:
     commands:
