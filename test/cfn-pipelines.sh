@@ -35,9 +35,9 @@ aws cloudformation deploy \
                 --parameter-overrides \
                 CodeCommitRepositoryArn=$REPOSITORY_ARN \
                 NotificationArn=$SNS_NOTIFICATION_ARN \
-                TestDSQuickstart=NO \
-                TestServiceCatalog=NO \
-                Test2StepCFN=NO
+                TestDSQuickstart=YES \
+                TestServiceCatalog=YES \
+                Test2StepCFN=YES
 
 # Clean up
 # Delete stack under a role other than it has been created
