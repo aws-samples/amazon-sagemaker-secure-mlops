@@ -65,7 +65,7 @@ echo "Zipping MLOps project seed code"
 
 ## publish materials to target AWS regions
 echo "Publishing CloudFormation to ${DEPLOYMENT_REGION}"
-echo "Clearing ${CFN_BUCKET_NAME}..."
+echo "Clearing the project directory for ${PROJECT_NAME} in ${CFN_BUCKET_NAME}..."
 
 aws s3 rm \
     s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/ \

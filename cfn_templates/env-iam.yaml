@@ -346,7 +346,7 @@ Resources:
           - Key: EnvironmentType
             Value: !Ref EnvType
           - Key: Principal
-            Value: 'sagemaker-pipeline-role'  #Need this tag for aws:ViaAWSService condition key for S3 bucket policies
+            Value: !Sub '${EnvName}-${EnvType}-sm-pipeline-role' #Need this tag for aws:ViaAWSService condition key for S3 bucket policies
 
   SageMakerExecutionPolicy:
     Type: 'AWS::IAM::ManagedPolicy'
@@ -373,6 +373,7 @@ Resources:
             Condition:
               'Null':
                 'sagemaker:VpcSubnets': 'true'
+                'sagemaker:VpcSecurityGroupIds': 'true'
           - 
             Action:
               - sagemaker:ListTags
@@ -416,6 +417,12 @@ Resources:
             Resource:
               - !Sub 'arn:aws:kms:*:${AWS::AccountId}:*'
             Effect: Allow
+          -
+            Action:
+              -  s3:DescribeJob
+            Resource:
+              - '*'
+            Effect: Allow
           - 
             Action:
               - 's3:GetObject'
@@ -457,6 +464,14 @@ Resources:
             Resource:
               - 'arn:aws:s3:::*'
             Effect: Allow
+          - 
+            Action:
+              - glue:CreateTable
+              - glue:GetPartition
+              - glue:BatchCreatePartition
+            Resource:
+              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}'
+            Effect: Allow
 
   SageMakerExecutionRole:
       Type: 'AWS::IAM::Role'
@@ -475,11 +490,15 @@ Resources:
           - !Ref SageMakerExecutionPolicy
           - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
           - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+          - 'arn:aws:iam::aws:policy/AmazonSageMakerFeatureStoreAccess'
         Tags:
           - Key: EnvironmentName
             Value: !Ref EnvName
           - Key: EnvironmentType
             Value: !Ref EnvType
+          - Key: Principal
+            Value: !Sub '${EnvName}-${EnvType}-sm-execution-role'  #Need this tag for aws:ViaAWSService condition key for S3 bucket policies
+
 
   SCProjectLaunchRole:
       Type: 'AWS::IAM::Role'

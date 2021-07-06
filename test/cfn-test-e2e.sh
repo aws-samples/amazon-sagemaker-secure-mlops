@@ -13,7 +13,7 @@
 #############################################################################################
 # Package templates
 S3_BUCKET_NAME=ilyiny-cfn-artefacts-$AWS_DEFAULT_REGION
-make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
+make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
 
 # ONE-OFF SETUP - ONLY NEEDED IF YOU ARE GOING TO USE MULTI-ACCOUNT MODEL DEPLOYMENT --------
 

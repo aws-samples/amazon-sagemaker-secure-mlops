@@ -107,9 +107,14 @@ Resources:
             Condition:
               StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id #Allow access only via S3 VPC endpoint
-                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role to read evaluation.json using JsonGet
+                'aws:PrincipalTag/Principal': 
+                  #Exception for SageMaker pipeline execution role to read evaluation.json using JsonGet
+                  - !Sub '${EnvName}-${EnvType}-sm-pipeline-role' 
+                  #Exception for Feature Store replication to S3 bucket - you might create a dedicated FeatureStore role
+                  - !Sub '${EnvName}-${EnvType}-sm-execution-role' 
               Bool:
-                'aws:ViaAWSService': 'false' #Exception for SageMaker execution role (for RegisterModel step)
+                #Exception for - #### Check if this exception is needed ####
+                'aws:ViaAWSService': 'false' 
 
   ModelBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
@@ -145,6 +150,7 @@ Resources:
             Condition:
               StringNotEquals:
                 'aws:sourceVpce': !Ref VPCEndpointS3Id
-                'aws:PrincipalTag/Principal': 'sagemaker-pipeline-role' #Exception for SageMaker pipeline execution role
+                'aws:PrincipalTag/Principal': !Sub '${EnvName}-${EnvType}-sm-pipeline-role' #Exception for SageMaker pipeline execution role
               Bool:
-                'aws:ViaAWSService': 'false' #Exception for - #### Check if this exception is needed ####
+                #Exception for SageMaker execution role (for RegisterModel step)
+                'aws:ViaAWSService': 'false' 

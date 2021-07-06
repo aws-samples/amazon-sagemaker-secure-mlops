@@ -1544,6 +1544,7 @@ Resources:
               "s3:ListBucket",
               "s3:CreateBucket",
               "s3:GetBucketAcl",
+              "s3:PutObjectAcl",
               "s3:GetBucketCors",
               "s3:ListBucketMultipartUploads",
               "s3:PutBucketCors",
