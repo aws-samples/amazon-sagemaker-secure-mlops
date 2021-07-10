@@ -7,7 +7,7 @@ This deployment option is a special case where the solution is deployed into an 
 3. Clone the [github repository](https://github.com/aws-samples/amazon-sagemaker-secure-mlops):
 ```sh
 git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
-cd amazon
+cd amazon-sagemaker-secure-mlops
 ```
 
 ## Prepare the CloudFormation templates

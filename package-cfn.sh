@@ -54,6 +54,11 @@ mkdir -p ${SEED_CODE_OUTPUT_DIR}
 rm -f build/*-${DEPLOYMENT_REGION}.zip
 cp ${CFN_TEMPLATE_DIR}/*.yaml ${CFN_OUTPUT_DIR}
 
+# Zip the source code
+echo "Zipping the source code"
+rm -f sagemaker-secure-mlops.zip
+zip -r sagemaker-secure-mlops.zip . -x "*.pdf" -x "*.git*" -x "*.DS_Store*" -x "*.vscode*" -x "/build/*" -x "internal-documents*"
+
 ## Zip the templates
 echo "Zipping CloudFormation templates in ${CFN_OUTPUT_DIR}"
 zip -r build/cfn-templates-${DEPLOYMENT_REGION}.zip ${CFN_OUTPUT_DIR}/*.yaml
@@ -92,6 +97,9 @@ do
         --region ${DEPLOYMENT_REGION}
     popd
 done
+
+# copy source code .zip file to the S3 bucket
+aws s3 cp sagemaker-secure-mlops.zip s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/
 
 # copy all seed-code .zip files from ${SEED_CODE_OUTPUT_DIR} to S3
 aws s3 cp ${SEED_CODE_OUTPUT_DIR} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/seed-code/ --recursive

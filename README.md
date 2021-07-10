@@ -694,23 +694,16 @@ All operations are performed under the SageMaker execution role.
 
 # Deployment
 
-# Pre-requisites
-To deploy the solution, you must have **Administrator** (or **Power User**) permissions to package the CloudFormation templates, stage templates in your Amazon S3 bucket, and run the deployment commands.
+## Pre-requisites
+To deploy the solution, you must have **Administrator** (or **Power User**) permissions to package the CloudFormation templates, upload templates in your Amazon S3 bucket, and run the deployment commands.
 
-You must also install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it. If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
+You must also install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
 
-To follow along with the deployment instructions, run the following commands in your terminal (all commands are for macOS/Linux and were tested for macOS 10.15.7)
-```sh
-git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
-cd amazon-sagemaker-secure-mlops
+## Package CloudFormation templates
+Please go through these [step-by-step instructions](package-cfn.md) to package and upload the solution templates into a S3 bucket for the deployment.
 
-S3_BUCKET_NAME=<your existing or new Amazon S3 bucket name>
-make package CFN_BUCKET_NAME=$S3_BUCKET_NAME DEPLOYMENT_REGION=$AWS_DEFAULT_REGION
-```
-
-You can specify either a name for an existing S3 bucket or a new name (an S3 bucket will be created for you). If you use the existing S3 bucket, it must be in **the same region** where you are deploying the CloudFormation templates.
-
-If you would like to run a security scan on the CloudFormation template using [`cfn_nag`](https://github.com/stelligent/cfn_nag) (recommended), you have to install `cfn_nag`:
+### Optional - run security scan on the CloudFormation templates
+If you would like to run a security scan on the CloudFormation templates using [`cfn_nag`](https://github.com/stelligent/cfn_nag) (recommended), you have to install `cfn_nag`:
 ```sh
 brew install ruby brew-gem
 brew gem install cfn-nag
@@ -721,7 +714,7 @@ To initiate the security scan, run the following command:
 make cfn_nag_scan
 ```
 
-# Deployment options
+## Deployment options
 You have a choice of different independent deployment options using the delivered CloudFormation templates:
 + **Data Science Environment Quickstart**: deploy end-to-end Data Science Environment with majority of options set to default values. This deployment type supports **single-account model deployment workflow** only. _You can change only few deployment options_
 + **Two-step deployment via CloudFormation**: deploy the core infrastructure in the first step and then deploy a Data Science Environment, both as CloudFormation templates. CLI `aws cloudformation create-stack` is used for deployment. _You can change any deployment option_
@@ -730,7 +723,7 @@ You have a choice of different independent deployment options using the delivere
 The following sections give step-by-step deployment instructions for each of the options.<br/>
 You can also find all CLI commands in the delivered shell scripts in the project folder `test`.
 
-## Special deployment options
+### Special deployment options
 This special type of deployment is designed for an environment, where all **IAM-altering** operations, such as role and policy creation, are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process following the **separation of duties** principle.
 
 The IAM part can be deployed using the delivered CloudFormation templates or completely separated out-of-stack in your own process.
@@ -858,7 +851,8 @@ Make sure you specify the CIDR blocks which do not conflict with your existing n
 
 ❗ You cannot use existing VPC or existing IAM roles to deploy this stack. The stack will provision a new own set of network and IAM resources.
 
-Initiate the stack deployment with the following command:
+Initiate the stack deployment with the following command. Use the S3 bucket name you used to upload CloudFormation templates in **Package CloudFormation templates** section.
+
 ```bash
 STACK_NAME="ds-quickstart"
 ENV_NAME="sagemaker-mlops"
@@ -882,6 +876,7 @@ After you have finished experimenting with the environment, you can delete all r
 First, delete the stack from AWS CloudFormation console or command line:
 ```bash
 aws cloudformation delete-stack --stack-name ds-quickstart
+aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 Second, do the steps from **Clean-up considerations** section.
 
@@ -1034,6 +1029,7 @@ First, delete the two root stacks from AWS CloudFormation console or command lin
 ```bash
 aws cloudformation delete-stack --stack-name sagemaker-mlops-env
 aws cloudformation delete-stack --stack-name sm-mlops-core
+aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 Second, do the steps from **Clean-up considerations** section.
 
@@ -1086,6 +1082,7 @@ First, do the following steps:
 + Delete the core infrastructure CloudFormation stack:
 ```bash
 aws cloudformation delete-stack --stack-name sm-mlops-core
+aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 Second, do the steps from **Clean-up considerations** section.
 
@@ -1115,6 +1112,9 @@ Second, do the steps from **Clean-up considerations** section.
 - [R22]: [Shutting Down Amazon SageMaker Studio Apps on a Scheduled Basis](https://medium.com/swlh/shutting-down-amazon-sagemaker-studio-kernelgateways-automatically-with-aws-lambda-41e93afef06b)
 - [R23]: [Register and Deploy Models with Model Registry](https://docs.aws.amazon.com/sagemaker/latest/dg/model-registry.html)
 - [R24]: [Setting up secure, well-governed machine learning environments on AWS](https://aws.amazon.com/blogs/mt/setting-up-machine-learning-environments-aws/)
+- [R25]: [Machine learning best practices in financial services](https://aws.amazon.com/blogs/machine-learning/machine-learning-best-practices-in-financial-services/)
+- [R26]: [Machine Learning Best Practices in Financial Services](https://d1.awsstatic.com/whitepapers/machine-learning-in-financial-services-on-aws.pdf)
+- [R27]: [Dynamic A/B testing for machine learning models with Amazon SageMaker MLOps projects](https://aws.amazon.com/blogs/machine-learning/dynamic-a-b-testing-for-machine-learning-models-with-amazon-sagemaker-mlops-projects/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)

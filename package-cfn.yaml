@@ -1,0 +1,109 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  Package CloudFormation template into the provided S3 bucket
+
+Parameters:
+  S3BucketName:
+    Description: Name of the existing S3 bucket where the CloudFormation templates will be packaged
+    Type: String
+
+Outputs:
+  CoreMainStackS3Uri:
+    Description: S3 URI for core infrastructure stack
+    Value: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/core-main.yaml'
+
+  EnvMainStackS3Uri:
+    Description: S3 URI for data science environment stack
+    Value: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/env-main.yaml'
+
+  QuickStartStackS3Uri:
+    Description: S3 URI for quick start stack
+    Value: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/data-science-environment-quickstart.yaml'
+
+  CoreMainStackDeployLink:
+    Description: Link to open CloudFormation with core infrastructure stack
+    Value: !Sub 'https://console.aws.amazon.com/cloudformation/home?region=${AWS::Region}#/stacks/new?templateURL=https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/core-main.yaml'
+
+  QuickStartStackDeployLink:
+    Description: Link to open CloudFormation with core infrastructure stack
+    Value: !Sub 'https://console.aws.amazon.com/cloudformation/home?region=${AWS::Region}#/stacks/new?templateURL=https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/data-science-environment-quickstart.yaml'
+
+  StartBuildCLICommand:
+    Description: Link to open CloudFormation with core infrastructure stack
+    Value: !Sub 'aws codebuild start-build --project-name ${CfnTemplatePackageProject}'
+
+Resources:
+
+  CodeBuildServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: '/service-role/'
+      Policies:
+        - PolicyName: CodeBuildServiceRoleInLinePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 's3:*Object'
+                  - 's3:GetObjectVersion'
+                  - 's3:GetBucketAcl'
+                  - 's3:GetBucketLocation'
+                  - 's3:ListBucket'
+                  - 's3:PutObjectTagging'
+                  - 's3:CreateBucket'
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${S3BucketName}'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
+                Effect: 'Allow'
+              -
+                Action:
+                  - 'codebuild:CreateReportGroup'
+                  - 'codebuild:CreateReport'
+                  - 'codebuild:UpdateReport'
+                  - 'codebuild:BatchPutTestCases'
+                  - 'codebuild:BatchPutCodeCoverages'
+                Resource: !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/*'
+                Effect: 'Allow'
+
+  CfnTemplatePackageProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Description: !Sub 'Packaging CFN templates into ${S3BucketName}'
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts: 
+        Type: NO_ARTIFACTS
+      Environment:
+        Type: 'LINUX_CONTAINER'
+        ComputeType: 'BUILD_GENERAL1_SMALL'
+        Image: 'aws/codebuild/amazonlinux2-x86_64-standard:3.0'
+        EnvironmentVariables:
+          - Name: 'S3_BUCKET_NAME'
+            Value: !Ref S3BucketName
+          - Name: 'DEPLOYMENT_REGION'
+            Value: !Ref AWS::Region
+      Source:
+        Type: S3
+        Location: !Sub '${S3BucketName}/sagemaker-mlops/sagemaker-secure-mlops.zip'
+        BuildSpec: buildspec-package-cfn.yml
+      LogsConfig:
+        CloudWatchLogs:
+          Status: 'ENABLED'
+      TimeoutInMinutes: 5

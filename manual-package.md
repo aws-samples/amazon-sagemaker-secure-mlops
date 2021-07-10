@@ -11,7 +11,7 @@ If you have an S3 bucket in the same region where you are deploying and you have
 
 To create a new S3 bucket:
 ```bash
-CFN_BUCKET_NAME=<you new bucket name>
+CFN_BUCKET_NAME=<your new S3 bucket name>
 PROJECT_NAME=sagemaker-poc
 
 aws s3 mb s3://${CFN_BUCKET_NAME} --region $AWS_DEFAULT_REGION
@@ -65,11 +65,11 @@ aws cloudformation package \
     --template-file $FILE \
     --s3-bucket $CFN_BUCKET_NAME \
     --s3-prefix $PROJECT_NAME \
-    --output-template-file $FILE-$AWS_DEFAULT_REGION \
+    --output-template-file $FILE-packaged \
     --region $AWS_DEFAULT_REGION
 ```
 
-## 3 Copy CloudFormation templates to the S3 bucket
+## 3 Upload CloudFormation templates to the S3 bucket
 For each of the files:
 + `core-main.yaml-packaged`
 + `env-main.yaml-packaged`
@@ -82,13 +82,10 @@ For each of the files:
 run the following commands:
 
 ```bash
-FILE=
+FILE=<file name from the upload file list>
 PROJECT_NAME=sagemaker-poc
 
-aws s3 cp $FILE-packaged s3://$CFN_BUCKET_NAME/$PROJECT_NAME/$FILE
-
-echo https://s3.${AWS_DEFAULT_REGION}.amazonaws.com/${CFN_BUCKET_NAME}/${PROJECT_NAME}/${FILE}
+aws s3 cp $FILE s3://$CFN_BUCKET_NAME/$PROJECT_NAME/$FILE
 ```
-
 
 Now you can go to AWS CloudFormation console and deploy templates via S3 URLs
