@@ -1,5 +1,5 @@
 # Package CloudFormation templates
-Before you can deploy the delivered [CloudFormation templates](cfn_templates), they need to be packaged and uploaded to an Amazon S3 bucket for deployment. There are two options how you can performe this preparation step.
+Before you can deploy the delivered [CloudFormation templates](cfn_templates), they need to be packaged and uploaded to an Amazon S3 bucket for deployment. There are two options how you can perform this preparation step.
 
 ## Option 1 - use a CloudFormation template to package and upload
 This option first deploys a simple CloudFormation template [`package-cfn.yaml`](package-cfn.yaml). The template creates a [CodeBuild](https://aws.amazon.com/codebuild/) project which packages and uploads the deployment templates into the specified S3 bucket.
@@ -12,7 +12,7 @@ git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
 cd amazon-sagemaker-secure-mlops
 ```
 
-2. If you do not have an S3 bucket, you can create a brand new one. Skip this step if you already have an S3 bucket.
+2. If you do not have an S3 bucket, you must create a brand new one. **Skip this step if you already have an S3 bucket**.
 ```sh
 S3_BUCKET_NAME=<your new S3 bucket name>
 aws s3 mb s3://${S3_BUCKET_NAME} --region $AWS_DEFAULT_REGION
@@ -20,16 +20,11 @@ aws s3 mb s3://${S3_BUCKET_NAME} --region $AWS_DEFAULT_REGION
 
 3. Upload the source code zip file `sagemaker-secure-mlops.zip` to the S3 bucket:
 ```sh
-S3_BUCKET_NAME=<your existing or new S3 bucket name>
+S3_BUCKET_NAME=<your existing or just created S3 bucket name>
 aws s3 cp sagemaker-secure-mlops.zip s3://${S3_BUCKET_NAME}/sagemaker-mlops/
 ```
 
-4. Check that the file has been uploaded to the S3 bucket:
-```sh
-aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/
-```
-
-5. Deploy the CloudFormation template (`S3_BUCKET_NAME` must be set to your S3 bucket name that you would like to use for deployment):
+4. Deploy the CloudFormation template:
 ```sh
 STACK_NAME=sagemaker-mlops-package-cfn
 aws cloudformation deploy \
@@ -40,7 +35,7 @@ aws cloudformation deploy \
         S3BucketName=$S3_BUCKET_NAME 
 ```
 
-6. Wait until deployment has finished and print the stack outputs with the following command:
+5. Wait until deployment has finished and print the stack outputs with the following command:
 ```sh
 aws cloudformation describe-stacks \
     --stack-name $STACK_NAME \
@@ -50,16 +45,7 @@ aws cloudformation describe-stacks \
 
 📜 **Save it to your scratch pad for later use.**
 
-7. Finally, copy the `StartBuildCLICommand` variable from the output:
-![start-build-project-link](img/start-build-project-link.png)
-
-and paste it into your CLI terminal (the last part of the `project-name` will look different in your environment):
-```sh
-aws codebuild start-build --project-name CfnTemplatePackageProject-CoaXWTma0rbt
-```
-
-8. Wait couple of minutes and check that the CodeBuild project uploaded the templates into the S3 bucket:
-
+7. Check that the deployment templates are uploaded into the S3 bucket:
 ```sh
 aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/ --recursive
 ```
