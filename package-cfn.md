@@ -35,7 +35,7 @@ aws cloudformation deploy \
         S3BucketName=$S3_BUCKET_NAME 
 ```
 
-5. Wait until deployment has finished and print the stack outputs with the following command:
+5. Wait until deployment has finished and print the stack outputs with the following command (you may wait couple of minutes before the templates appear in the S3 bucket):
 ```sh
 aws cloudformation describe-stacks \
     --stack-name $STACK_NAME \
