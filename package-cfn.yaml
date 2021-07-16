@@ -32,7 +32,7 @@ Outputs:
     Value: !Sub 'https://console.aws.amazon.com/cloudformation/home?region=${AWS::Region}#/stacks/new?templateURL=https://s3.${AWS::Region}.amazonaws.com/${S3BucketName}/sagemaker-mlops/data-science-environment-quickstart.yaml'
 
   StartBuildCLICommand:
-    Description: Link to open CloudFormation with core infrastructure stack
+    Description: CLI to start CodeBuild build
     Value: !Sub 'aws codebuild start-build --project-name ${CfnTemplatePackageProject}'
 
 Resources:

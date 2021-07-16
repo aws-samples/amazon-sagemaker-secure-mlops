@@ -377,10 +377,23 @@ This section describes security controls and best practices implemented by the s
 #### Preventive
 We use an IAM role policy which enforce usage of specific security controls. For example, all SageMaker workloads must be created in the VPC with specified security groups and subnets:
 ```json
-"Condition": {
-  "Null": {
-    "sagemaker:VpcSecurityGroupIds": "true"
-  }
+{
+    "Condition": {
+        "Null": {
+            "sagemaker:VpcSubnets": "true"
+        }
+    },
+    "Action": [
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:CreateHyperParameterTuningJob",
+        "sagemaker:CreateProcessingJob",
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:CreateModel"
+    ],
+    "Resource": [
+        "arn:aws:sagemaker:*:<ACCOUNT_ID>:*"
+    ],
+    "Effect": "Deny"
 }
 ```
 [List of IAM policy conditions for Amazon SageMaker](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonsagemaker.html)
@@ -691,6 +704,95 @@ aws sts get-caller-identity
 ![get role](img/sagemaker-execution-role.png)
 
 All operations are performed under the SageMaker execution role.
+
+## Test preventive IAM policies
+Try to start a training job without VPC attachment:
+```python
+container_uri = sagemaker.image_uris.retrieve(region=session.region_name, 
+                                              framework='xgboost', 
+                                              version='1.0-1', 
+                                              image_scope='training')
+
+xgb = sagemaker.estimator.Estimator(image_uri=container_uri,
+                                    role=sagemaker_execution_role, 
+                                    instance_count=2, 
+                                    instance_type='ml.m5.xlarge',
+                                    output_path='s3://{}/{}/model-artifacts'.format(default_bucket, prefix),
+                                    sagemaker_session=sagemaker_session,
+                                    base_job_name='reorder-classifier',
+                                    subnets=network_config.subnets,
+                                    security_group_ids=network_config.security_group_ids,
+                                    encrypt_inter_container_traffic=network_config.encrypt_inter_container_traffic,
+                                    enable_network_isolation=network_config.enable_network_isolation,
+                                    volume_kms_key=ebs_kms_id,
+                                    output_kms_key=s3_kms_id
+                                   )
+
+xgb.set_hyperparameters(objective='binary:logistic',
+                        num_round=100)
+
+xgb.fit({'train': train_set_pointer, 'validation': validation_set_pointer})
+```
+
+
+You will get `AccessDeniedException` because of the explicit `Deny` in the IAM policy:
+
+![start-training-job-without-vpc](img/start-training-job-without-vpc.png)
+![accessdeniedexception](img/accessdeniedexception.png)
+
+IAM policy:
+```json
+{
+    "Condition": {
+        "Null": {
+            "sagemaker:VpcSubnets": "true",
+            "sagemaker:VpcSecurityGroup": "true"
+        }
+    },
+    "Action": [
+        "sagemaker:CreateNotebookInstance",
+        "sagemaker:CreateHyperParameterTuningJob",
+        "sagemaker:CreateProcessingJob",
+        "sagemaker:CreateTrainingJob",
+        "sagemaker:CreateModel"
+    ],
+    "Resource": [
+        "arn:aws:sagemaker:*:<ACCOUNT_ID>:*"
+    ],
+    "Effect": "Deny"
+}
+```
+
+Now add the secure network configuration to the `Estimator`:
+```python
+network_config = NetworkConfig(
+        enable_network_isolation=False, 
+        security_group_ids=env_data["SecurityGroups"],
+        subnets=env_data["SubnetIds"],
+        encrypt_inter_container_traffic=True)
+```
+
+```python
+xgb = sagemaker.estimator.Estimator(
+    image_uri=container_uri,
+    role=sagemaker_execution_role, 
+    instance_count=2, 
+    instance_type='ml.m5.xlarge',
+    output_path='s3://{}/{}/model-artifacts'.format(default_bucket, prefix),
+    sagemaker_session=sagemaker_session,
+    base_job_name='reorder-classifier',
+
+    subnets=network_config.subnets,
+    security_group_ids=network_config.security_group_ids,
+    encrypt_inter_container_traffic=network_config.encrypt_inter_container_traffic,
+    enable_network_isolation=network_config.enable_network_isolation,
+    volume_kms_key=ebs_kms_id,
+    output_kms_key=s3_kms_id
+
+  )
+```
+
+You will be able to create and run the training job
 
 # Deployment
 
@@ -1115,6 +1217,8 @@ Second, do the steps from **Clean-up considerations** section.
 - [R25]: [Machine learning best practices in financial services](https://aws.amazon.com/blogs/machine-learning/machine-learning-best-practices-in-financial-services/)
 - [R26]: [Machine Learning Best Practices in Financial Services](https://d1.awsstatic.com/whitepapers/machine-learning-in-financial-services-on-aws.pdf)
 - [R27]: [Dynamic A/B testing for machine learning models with Amazon SageMaker MLOps projects](https://aws.amazon.com/blogs/machine-learning/dynamic-a-b-testing-for-machine-learning-models-with-amazon-sagemaker-mlops-projects/)
+- [R28]: [Hosting a private PyPI server for Amazon SageMaker Studio notebooks in a VPC](https://aws.amazon.com/blogs/machine-learning/hosting-a-private-pypi-server-for-amazon-sagemaker-studio-notebooks-in-a-vpc/)
+- [R29]: [Automate a centralized deployment of Amazon SageMaker Studio with AWS Service Catalog](https://aws.amazon.com/blogs/machine-learning/automate-a-centralized-deployment-of-amazon-sagemaker-studio-with-aws-service-catalog/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)

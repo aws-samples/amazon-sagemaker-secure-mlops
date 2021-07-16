@@ -366,6 +366,7 @@ Resources:
               - 'sagemaker:CreateHyperParameterTuningJob'
               - 'sagemaker:CreateProcessingJob'
               - 'sagemaker:CreateTrainingJob'
+              - 'sagemaker:CreateCompilationJob'
               - 'sagemaker:CreateModel'
             Resource:
               - !Sub 'arn:aws:sagemaker:*:${AWS::AccountId}:*'
