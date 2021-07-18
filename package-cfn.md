@@ -52,7 +52,7 @@ aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/ --recursive
 
 ![upoaded-cfn-templates-ls](img/upoaded-cfn-templates-ls.png)
 
-Now all deployment CloudFormation templates are packaged and uploaded to your S3 bucket. You can proceed with [further deployment steps](README.md#Deployment).
+Now all deployment CloudFormation templates are packaged and uploaded to your S3 bucket. You can proceed with [further deployment steps](README.md#deployment).
 
 ## Option 2 - use a shell script to package and upload
 If you use macOS/Linux you can run the delivered packaging script via `make` command. This script **will not** work on Windows.

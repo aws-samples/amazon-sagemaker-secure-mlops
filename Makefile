@@ -30,6 +30,12 @@ build: clean
 package: build 
 		./package-cfn.sh $(CFN_BUCKET_NAME) $(AWS_DEFAULT_REGION)
 
+zip:
+	echo "Zipping the source code"
+	rm -f sagemaker-secure-mlops.zip
+	zip -r sagemaker-secure-mlops.zip . -x "*.pdf" -x "*.git*" -x "*.DS_Store*" -x "*.vscode*" -x "/build/*" -x "internal-documents*"
+
+
 cfn_nag_scan: 
 	cfn_nag_scan --input-path ./cfn_templates
 

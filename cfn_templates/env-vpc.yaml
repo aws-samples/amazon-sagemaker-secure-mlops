@@ -1564,6 +1564,14 @@ Resources:
               ]
           },
           {
+            "Effect": "Allow", 
+            "Principal": "*", 
+            "Action":[
+              "s3:DeleteBucket"
+            ], 
+            "Resource": "arn:aws:s3:::sm-mlops-cp-*"
+          },
+          {
               "Effect": "Allow",
               "Principal": "*",
               "Action": [

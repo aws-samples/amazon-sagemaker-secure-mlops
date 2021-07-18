@@ -1,6 +1,8 @@
 # Manual packaging of CloudFormation templates
 This manual takes you in three simple steps through the process of preparing the delivered CloudFormation templates for the deployment.
 
+❗ Use this guide only if you have reasons to do so. Otherwise use the automated packaging process described in [`package-cfn`](package-cfn.md).
+
 ## Pre-requisites
 Configured AWS CLI with CloudFormation `package` and S3 bucket write/read rights, `$AWS_DEFAULT_REGION` set to the region where you are going to deploy
 

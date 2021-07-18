@@ -203,6 +203,10 @@ aws cloudformation delete-stack --stack-name $ENV_STACK_NAME
 echo "Wait till $ENV_STACK_NAME stack delete completion"
 aws cloudformation wait stack-delete-complete --stack-name $ENV_STACK_NAME
 
+# Show all EFS with SageMaker tag set
+aws efs describe-file-systems \
+  --query 'FileSystems[].Tags[?Key==`ManagedByAmazonSageMakerResource`].Value[]'
+
 echo "Delete SageMaker EFS"
 python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 
