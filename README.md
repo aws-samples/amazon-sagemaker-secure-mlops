@@ -883,44 +883,57 @@ CloudFormation `delete-stack` will not remove any non-empty S3 bucket. You must 
 
 First, remove VPC-only access policy from the data and model bucket to be able to delete objects from a CLI terminal.
 ```sh
-ENV_NAME=<your data science environment name you chosen when you created the stack>
-aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-data
-aws s3api delete-bucket-policy --bucket $ENV_NAME-${AWS_DEFAULT_REGION}-models
+ENV_NAME=<use default name `sm-mlops` or your data science environment name you chosen when you created the stack>
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-data
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-models
 ```
 
 ❗ **This is a destructive action. The following command will delete all files in the data and models S3 buckets** ❗  
 
 Now you can empty the buckets:
 ```sh
-aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-data --recursive
-aws s3 rm s3://$ENV_NAME-$AWS_DEFAULT_REGION-models --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-data --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-models --recursive
 ```
 
 ### Step 3: Delete data science environment CloudFormation stacks
-Depending on the [deployment type](#deployment-options), you must delete the corresponding CloudFormation stacks.
+Depending on the [deployment type](#deployment-options), you must delete the corresponding CloudFormation stacks. The following commands use the default stack names. If you customized the stack names, adjust the commands correspondingly.
 
 #### Delete data science environment quickstart
 ```sh
 aws cloudformation delete-stack --stack-name ds-quickstart
+aws cloudformation wait stack-delete-complete --stack-name ds-quickstart
 aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 
 #### Delete two-step deployment via CloudFormation
 ```sh
-aws cloudformation delete-stack --stack-name sagemaker-mlops-env
-aws cloudformation delete-stack --stack-name sm-mlops-core
+aws cloudformation delete-stack --stack-name sm-mlops-env
+aws cloudformation wait stack-delete-complete --stack-name sm-mlops-env
+aws cloudformation delete-stack --stack-name sm-mlops-core 
+aws cloudformation wait stack-delete-complete --stack-name sm-mlops-core
 aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 
 #### Delete two-step deployment via CloudFormation and AWS Service Catalog
-1. Assume DS Administrator IAM role via link in the CloudFormation output
-1. In AWS Service Catalog console go to the [_Provisioned Products_](https://console.aws.amazon.com/servicecatalog/home?#provisioned-products), select your product and click **Terminate** from the **Action** button. Wait until the delete process ends.
+1. Assume DS Administrator IAM role via link in the CloudFormation output.
+```sh
+aws cloudformation describe-stacks \
+    --stack-name sm-mlops-core  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
+```
+
+2. In AWS Service Catalog console go to the [_Provisioned Products_](https://console.aws.amazon.com/servicecatalog/home?#provisioned-products), select your product and click **Terminate** from the **Action** button. Wait until the delete process ends.
 
 ![terminate-product](img/terminate-product.png)
 
-1. Delete the core infrastructure CloudFormation stack:
+![product-terminate](img/product-terminate.png)
+
+3. Delete the core infrastructure CloudFormation stack:
 ```sh
 aws cloudformation delete-stack --stack-name sm-mlops-core
+aws cloudformation wait stack-delete-complete --stack-name sm-mlops-core
 aws cloudformation delete-stack --stack-name sagemaker-mlops-package-cfn
 ```
 
@@ -955,7 +968,7 @@ aws efs describe-file-systems \
 2. Copy the SageMaker domain ID and run the following script from the solution directory:
 ```sh
 SM_DOMAIN_ID=#SageMaker domain id
-python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
+pipenv run python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
 ```
 
 For the full clean-up scrip please refer to the `Clean up` secion in the delivered [shell script](test/cfn-test-e2e.sh) and instructions in [MLOps project section](#clean-up-after-MLOps-project-templates).

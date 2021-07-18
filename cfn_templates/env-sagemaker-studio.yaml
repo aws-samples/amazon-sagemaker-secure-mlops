@@ -204,6 +204,7 @@ Conditions:
   GenerateProfileNameCondition: !Equals [ !Ref UserProfileName, '' ]
   SageMakerEFSKMSKeyCondition: !Not [ !Equals [ !Ref SageMakerStudioStorageKMSKeyId, ''] ]
   KernelGatewayAppsCondition: !Equals [ !Ref StartKernelGatewayApps, 'YES' ]
+  NoKernelGatewayAppsCondition: !Equals [ !Ref StartKernelGatewayApps, 'NO' ]
 
 Resources:
   SageMakerStudioDomain:
@@ -315,8 +316,20 @@ Resources:
       ServiceToken: !GetAtt EnableSageMakerProjectsLambda.Arn
       ExecutionRole: !Ref SageMakerExecutionRoleArn
 
-  DeleteKernelGatewayApps:
+  DeleteKernelGatewayAppsNoKGCondition:
     Type: Custom::DeleteKernelGatewayApps
+    Condition: NoKernelGatewayAppsCondition
+    DependsOn: SageMakerUserProfile
+    Properties:
+      ServiceToken: !GetAtt DeleteKernelGatewayAppsLambda.Arn
+      DomainId: !GetAtt SageMakerStudioDomain.DomainId
+
+  DeleteKernelGatewayAppsKGCondition:
+    Type: Custom::DeleteKernelGatewayApps
+    Condition: KernelGatewayAppsCondition
+    DependsOn: 
+      - DataScienceApp
+      - DataWranglerApp
     Properties:
       ServiceToken: !GetAtt DeleteKernelGatewayAppsLambda.Arn
       DomainId: !GetAtt SageMakerStudioDomain.DomainId
