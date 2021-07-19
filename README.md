@@ -763,7 +763,7 @@ You will be able to create and run the training job
 ## Pre-requisites
 To deploy the solution, you must have **Administrator** (or **Power User**) permissions to package the CloudFormation templates, upload templates in your Amazon S3 bucket, and run the deployment commands.
 
-You must also install [AWS CLI](https://aws.amazon.com/cli/) if you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
+You must also have [AWS CLI](https://aws.amazon.com/cli/). If you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
 
 ## Package CloudFormation templates
 Please go through these [step-by-step instructions](package-cfn.md) to package and upload the solution templates into a S3 bucket for the deployment.

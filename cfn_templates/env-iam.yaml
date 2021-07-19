@@ -455,9 +455,15 @@ Resources:
             Action:
               - 'cloudformation:DeleteStackInstances'
               - 'cloudformation:DeleteStackSet'
-              - 'cloudformation:ListStackInstances'
             Resource: 
               - 'arn:aws:cloudformation:*:*:stackset/sagemaker-*'
+            Effect: Allow
+          - 
+            Action:
+              - 'cloudformation:List*'
+              - 'cloudformation:Describe*'
+            Resource: 
+              - !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*'
             Effect: Allow
           - 
             Action:

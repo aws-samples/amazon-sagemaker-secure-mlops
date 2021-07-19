@@ -35,7 +35,7 @@ def delete_apps(domain_id):
     logger.info(f'KernelGateway apps for {domain_id} deleted')
     return
 
-def handler(event, context):
+def lambda_handler(event, context):
     response_data = {}
     physicalResourceId = event.get('PhysicalResourceId')
 

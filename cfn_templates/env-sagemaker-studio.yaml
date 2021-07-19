@@ -377,7 +377,7 @@ Resources:
               logger.info(f'KernelGateway apps for {domain_id} deleted')
               return
 
-          def handler(event, context):
+          def lambda_handler(event, context):
               response_data = {}
               physicalResourceId = event.get('PhysicalResourceId')
 
@@ -393,7 +393,7 @@ Resources:
               except ClientError as exception:
                   logging.error(exception)
                   cfnresponse.send(event, context, cfnresponse.FAILED, response_data, physicalResourceId=physicalResourceId, reason=str(exception))
-
+                
       Description: Delete KernelGateway apps to clean up
       Handler: index.lambda_handler
       MemorySize: 128
