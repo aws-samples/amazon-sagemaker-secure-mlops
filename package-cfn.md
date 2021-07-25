@@ -50,7 +50,7 @@ aws cloudformation describe-stacks \
 aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/ --recursive
 ```
 
-![upoaded-cfn-templates-ls](img/upoaded-cfn-templates-ls.png)
+![uploaded-cfn-templates-ls](img/uploaded-cfn-templates-ls.png)
 
 Now all deployment CloudFormation templates are packaged and uploaded to your S3 bucket. You can proceed with [further deployment steps](README.md#deployment).
 

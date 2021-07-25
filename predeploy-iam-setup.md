@@ -16,10 +16,10 @@ cd amazon-sagemaker-secure-mlops
 ### Delete the previous deployment stacks
 
 #### Delete the data science environment and core infrastructure CloudFormation stacks
-Delete the both the data science environmetn and the core infrastructure CloudFormation stacks starting with the data science environment:
+Delete the both the data science environment and the core infrastructure CloudFormation stacks starting with the data science environment:
 ```sh
-aws cloudformation delete-stack --stack-name <DS enviroment stack name>
-aws cloudformation wait stack-delete-complete --stack-name <DS enviroment stack name>
+aws cloudformation delete-stack --stack-name <DS environment stack name>
+aws cloudformation wait stack-delete-complete --stack-name <DS environment stack name>
 
 aws cloudformation delete-stack --stack-name <core stack name>
 aws cloudformation wait stack-delete-complete --stack-name <core stack name>
@@ -85,7 +85,7 @@ aws iam delete-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
 ```
 
 ### Dev account deployment
-Run the follwing steps in the **dev** account. Dev account is the account where the SageMaker Studio environment will be deployed.
+Run the following steps in the **dev** account. Dev account is the account where the SageMaker Studio environment will be deployed.
 
 #### Step 0
 Deploy the setup stack set execution role in each of the **staging** and **target** accounts. This step is only needed if:
@@ -150,7 +150,7 @@ aws cloudformation deploy \
 ```
 
 #### Step 4
-Deploy target account roles (for a trival single-account deployment use case):
+Deploy target account roles (for a trivial single-account deployment use case):
 ```sh
 ENV_NAME=ds-team
 ADMIN_ACCOUNT_ID=<id of the dev account where SageMaker Studio will be deployed>

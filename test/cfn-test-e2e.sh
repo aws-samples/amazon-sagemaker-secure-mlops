@@ -79,8 +79,8 @@ STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 STAGING_OU_ID=""
 PROD_OU_ID=""
-STAGING_ACCOUNTS="322676557848"
-PROD_ACCOUNTS="404668521988"
+STAGING_ACCOUNTS=""
+PROD_ACCOUNTS=""
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
@@ -188,6 +188,8 @@ aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-data --recursive
 aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-models --recursive
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# This code is normally **not used** - the CloudFormation deletion process calls Lambda function, which deletes KernelGateway apps
 aws sagemaker list-apps
 
 aws sagemaker delete-app \
