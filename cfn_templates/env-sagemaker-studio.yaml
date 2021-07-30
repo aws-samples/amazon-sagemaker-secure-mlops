@@ -141,7 +141,7 @@ Parameters:
 
   DomainName:
     Type: String
-    Description: SageMaker Studion domain name. Leave empty to auto generate.
+    Description: SageMaker Studio domain name. Leave empty to auto generate.
     Default: ''
 
   UserProfileName:
