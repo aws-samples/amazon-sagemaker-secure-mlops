@@ -186,7 +186,7 @@ aws cloudformation describe-stacks \
 ```
 
 ### Staging and production accounts deployment
-For multi-account model deployment use case you must deploy the execution roles in **each** of the staging and production accounts.  
+For a multi-account model deployment use case you must deploy the execution roles in **each** of the staging and production accounts.  
 ❗ Now you must set two stack parameters `SageMakerModelExecutionRoleName` and `StackSetExecutionRoleName` to the values of the role names returned in the output of `env-iam-target-account-roles` stack which you have deployed in the dev account in the Step 4.
 
 Log in the **dev account** and get the output of the `env-iam-target-account-roles` stack:

@@ -1551,7 +1551,8 @@ Resources:
               "s3:GetObjectVersion",
               "s3:AbortMultipartUpload",
               "s3:GetBucketLocation",
-              "s3:GetBucketTagging"
+              "s3:GetBucketTagging",
+              "s3:ListMultipartUploadParts"
             ], 
             "Resource":[
               "arn:aws:s3:::*${ModelBucketName}*",

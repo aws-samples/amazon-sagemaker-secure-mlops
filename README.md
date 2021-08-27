@@ -1,6 +1,10 @@
 # Amazon SageMaker secure MLOps
 The goal of the solution is to demonstrate a deployment of Amazon SageMaker Studio into a secure controlled environment with multi-layer security and implementation of secure MLOps CI/CD pipelines.
 
+This GitHub repository is for the two-part series of blog posts on [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/):
+- [Secure multi-account model deployment with Amazon SageMaker: Part 1](https://aws.amazon.com/blogs/machine-learning/part-1-secure-multi-account-model-deployment-with-amazon-sagemaker/)
+- [Secure multi-account model deployment with Amazon SageMaker: Part 2](https://aws.amazon.com/blogs/machine-learning/part-2-secure-multi-account-model-deployment-with-amazon-sagemaker/)
+
 This solution covers the main four topics:
 1. Secure deployment of [Amazon SageMaker Studio](https://aws.amazon.com/sagemaker/studio/) into a new or an existing secure environment (VPC, private subnets, VPC endpoints, security groups). We implement end-to-end data encryption and fine-grained access control
 2. Self-service data science environment provisioning based on [AWS Service Catalog](https://aws.amazon.com/servicecatalog/?aws-service-catalog.sort-by=item.additionalFields.createdDate&aws-service-catalog.sort-order=desc) and [AWS CloudFormation](https://aws.amazon.com/cloudformation/)
@@ -396,7 +400,7 @@ We use an IAM role policy which enforce usage of specific security controls. For
     "Effect": "Deny"
 }
 ```
-[List of IAM policy conditions for Amazon SageMaker](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonsagemaker.html)
+[List of IAM policy conditions for Amazon SageMaker](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonsagemaker.html). For more examples, refer to the [developer guide](https://docs.aws.amazon.com/sagemaker/latest/dg/security_iam_id-based-policy-examples.html).
 
 We use an Amazon S3 bucket policy explicitly denies all access which is **not originated** from the designated S3 VPC endpoints:
 ```json
@@ -535,7 +539,7 @@ SageMaker model-hosting endpoints are placed in a VPC **(6)** in each of the tar
     }
 ```
 
-### Multi-account model deployment pre-requisites
+### Multi-account model deployment prerequisites
 Multi-account model deployment can use the AWS Organizations setup to deploy model to the staging and production organizational units (OUs) **or** provided staging and production account lists. For a proper functioning of the **multi-account** deployment process, you must configure the cross-account access and specific execution roles in the target accounts.
 
 #### Execution roles
@@ -551,8 +555,8 @@ _Alternatively_ you can choose to use single-account deployment. In this case th
 
 ![multi-account-deployment-flag](img/multi-account-deployment-flag.png)
 
-### Model deployment pre-requisites
-The following pre-requisites are common for both single- and multi-account deployment. **These pre-requisites are automatically provisioned if you use provided CLoudFormation templates.**
+### Model deployment prerequisites
+The following prerequisites are common for both single- and multi-account deployment. **These prerequisites are automatically provisioned if you use provided CLoudFormation templates.**
 
 + SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment will fail as it requires at least two AZs to deploy an endpoint
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
@@ -684,10 +688,6 @@ xgb = sagemaker.estimator.Estimator(image_uri=container_uri,
                                     output_path='s3://{}/{}/model-artifacts'.format(default_bucket, prefix),
                                     sagemaker_session=sagemaker_session,
                                     base_job_name='reorder-classifier',
-                                    subnets=network_config.subnets,
-                                    security_group_ids=network_config.security_group_ids,
-                                    encrypt_inter_container_traffic=network_config.encrypt_inter_container_traffic,
-                                    enable_network_isolation=network_config.enable_network_isolation,
                                     volume_kms_key=ebs_kms_id,
                                     output_kms_key=s3_kms_id
                                    )
@@ -760,7 +760,7 @@ You will be able to create and run the training job
 
 # Deployment
 
-## Pre-requisites
+## Prerequisites
 To deploy the solution, you must have **Administrator** (or **Power User**) permissions to package the CloudFormation templates, upload templates in your Amazon S3 bucket, and run the deployment commands.
 
 You must also have [AWS CLI](https://aws.amazon.com/cli/). If you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
@@ -797,7 +797,7 @@ You will provide the ARNs for the IAM roles as CloudFormation template parameter
 
 See [Appendix B](#appendix-b)
 
-## Multi-account model deployment workflow pre-requisites
+## Multi-account model deployment workflow prerequisites
 Multi-account model deployment requires VPC infrastructure and specific execution roles to be provisioned in the target accounts. The provisioning of the infrastructure and the roles is done automatically during the deployment of the data science environment as a part of the overall deployment process. **To enable multi-account setup you must provide the staging and production organizational unit (OUs) IDs OR staging and production lists as CloudFormation parameters for the deployment.**
 
 This diagram shows how the CloudFormation stack sets are used to deploy the needed infrastructure to the target accounts.
@@ -968,7 +968,11 @@ aws efs describe-file-systems \
   --query 'FileSystems[].Tags[?Key==`ManagedByAmazonSageMakerResource`].Value[]'
 ```
 
-2. Copy the SageMaker domain ID and run the following script from the solution directory:
+❗ If you have multiple EFS, double check that you copy the correct domain ID ❗ 
+
+2. Copy the SageMaker domain ID and run the following script from the solution directory:  
+
+❗ This script will delete the EFS ❗ 
 ```sh
 SM_DOMAIN_ID=#SageMaker domain id
 pipenv run python3 functions/pipeline/clean-up-efs-cli.py $SM_DOMAIN_ID
@@ -1250,12 +1254,16 @@ Refer to [clean up](#clean-up) section.
 - [R22]: [Shutting Down Amazon SageMaker Studio Apps on a Scheduled Basis](https://medium.com/swlh/shutting-down-amazon-sagemaker-studio-kernelgateways-automatically-with-aws-lambda-41e93afef06b)
 - [R23]: [Register and Deploy Models with Model Registry](https://docs.aws.amazon.com/sagemaker/latest/dg/model-registry.html)
 - [R24]: [Setting up secure, well-governed machine learning environments on AWS](https://aws.amazon.com/blogs/mt/setting-up-machine-learning-environments-aws/)
-- [R25]: [Machine learning best practices in financial services](https://aws.amazon.com/blogs/machine-learning/machine-learning-best-practices-in-financial-services/)
-- [R26]: [Machine Learning Best Practices in Financial Services](https://d1.awsstatic.com/whitepapers/machine-learning-in-financial-services-on-aws.pdf)
+- [R25]: [Machine Learning Best Practices in Financial Services: Blog post](https://aws.amazon.com/blogs/machine-learning/machine-learning-best-practices-in-financial-services/)
+- [R26]: [Machine Learning Best Practices in Financial Services: Whitepaper](https://d1.awsstatic.com/whitepapers/machine-learning-in-financial-services-on-aws.pdf)
 - [R27]: [Dynamic A/B testing for machine learning models with Amazon SageMaker MLOps projects](https://aws.amazon.com/blogs/machine-learning/dynamic-a-b-testing-for-machine-learning-models-with-amazon-sagemaker-mlops-projects/)
 - [R28]: [Hosting a private PyPI server for Amazon SageMaker Studio notebooks in a VPC](https://aws.amazon.com/blogs/machine-learning/hosting-a-private-pypi-server-for-amazon-sagemaker-studio-notebooks-in-a-vpc/)
 - [R29]: [Automate a centralized deployment of Amazon SageMaker Studio with AWS Service Catalog](https://aws.amazon.com/blogs/machine-learning/automate-a-centralized-deployment-of-amazon-sagemaker-studio-with-aws-service-catalog/)
 - [R30]: [Orchestrate XGBoost ML Pipelines with Amazon Managed Workflows for Apache Airflow](https://aws.amazon.com/blogs/machine-learning/orchestrate-xgboost-ml-pipelines-with-amazon-managed-workflows-for-apache-airflow/)
+- [R31]: [Amazon SageMaker Identity-Based Policy Examples](https://docs.aws.amazon.com/sagemaker/latest/dg/security_iam_id-based-policy-examples.html)
+- [R32]: [Connect to SageMaker Through a VPC Interface Endpoint](https://docs.aws.amazon.com/sagemaker/latest/dg/interface-vpc-endpoint.html)
+- [R33]: [Extend Amazon SageMaker Pipelines to include custom steps using callback steps](https://aws.amazon.com/blogs/machine-learning/extend-amazon-sagemaker-pipelines-to-include-custom-steps-using-callback-steps/)
+- [R34]: [Create Amazon SageMaker projects using third-party source control and Jenkins](https://aws.amazon.com/blogs/machine-learning/create-amazon-sagemaker-projects-using-third-party-source-control-and-jenkins/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
@@ -1279,6 +1287,7 @@ Refer to [clean up](#clean-up) section.
 - [S15]: [Secure Your SageMaker Studio Access Using AWS PrivateLink and AWS IAM SourceIP Restrictions](https://aws.amazon.com/about-aws/whats-new/2020/12/secure-sagemaker-studio-access-using-aws-privatelink-aws-iam-sourceip-restrictions/)
 - [S16]: [Model Risk Management by Deloitte](https://www2.deloitte.com/content/dam/Deloitte/fr/Documents/risk/deloitte_model-risk-management_plaquette.pdf)
 - [S17]: [Building secure Amazon SageMaker access URLs with AWS Service Catalog](https://aws.amazon.com/blogs/mt/building-secure-amazon-sagemaker-access-urls-with-aws-service-catalog/)
+- [S18]: [Secure multi-account model deployment with Amazon SageMaker Series](https://aws.amazon.com/blogs/machine-learning/part-1-secure-multi-account-model-deployment-with-amazon-sagemaker/)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
@@ -1286,7 +1295,7 @@ Refer to [clean up](#clean-up) section.
 - [W3]: [Amazon Sagemaker MLOps workshop GitHub](https://github.com/awslabs/amazon-sagemaker-mlops-workshop)
 - [W4]: [Operationalizing the ML pipeline workshop](https://operational-machine-learning-pipeline.workshop.aws/)
 - [W5]: [Safe MLOps deployment pipeline](https://mlops-safe-deployment-pipeline.workshop.aws/)
-- [W6]: [Buiding secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
+- [W6]: [Building secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
 - [W7]: [Amazon Managed Workflows for Apache Airflow workshop](https://amazon-mwaa-for-analytics.workshop.aws/en/)
 
 

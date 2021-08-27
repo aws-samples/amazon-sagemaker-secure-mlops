@@ -206,7 +206,7 @@ Metadata:
       ExistingS3VPCEndpointId:
         default: Existing S3 VPC endpoint Id
       VPCCIDR:
-        default: CICD block for a new or existing VPC
+        default: CIDR block for a new or existing VPC
       CreatePrivateSubnets:
         default: Create private subnets
       PrivateSubnet1ACIDR:

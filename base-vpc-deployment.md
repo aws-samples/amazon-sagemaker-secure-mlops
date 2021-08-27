@@ -11,10 +11,7 @@ cd amazon-sagemaker-secure-mlops
 ```
 
 ## Prepare the CloudFormation templates
-```bash
-S3_BUCKET_NAME=<your S3 bucket name>
-make package CFN_BUCKET_NAME=$S3_BUCKET_NAME
-```
+Follow the [packaging instructions](package-cfn.md) for the CloudFormation templates.
 
 ## Deploy VPC, network and IAM resources
 This section provides instructions how to provision VPC, subnets, network resources, IAM resources in the dev account. It also describes how the target accounts for multi-account model deployment workflow must be set up.

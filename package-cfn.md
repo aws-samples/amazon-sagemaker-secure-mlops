@@ -4,7 +4,7 @@ Before you can deploy the delivered [CloudFormation templates](cfn_templates), t
 ## Option 1 - use a CloudFormation template to package and upload
 This option first deploys a simple CloudFormation template [`package-cfn.yaml`](package-cfn.yaml). The template creates a [CodeBuild](https://aws.amazon.com/codebuild/) project which packages and uploads the deployment templates into the specified S3 bucket.
 
-To follow along with the deployment instructions, run the following commands in your terminal (all commands were tested for macOS 10.15.7, but the will work on Windows as well).
+To follow along with the deployment instructions, run the following commands in your terminal (all commands were tested for macOS 10.15.7, but they will work on Windows as well).
 
 1. Clone the GitHub repository:
 ```sh
@@ -18,7 +18,7 @@ S3_BUCKET_NAME=<your new S3 bucket name>
 aws s3 mb s3://${S3_BUCKET_NAME} --region $AWS_DEFAULT_REGION
 ```
 
-3. Upload the source code zip file `sagemaker-secure-mlops.zip` to the S3 bucket:
+3. Upload the source code zip file from the cloned repository [`sagemaker-secure-mlops.zip`](https://github.com/aws-samples/amazon-sagemaker-secure-mlops/blob/master/sagemaker-secure-mlops.zip) to the S3 bucket:
 ```sh
 S3_BUCKET_NAME=<your existing or just created S3 bucket name>
 aws s3 cp sagemaker-secure-mlops.zip s3://${S3_BUCKET_NAME}/sagemaker-mlops/
@@ -43,7 +43,7 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
-📜 **Save it to your scratch pad for later use.**
+📜 **Save the output to your scratch pad for later use.**
 
 6. Check that the deployment templates are uploaded into the S3 bucket:
 ```sh
