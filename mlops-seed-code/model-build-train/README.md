@@ -38,7 +38,7 @@ The template provides a starting point for bringing your SageMaker Pipeline deve
 ```
 
 ## Start here
-This is a sample [CodeCommit](https://aws.amazon.com/codecommit/) repository that demonstrates how you can organize your code for an MLOps. This code repository is created as part of creating a Project in SageMaker and customized for your specific Data Science environment. This model build, train, and validate project uses your follwing Data Science environment settings:
+This is a sample [CodeCommit](https://aws.amazon.com/codecommit/) repository that demonstrates how you can organize your code for an MLOps. This code repository is created as part of creating a Project in SageMaker and customized for your specific Data Science environment. This model build, train, and validate project uses your following Data Science environment settings:
 - data science VPC, security groups and private subnets
 - all communication is routed via private network via the configured VPC endpoints
 - pre-configured Amazon S3 bucket for `data` and `models`. These bucket are encrypted and accessible only via S3 VPC endpoint
@@ -47,7 +47,7 @@ In this MLOps model build, train, and validate example, we are solving the abalo
 
 Once you understand the code structure described below, you can inspect the code and you can start customizing it for your own business case. This is only sample code, and you own this repository for your business use case. Please go ahead, modify the files, commit them and see the changes kicking off the SageMaker pipelines in the CI/CD system.
 
-The delivered [`sagemaker-pipelines-project.ipynb`](sagemaker-pipelines-project.ipynb) notebook provides more detail on implementation of the pipelinea and security controls. You can also use the notebook to experiement right from the Studio instance before you are ready to checkin your code.
+The delivered [`sagemaker-pipelines-project.ipynb`](sagemaker-pipelines-project.ipynb) notebook provides more detail on implementation of the pipelinea and security controls. You can also use the notebook to experiment right from the Studio instance before you are ready to check in your code.
 
 The [`sagemaker-pipeline.ipynb`](sagemaker-pipeline.ipynb) contains the pipeline construction and execution code in one interactive notebook for your experiments and tests.
 
@@ -85,7 +85,7 @@ This is the core business logic, and if you want to create your own folder for y
 |   |-- _utils.py
 |   `-- __version__.py
 ```
-Utility modules for getting pipeline definition jsons (`_utils.py`) and running pipelines (`run_pipeline.py`). You do not typically need to modify these:
+Utility modules for getting pipeline definition json (`_utils.py`) and running pipelines (`run_pipeline.py`). You do not typically need to modify these:
 
 
 Python package artifacts:

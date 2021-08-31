@@ -1297,7 +1297,7 @@ Refer to [clean up](#clean-up) section.
 - [W5]: [Safe MLOps deployment pipeline](https://mlops-safe-deployment-pipeline.workshop.aws/)
 - [W6]: [Building secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
 - [W7]: [Amazon Managed Workflows for Apache Airflow workshop](https://amazon-mwaa-for-analytics.workshop.aws/en/)
-
+- [W8]: [Secure Data Science with Amazon SageMaker Studio Workshop](https://catalog.us-east-1.prod.workshops.aws/v2/workshops/c882cd42-8ec8-4112-9469-9fab33471e85/en-US)
 
 ## MLOps and ML production related resources
 - https://github.com/visenger/awesome-mlops

@@ -49,7 +49,7 @@ Resources:
           ParameterName: 'model-bucket-name'
         - 
           VariableName: 'S3VPCEId'
-          ParameterName: 's3-vpce-id"'
+          ParameterName: 's3-vpce-id'
         - 
           VariableName: 'S3KmsKeyId'
           ParameterName: 'kms-s3-key-arn'

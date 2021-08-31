@@ -808,7 +808,7 @@ Rules:
 
 Resources:
 
-  # Environement IAM roles for personas and services
+  # Environment IAM roles for personas and services
   EnvironmentIAMRoles:
     Type: AWS::CloudFormation::Stack
     Condition: IAMRolesCondition
@@ -828,7 +828,7 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
   
-  # This stack deployes the IAM Roles which will be provisioned in the target accounts (staging and production) into the current account
+  # This stack deploys the IAM Roles which will be provisioned in the target accounts (staging and production) into the current account
   # These roles are needed for StackSet operations and model deployment
   # This stack deploys these roles to _the current account_ to enable a trivial single-account model deployment
   # Single-account model deployment is still uses StackSet operations and a separate model execution role

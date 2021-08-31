@@ -18,7 +18,7 @@ phases:
         run-pipeline \
           --module-name pipelines.abalone.pipeline \
           --role-arn $SAGEMAKER_PIPELINE_ROLE_ARN \
-          --tags "[{\"Key\":\"sagemaker:project-name\", \"Value\":\"${SAGEMAKER_PROJECT_NAME}\"}, {\"Key\":\"sagemaker:project-id\", \"Value\":\"${SAGEMAKER_PROJECT_ID}\"}, {\"Key\":\"EnvironmentName\", \"Value\":\"${ENV_NAME}\"}, {\"Key\":\"EnvironmenType\", \"Value\":\"${ENV_TYPE}\"}]" \
+          --tags "[{\"Key\":\"sagemaker:project-name\", \"Value\":\"${SAGEMAKER_PROJECT_NAME}\"}, {\"Key\":\"sagemaker:project-id\", \"Value\":\"${SAGEMAKER_PROJECT_ID}\"}, {\"Key\":\"EnvironmentName\", \"Value\":\"${ENV_NAME}\"}, {\"Key\":\"EnvironmentType\", \"Value\":\"${ENV_TYPE}\"}]" \
           --kwargs "{\"region\":\"${AWS_REGION}\",\"project_name\":\"${SAGEMAKER_PROJECT_NAME}\",\"pipeline_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"model_package_group_name\":\"${SAGEMAKER_PROJECT_NAME_ID}\",\"base_job_prefix\":\"${SAGEMAKER_PROJECT_NAME_ID}\"}"
 
       - echo "Create/Update of the SageMaker Pipeline and execution completed."

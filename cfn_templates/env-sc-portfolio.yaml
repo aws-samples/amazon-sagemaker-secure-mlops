@@ -3,7 +3,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: |
-  Create an Service Catalog products for Data Science Environment (SageMaker MLOps project templates)
+  Create Service Catalog products for Data Science Environment (SageMaker MLOps project templates)
 
 Parameters:
   EnvName:

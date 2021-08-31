@@ -37,6 +37,6 @@ zip:
 
 
 cfn_nag_scan: 
-	cfn_nag_scan --input-path ./cfn_templates
+	cfn_nag_scan --input-path $(CFN_TEMPLATE_DIR)
 
 
