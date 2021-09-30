@@ -485,7 +485,7 @@ Resources:
               - glue:GetPartition
               - glue:BatchCreatePartition
             Resource:
-              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}'
+              - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:*'
             Effect: Allow
 
   SageMakerExecutionRole:

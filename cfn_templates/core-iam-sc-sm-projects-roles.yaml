@@ -331,7 +331,7 @@ Resources:
                   - 'ssm:GetParameter'
                 Resource: !Sub 'arn:aws:ssm:*:${AWS::AccountId}:parameter/*'
                 Effect: Allow
-
+ 
   AmazonSageMakerServiceCatalogProductsUseRole:
     Type: "AWS::IAM::Role"
     DeletionPolicy: Retain

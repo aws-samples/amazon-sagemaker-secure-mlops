@@ -15,11 +15,14 @@ This solution covers the main four topics:
 
 # MLOps
 The goals of implementing MLOps for your AI/ML projects and environment are:
++ Getting ML models to production
 + Operationalization of AI/ML workloads and workflows
 + Create secured, automated, and reproducible ML workflows
 + Manage models with a model registry and data lineage
 + Enable continuous delivery with IaC and CI/CD pipelines
 + Monitor performance and feedback information to your models
++ Providing compliance, security, and cost tools for ML development
++ Increasing collaboration and experimentation
 
 ![ML workflow artifacts](img/mlops-artefacts.png)
 
@@ -873,7 +876,7 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 
 ## Clean up
 You must clean up provisioned resources to avoid charges in your AWS account.
-The solution provides a [clean-up notebook](sm-notebooks/99-clean-up.ipynb) with a full clean-up script. You can run this script after you have finished experimenting with your data science environment.  
+The solution provides a [clean-up notebook](sm-notebooks/99-clean-up.ipynb) with a full clean-up script. You can run this script after you have finished experimenting with your data science environment. This is the recommended way of doing clean up.  
 Alternatively, you can also follow the CLI-based clean up instructions below.
 
 ### Step 1: Clean up MLOps projects
@@ -1228,6 +1231,34 @@ Now you provisioned the Data Science environment and can start working with it.
 ### Service Catalog clean up
 Refer to [clean up](#clean-up) section.
 
+## Post-deployment activities
+After you successfully deploy all CloudFormation stacks and created the needed infrastructure, you can start Studio and start working with the delivered notebooks.
+
+### Start Studio
+To launch Studio you must go to [SageMaker console](https://console.aws.amazon.com/sagemaker/home?#/dashboard), click **Open SageMaker Studio** and click on the Open Studio link in the SageMaker Studio Control panel:
+
+![](img/open-studio.png)
+
+### Clone code repository
+To use the provided notebooks you must clone the source code repository into your Studio environment.
+Open a system terminal in Studio in the **Launcher** window:
+
+![](img/studio-system-terminal.png)
+
+Run the following command in the terminal:
+```sh
+git clone https://github.com/aws-samples/amazon-sagemaker-secure-mlops.git
+```
+
+The code repository will be downloaded and saved in your home directory in Studio.
+Now go to the file browser and open [`00-setup` notebook](sm-notebooks/00-setup.ipynb):
+
+![](img/file-browser-setup.png)
+
+The first start of the notebook kernel on a new KernelGateway app takes about 5 minutes. Continue with further setup instructions in the notebook after Kernel is ready.
+
+❗ You have to run the whole notebook to setup your SageMaker environment.
+
 # Resources
 
 - [R1]: [Amazon SageMaker Pipelines documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-sdk.html)
@@ -1264,6 +1295,16 @@ Refer to [clean up](#clean-up) section.
 - [R32]: [Connect to SageMaker Through a VPC Interface Endpoint](https://docs.aws.amazon.com/sagemaker/latest/dg/interface-vpc-endpoint.html)
 - [R33]: [Extend Amazon SageMaker Pipelines to include custom steps using callback steps](https://aws.amazon.com/blogs/machine-learning/extend-amazon-sagemaker-pipelines-to-include-custom-steps-using-callback-steps/)
 - [R34]: [Create Amazon SageMaker projects using third-party source control and Jenkins](https://aws.amazon.com/blogs/machine-learning/create-amazon-sagemaker-projects-using-third-party-source-control-and-jenkins/)
+- [R35]: [Define and run Machine Learning pipelines on Step Functions using Python, Workflow Studio, or States Language](https://aws.amazon.com/blogs/machine-learning/define-and-run-machine-learning-pipelines-on-step-functions-using-python-workflow-studio-or-states-language/)
+- [R36]: [Dive deep into Amazon SageMaker Studio Notebooks architecture](https://aws.amazon.com/blogs/machine-learning/dive-deep-into-amazon-sagemaker-studio-notebook-architecture/)
+- [R37]: [Model and data lineage in machine learning experimentation](https://aws.amazon.com/blogs/machine-learning/model-and-data-lineage-in-machine-learning-experimentation/)
+- [R38]: [Customize Amazon SageMaker Studio using Lifecycle Configurations](https://aws.amazon.com/blogs/machine-learning/customize-amazon-sagemaker-studio-using-lifecycle-configurations/)
+- [R39]: [Patterns for multi-account, hub-and-spoke Amazon SageMaker model registry](https://aws.amazon.com/blogs/machine-learning/patterns-for-multi-account-hub-and-spoke-amazon-sagemaker-model-registry/)
+- [R40]: [Managing your machine learning lifecycle with MLflow and Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/managing-your-machine-learning-lifecycle-with-mlflow-and-amazon-sagemaker/)
+- [R41]: [Scheduling Jupyter notebooks on SageMaker ephemeral instances](https://aws.amazon.com/blogs/machine-learning/scheduling-jupyter-notebooks-on-sagemaker-ephemeral-instances/)
+- [R42]: [Building machine learning workflows with Amazon SageMaker Processing jobs and AWS Step Functions](https://aws.amazon.com/blogs/machine-learning/building-machine-learning-workflows-with-amazon-sagemaker-processing-jobs-and-aws-step-functions/) 
+- [R43]: [How Slalom and WordStream Used MLOps to Unify Machine Learning and DevOps on AWS](https://aws.amazon.com/blogs/apn/how-slalom-and-wordstream-used-mlops-to-unify-machine-learning-and-devops-on-aws/)
+
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
@@ -1288,6 +1329,7 @@ Refer to [clean up](#clean-up) section.
 - [S16]: [Model Risk Management by Deloitte](https://www2.deloitte.com/content/dam/Deloitte/fr/Documents/risk/deloitte_model-risk-management_plaquette.pdf)
 - [S17]: [Building secure Amazon SageMaker access URLs with AWS Service Catalog](https://aws.amazon.com/blogs/mt/building-secure-amazon-sagemaker-access-urls-with-aws-service-catalog/)
 - [S18]: [Secure multi-account model deployment with Amazon SageMaker Series](https://aws.amazon.com/blogs/machine-learning/part-1-secure-multi-account-model-deployment-with-amazon-sagemaker/)
+- [S19]: [Launch Amazon SageMaker Studio from external applications using presigned URLs](https://aws.amazon.com/blogs/machine-learning/launch-amazon-sagemaker-studio-from-external-applications-using-presigned-urls/)
 
 ## Workshops
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
@@ -1298,6 +1340,10 @@ Refer to [clean up](#clean-up) section.
 - [W6]: [Building secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
 - [W7]: [Amazon Managed Workflows for Apache Airflow workshop](https://amazon-mwaa-for-analytics.workshop.aws/en/)
 - [W8]: [Secure Data Science with Amazon SageMaker Studio Workshop](https://catalog.us-east-1.prod.workshops.aws/v2/workshops/c882cd42-8ec8-4112-9469-9fab33471e85/en-US)
+- [W9]: [MLOps and Integrations](https://mlops-and-integrations.workshop.aws/)
+- [W10]: [Serverless ML pipeline](https://github.com/dylan-tong-aws/aws-serverless-ml-pipeline)
+- [W11]: [Basic SageMaker MLOps](https://github.com/aws-samples/mlops-amazon-sagemaker-devops-with-ml)
+- [W12]: [Data Science on AWS (ML end-to-end pipeline)](https://github.com/data-science-on-aws/workshop)
 
 ## MLOps and ML production related resources
 - https://github.com/visenger/awesome-mlops
@@ -1305,6 +1351,7 @@ Refer to [clean up](#clean-up) section.
 - https://github.com/alirezadir/Production-Level-Deep-Learning
 - https://www.featurestore.org/
 - https://twitter.com/chipro/status/1318190833141714949?s=20
+- [Introducing TWIML’s New ML and AI Solutions Guide](https://twimlai.com/solutions/introducing-twiml-ml-ai-solutions-guide/)
 - [TWIML podcast: Feature Stores for MLOps with Mike del Balso](https://twimlai.com/feature-stores-for-mlops-with-mike-del-balso/)
 - [TWIML podcast: Enterprise Readiness, MLOps and Lifecycle Management with - - Jordan Edwards](https://twimlai.com/twiml-talk-321-enterprise-readiness-mlops-and-lifecycle-management-with-jordan-edwards/)
 - [Full stack deep learning free online course](https://course.fullstackdeeplearning.com/)
@@ -1315,6 +1362,9 @@ Refer to [clean up](#clean-up) section.
 - [5 Lessons Learned Building an Open Source MLOps Platform](https://towardsdatascience.com/5-lessons-learned-building-an-open-source-mlops-platform-624574a44c09)
 
 ## Appendix A
+![](img/ai-ml-roles.png)
+
+Source: [Increase your machine learning success with AWS ML services and AWS Machine Learning Embark](https://aws.amazon.com/blogs/machine-learning/increase-your-machine-learning-success-with-aws-ml-services-and-aws-ml-embark/)
 
 ## Appendix B
 [Deployment into an existing VPC and with pre-provisioned IAM resources](base-vpc-deployment.md)

@@ -1552,7 +1552,8 @@ Resources:
               "s3:AbortMultipartUpload",
               "s3:GetBucketLocation",
               "s3:GetBucketTagging",
-              "s3:ListMultipartUploadParts"
+              "s3:ListMultipartUploadParts",
+              "s3:PutBucketOwnershipControls"
             ], 
             "Resource":[
               "arn:aws:s3:::*${ModelBucketName}*",
