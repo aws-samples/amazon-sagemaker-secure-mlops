@@ -700,7 +700,7 @@ Resources:
               - servicecatalog:Delete*
               - servicecatalog:Describe*
               - servicecatalog:Disassociate*
-              - servicecatalog:Enabe*
+              - servicecatalog:Enable*
               - servicecatalog:Execute*
               - servicecatalog:Get*
               - servicecatalog:List*

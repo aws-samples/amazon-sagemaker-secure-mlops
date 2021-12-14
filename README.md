@@ -1260,7 +1260,6 @@ The first start of the notebook kernel on a new KernelGateway app takes about 5 
 ❗ You have to run the whole notebook to setup your SageMaker environment.
 
 # Resources
-
 - [R1]: [Amazon SageMaker Pipelines documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-sdk.html)
 - [R2]: [Best practices for multi-account AWS environment](https://aws.amazon.com/organizations/getting-started/best-practices/)
 - [R3]: [AWS Well-Architected Framework - Machine Learning Lens Whitepaper](https://d1.awsstatic.com/whitepapers/architecture/wellarchitected-Machine-Learning-Lens.pdf)  
@@ -1305,6 +1304,7 @@ The first start of the notebook kernel on a new KernelGateway app takes about 5 
 - [R42]: [Building machine learning workflows with Amazon SageMaker Processing jobs and AWS Step Functions](https://aws.amazon.com/blogs/machine-learning/building-machine-learning-workflows-with-amazon-sagemaker-processing-jobs-and-aws-step-functions/) 
 - [R43]: [How Slalom and WordStream Used MLOps to Unify Machine Learning and DevOps on AWS](https://aws.amazon.com/blogs/apn/how-slalom-and-wordstream-used-mlops-to-unify-machine-learning-and-devops-on-aws/)
 - [R44]: [Create a cross-account machine learning training and deployment environment with AWS Code Pipeline](https://aws.amazon.com/blogs/machine-learning/create-a-cross-account-machine-learning-training-and-deployment-environment-with-aws-code-pipeline/)
+- [R45]: [Amazon SageMaker now supports cross-account lineage tracking and multi-hop lineage querying](https://aws.amazon.com/about-aws/whats-new/2021/12/amazon-sagemaker-cross-account-lineage-tracking-query/)
 
 
 ## AWS Solutions
@@ -1336,7 +1336,7 @@ The first start of the notebook kernel on a new KernelGateway app takes about 5 
 - [W1]: [SageMaker immersion day GitHub](https://github.com/aws-samples/amazon-sagemaker-immersion-day)  
 - [W2]: [SageMaker immersion day workshop 2.0](https://sagemaker-immersionday.workshop.aws/)  
 - [W3]: [Amazon Sagemaker MLOps workshop GitHub](https://github.com/awslabs/amazon-sagemaker-mlops-workshop)
-- [W4]: [Operationalizing the ML pipeline workshop](https://operational-machine-learning-pipeline.workshop.aws/)
+- [W4]: [Operationalizing the Machine Learning Pipeline](https://operational-machine-learning-pipeline.workshop.aws/)
 - [W5]: [Safe MLOps deployment pipeline](https://mlops-safe-deployment-pipeline.workshop.aws/)
 - [W6]: [Building secure environments workshop](https://sagemaker-workshop.com/security_for_sysops.html)
 - [W7]: [Amazon Managed Workflows for Apache Airflow workshop](https://amazon-mwaa-for-analytics.workshop.aws/en/)
@@ -1551,6 +1551,9 @@ You can develop and evolve the seed code for your own needs. To deliver the new 
 ## Amazon SageMaker features
 
 ![SageMaker Features](img/sagemaker-features.png)
+
+# Appendix I
+[Use `CloudFormation` provider instead of `CloudFormationStackSet` in CodePipeline deploy action](use-cfn-stack-instead-of-stacksets.md)
 
 Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 SPDX-License-Identifier: MIT-0

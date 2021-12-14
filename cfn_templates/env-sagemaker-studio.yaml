@@ -267,7 +267,7 @@ Resources:
     DependsOn: SageMakerUserProfile
     Condition: KernelGatewayAppsCondition
     Properties: 
-      AppName: instance-event-engine-datascience-ml-t3-medium
+      AppName: sm-mlops-datascience-ml-t3-medium
       AppType: KernelGateway
       DomainId: !GetAtt SageMakerStudioDomain.DomainId
       ResourceSpec: 
@@ -291,7 +291,7 @@ Resources:
     DependsOn: SageMakerUserProfile
     Condition: KernelGatewayAppsCondition
     Properties: 
-      AppName: instance-event-engine-datawrangler-ml-m5-4xlarge
+      AppName: sm-mlops-datawrangler-ml-m5-4xlarge
       AppType: KernelGateway
       DomainId: !GetAtt SageMakerStudioDomain.DomainId
       ResourceSpec: 
