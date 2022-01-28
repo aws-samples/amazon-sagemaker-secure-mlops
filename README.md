@@ -1305,7 +1305,9 @@ The first start of the notebook kernel on a new KernelGateway app takes about 5 
 - [R43]: [How Slalom and WordStream Used MLOps to Unify Machine Learning and DevOps on AWS](https://aws.amazon.com/blogs/apn/how-slalom-and-wordstream-used-mlops-to-unify-machine-learning-and-devops-on-aws/)
 - [R44]: [Create a cross-account machine learning training and deployment environment with AWS Code Pipeline](https://aws.amazon.com/blogs/machine-learning/create-a-cross-account-machine-learning-training-and-deployment-environment-with-aws-code-pipeline/)
 - [R45]: [Amazon SageMaker now supports cross-account lineage tracking and multi-hop lineage querying](https://aws.amazon.com/about-aws/whats-new/2021/12/amazon-sagemaker-cross-account-lineage-tracking-query/)
-
+- [R46]: [MLflow Open Machine Learning Platform on AWS](https://github.com/aws-samples/aws-mlflow-sagemaker-cdk)
+- [R47]: [MLOps Platforms by Thoughtworks: github repo](https://github.com/thoughtworks/mlops-platforms)
+- [R48]: [MLOps: Continuous Delivery for Machine Learning on AWS](https://d1.awsstatic.com/whitepapers/mlops-continuous-delivery-machine-learning-on-aws.pdf)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)
