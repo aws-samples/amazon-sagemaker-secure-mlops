@@ -823,8 +823,9 @@ You must provision these roles **before** starting the solution deployment. The 
 # SELF_MANAGED stack set permission model:
 # Deploy a stack set execution role to _EACH_ of the target accounts in both staging and prod OUs
 # This stack set execution role is used to deploy the target accounts stack sets in env-main.yaml
+# ENV_NAME needs to be unique to be able to create s3 buckets for the environment and consistent with service catalog
 # !!!!!!!!!!!! RUN THIS COMMAND IN EACH OF THE TARGET ACCOUNTS !!!!!!!!!!!!
-ENV_NAME="sm-mlops"
+ENV_NAME=# use your own unique environment names like "sm-mlops-$DEPARTMENT_NAME"
 ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
 STACK_NAME=$ENV_NAME-setup-stackset-role
 ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
