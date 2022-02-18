@@ -89,6 +89,7 @@ Deploy network infrastructure for SageMaker endpoint hosting:
 ```sh
 ENV_NAME=ds-team
 ENV_TYPE=<set to 'staging' for staging accounts and 'prod' for production accounts>
+AWS_ACCOUNT_ID=<AWS account id where you deploy a VPC>
 VPC_ID=<set to the existing VPC id>
 S3_VPCE_ID=<set to the existing S3 VPCE id>
 PRIVATE_SN_IDS=<comma-delimites list of the existing private subnet ids>
@@ -129,8 +130,8 @@ aws cloudformation deploy \
       CreateECRAPIVPCEndpoint=YES \
       CreateECRVPCEndpoint=YES \
       CreateKMSVPCEndpoint=YES \
-      DataBucketName=${ENV_NAME}-${ENV_TYPE}-${AWS_DEFAULT_REGION}-data \
-      ModelBucketName=${ENV_NAME}-${ENV_TYPE}-${AWS_DEFAULT_REGION}-models
+      DataBucketName=${ENV_NAME}-${ENV_TYPE}-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID}-data \
+      ModelBucketName=${ENV_NAME}-${ENV_TYPE}-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID}-models
 ```
 
 Show the stack output:

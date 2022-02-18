@@ -138,16 +138,17 @@ aws cloudformation update-stack \
 # SageMaker endpoint deployment
 # ################################################################################
 
+AWS_MODEL_ACCOUNT_ID = "account id where model artifact stored"
 SM_PROJECT_NAME="test11-deploy"
 SM_PROJECT_ID="p-6dyr0oam0c9s"
-MODEL_PACKAGE_NAME="arn:aws:sagemaker:us-east-1:340327315379:model-package/test11-deploy-p-6dyr0oam0c9s/2"
+MODEL_PACKAGE_NAME="arn:aws:sagemaker:us-east-1:$AWS_MODEL_ACCOUNT_ID:model-package/test11-deploy-p-6dyr0oam0c9s/2"
 EXECUTION_ROLE_NAME="sm-mlops-env-EnvironmentT-SageMakerModelExecutionR-DTXUGN38COKK"
 SM_SUBNET_ID="sm-mlops-staging-private-subnet-ids"
 SM_SG_ID="sm-mlops-staging-sagemaker-sg-ids"
 ENV_NAME="sm-mlops"
 ENV_TYPE="staging"
-EBS_KMS_KEY_ID="arn:aws:kms:us-east-1:340327315379:key/9eca9a44-9b46-42c8-88af-474124ec9d34"
-S3_KMS_KEY_ID="arn:aws:kms:us-east-1:340327315379:key/a8e3e301-3fea-4784-bd6f-5b5aea3ca384"
+EBS_KMS_KEY_ID="arn:aws:kms:us-east-1:$AWS_MODEL_ACCOUNT_ID:key/9eca9a44-9b46-42c8-88af-474124ec9d34"
+S3_KMS_KEY_ID="arn:aws:kms:us-east-1:$AWS_MODEL_ACCOUNT_ID:key/a8e3e301-3fea-4784-bd6f-5b5aea3ca384"
 OU_ID="ou-fi18-56v340tb"
 
 aws cloudformation deploy \
@@ -174,6 +175,6 @@ aws cloudformation deploy \
     --parameter-overrides \
         EnvName=$ENV_NAME \
         EnvType=$ENV_TYPE \
-        DataBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-data \
-        ModelBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-models \
+        DataBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-$AWS_MODEL_ACCOUNT_ID-data \
+        ModelBucketName=$ENV_NAME-$ENV_TYPE-$AWS_DEFAULT_REGION-$AWS_MODEL_ACCOUNT_ID-models \
         VPCEndpointS3Id="xxxx" 

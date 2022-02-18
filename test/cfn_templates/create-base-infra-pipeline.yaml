@@ -775,7 +775,7 @@ Resources:
                       "PipelineExecutionRoleArn":"arn:aws:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole",
                       "AdministratorAccountId":"${AWS::AccountId}",
                       "ModelS3KMSKeyArn":"*",
-                      "ModelBucketName":"*${AWS::Region}-models"
+                      "ModelBucketName":"*${AWS::Region}-${AWS::AccountId}-models"
                     }'
                 RunOrder: 1
               # Action 5

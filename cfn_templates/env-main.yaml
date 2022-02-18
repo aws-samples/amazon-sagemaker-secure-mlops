@@ -120,15 +120,15 @@ Metadata:
       StartKernelGatewayApps:
         default: Select YES to start the Data Science and Data Wrangler kernels on KernelGateway
       DataBucketName:
-        default: Existing S3 bucket name to store ML data (only if created outside of this stack)
+        default: Existing S3 bucket name to store ML data (only if created outside of this stack, otherwise leave empty)
       ModelBucketName:
-        default: Existing S3 bucket name to store ML models (only if created outside of this stack)
+        default: Existing S3 bucket name to store ML models (only if created outside of this stack, otherwise leave empty)
       SeedCodeS3BucketName:
         default: Existing S3 bucket name where MLOps seed code will be stored
       CreateEnvironmentIAMRoles:
         default: Create environment IAM roles
       CreateEnvironmentS3Buckets:
-        default: Create environment S3 buckets
+        default: Create environment S3 buckets for models and data
       CreateS3VPCEndpoint:
         default: Create S3 VPC endpoint
       CreateSSMVPCEndpoint:
@@ -302,12 +302,12 @@ Parameters:
     Default: 'NO'
 
   DataBucketName:
-    Description: S3 bucket name to store data (only if created outside of this stack)
+    Description: S3 bucket name to store data (only if created outside of this stack, otherwise leave empty)
     Type: String
     Default: ''
 
   ModelBucketName:
-    Description: S3 bucket name to store models (only if created outside of this stack)
+    Description: S3 bucket name to store models (only if created outside of this stack, otherwise leave empty)
     Type: String
     Default: ''
   
@@ -750,6 +750,22 @@ Conditions:
 
 
 Rules:
+  S3BucketsNew:
+    RuleCondition: !Equals [ !Ref CreateEnvironmentS3Buckets, 'YES' ]
+    Assertions:
+      - Assert: !And 
+        - !Equals [ !Ref DataBucketName, '' ]
+        - !Equals [ !Ref ModelBucketName, '' ]
+        AssertDescription: You cannot use existing S3 buckets if Create environment S3 buckets = YES
+
+  S3BucketsExisting:
+    RuleCondition: !Equals [ !Ref CreateEnvironmentS3Buckets, 'NO' ]
+    Assertions:
+      - Assert: !And 
+        - !Not [ !Equals [ !Ref DataBucketName, '' ] ]
+        - !Not [ !Equals [ !Ref ModelBucketName, '' ] ]
+        AssertDescription: You must provide existing S3 bucket names if Create environment S3 buckets = NO
+
   IAMRoles:
     RuleCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'NO' ]
     Assertions:
@@ -763,13 +779,13 @@ Rules:
           - !Not [ !Equals [ !Ref StackSetExecutionRoleName, '' ] ]
           - !Not [ !Equals [ !Ref SCProjectLaunchRoleArn, '' ] ]
           - !Not [ !Equals [ !Ref SetupLambdaExecutionRoleArn, '' ] ]
-        AssertDescription: ARNs and role names must be provided for all IAM roles if Create environemtn IAM Roles = NO
+        AssertDescription: ARNs and role names must be provided for all IAM roles if Create environment IAM Roles = NO
 
   VPCFlowLogsRole:
     RuleCondition: !Equals [ !Ref CreateEnvironmentIAMRoles, 'NO' ]
     Assertions:
       - Assert: !Equals [ !Ref CreateVPCFlowLogsRole, 'NO' ] 
-        AssertDescription: Create VPC Flow Logs execution role cannot be set to YES if Create environemtn IAM Roles is set NO
+        AssertDescription: Create VPC Flow Logs execution role cannot be set to YES if Create environment IAM Roles is set NO
   
   OrganizationalUnitIds: 
     RuleCondition: !Or 
@@ -989,11 +1005,11 @@ Resources:
           - !Ref AWS::NoValue
         DataBucketName: !If 
           - S3BucketsConditions
-          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data'
           - !Ref DataBucketName
         ModelBucketName: !If 
           - S3BucketsConditions
-          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+          - !Sub '${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models'
           - !Ref ModelBucketName
 
       TemplateURL: env-vpc.yaml
@@ -1133,13 +1149,13 @@ Resources:
           ParameterKey: 'DataBucketName'
           ParameterValue: !If 
             - S3BucketsConditions
-            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-data'
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data'
             - !Ref DataBucketName
         -
           ParameterKey: 'ModelBucketName'
           ParameterValue: !If 
             - S3BucketsConditions
-            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-models'
+            - !Sub '${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models'
             - !Ref ModelBucketName
 
       PermissionModel: 'SELF_MANAGED'

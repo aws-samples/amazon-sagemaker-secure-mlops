@@ -294,10 +294,10 @@ Resources:
               - s3:GetObject
               - s3:HeadObject
             Resource:
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*/*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models*/*'
               - 'arn:aws:s3:::*sagemaker*/*'
             Effect: Allow
           - 
@@ -445,10 +445,10 @@ Resources:
               - 's3:GetObjectVersion'
               - 's3:AbortMultipartUpload'
             Resource:
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-data*/*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-data*/*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models*/*'
               - 'arn:aws:s3:::*sagemaker*/*'
             Effect: Allow
           - 
@@ -743,7 +743,7 @@ Resources:
               - 's3:GetBucketPolicy'
               - 's3:PutBucketPolicy'
             Resource:
-              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-models*'
+              - !Sub 'arn:aws:s3:::${EnvName}-${EnvType}-${AWS::Region}-${AWS::AccountId}-models*'
             Effect: Allow
           - Sid: KMSPolicyPermission
             Action:

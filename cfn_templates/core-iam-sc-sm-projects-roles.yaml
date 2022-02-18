@@ -572,10 +572,10 @@ Resources:
                   - 'arn:aws:s3:::aws-glue-*'
                   - 'arn:aws:s3:::sagemaker-*'
                   - 'arn:aws:s3:::sm-mlops-cp-*'
-                  - 'arn:aws:s3:::*-data*'
-                  - 'arn:aws:s3:::*-data*/*'
-                  - 'arn:aws:s3:::*-models*'
-                  - 'arn:aws:s3:::*-models*/*'
+                  - !Sub 'arn:aws:s3:::*-${AWS::AccountId}-data*'
+                  - !Sub 'arn:aws:s3:::*-${AWS::AccountId}-data*/*'
+                  - !Sub 'arn:aws:s3:::*-${AWS::AccountId}-models*'
+                  - !Sub 'arn:aws:s3:::*-${AWS::AccountId}-models*/*'
               - 
                 Effect: Allow
                 Action:

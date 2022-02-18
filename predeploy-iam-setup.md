@@ -163,7 +163,7 @@ aws cloudformation deploy \
     EnvName=$ENV_NAME \
     AdministratorAccountId=$ADMIN_ACCOUNT_ID \
     ModelS3KMSKeyArn="*" \
-    ModelBucketName="*$AWS_DEFAULT_REGION-models"
+    ModelBucketName="*$AWS_DEFAULT_REGION-$ADMIN_ACCOUNT_ID-models"
 ```
 
 #### Show the IAM roles ARNs
@@ -214,7 +214,7 @@ aws cloudformation deploy \
     EnvType=$ENV_TYPE \
     AdministratorAccountId=$ADMIN_ACCOUNT_ID \
     ModelS3KMSKeyArn="*" \
-    ModelBucketName="*$AWS_DEFAULT_REGION-models" \
+    ModelBucketName="*$AWS_DEFAULT_REGION-$ADMIN_ACCOUNT_ID-models" \
     SageMakerModelExecutionRoleName=$MODEL_ROLE_NAME \
     StackSetExecutionRoleName=$STACKSET_ROLE_NAME
 ```

@@ -179,13 +179,15 @@ do
     done
 done
 
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+
 echo "Remove VPC-only access policy from the data and model S3 buckets"
-aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-data
-aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-models
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID}-data
+aws s3api delete-bucket-policy --bucket $ENV_NAME-dev-${AWS_DEFAULT_REGION}-${AWS_ACCOUNT_ID}-models
 
 echo "Empty data S3 buckets"
-aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-data --recursive
-aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-models --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-${AWS_ACCOUNT_ID}-data --recursive
+aws s3 rm s3://$ENV_NAME-dev-$AWS_DEFAULT_REGION-${AWS_ACCOUNT_ID}-models --recursive
 
 # Delete KernelGateway if StartKernelGatewayApps parameter was set to NO
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
