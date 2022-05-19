@@ -960,8 +960,8 @@ The deployment of Studio creates a new EFS in your account. This EFS is shared w
 
 ❗ **This is a destructive action. All data on the EFS will be deleted (SageMaker home directories). You may want to backup the EFS before deletion.** ❗ 
   
-From AWS console:
-aGot to the [EFS console](https://console.aws.amazon.com/efs/home?#/file-systems) and delete the SageMaker EFS. You may want to backup the EFS before deletion.
+**From AWS console**  
+Got to the [EFS console](https://console.aws.amazon.com/efs/home?#/file-systems) and delete the SageMaker EFS. You may want to backup the EFS before deletion.
 
   To find the SageMaker EFS, click on the file system ID and then on the Tags tab. You see a tag with the Tag Key ManagedByAmazonSageMakerResource. Its Tag Value contains the SageMaker domain ID:
 ![efs-tags](img/efs-tags.png)
@@ -970,6 +970,7 @@ aGot to the [EFS console](https://console.aws.amazon.com/efs/home?#/file-systems
 
 - Go to the [VPC console](https://console.aws.amazon.com/vpc/home?#vpcs) and delete the data science VPC
 
+**AWS CLI**  
 Alternatively, you can remove EFS using the following AWS CLI commands:
 
 1. List SageMaker domain IDs for all EFS with SageMaker tag:
@@ -1315,6 +1316,7 @@ The first start of the notebook kernel on a new KernelGateway app takes about 5 
 - [R46]: [MLflow Open Machine Learning Platform on AWS](https://github.com/aws-samples/aws-mlflow-sagemaker-cdk)
 - [R47]: [MLOps Platforms by Thoughtworks: github repo](https://github.com/thoughtworks/mlops-platforms)
 - [R48]: [MLOps: Continuous Delivery for Machine Learning on AWS](https://d1.awsstatic.com/whitepapers/mlops-continuous-delivery-machine-learning-on-aws.pdf)
+- [R49]: [Blog post series: How NatWest Group built a scalable, secure, and sustainable MLOps platform](https://aws.amazon.com/blogs/machine-learning/part-1-how-natwest-group-built-a-scalable-secure-and-sustainable-mlops-platform/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)

@@ -1211,11 +1211,11 @@ Resources:
         - Key: EnvironmentType
           Value: !Ref EnvType
 
-  # Self-referencing the security group to enable communication between intances within the same SG
+  # Self-referencing the security group to enable communication between instances within the same SG
   SageMakerSecurityGroupSelfIngress:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
-      Description: Self-ingress to enable communication between intances within the same SG
+      Description: Self-ingress to enable communication between instances within the same SG
       IpProtocol: '-1'
       SourceSecurityGroupId: !Ref SageMakerSecurityGroup
       GroupId: !Ref SageMakerSecurityGroup

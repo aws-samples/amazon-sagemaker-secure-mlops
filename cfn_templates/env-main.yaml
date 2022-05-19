@@ -1540,7 +1540,7 @@ Resources:
 
                   cfnresponse.send(event, context, response_status, r, '')
 
-              except ClientError as exception:
+              except (Exception, ClientError) as exception:
                   print(exception)
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
 
@@ -1609,7 +1609,7 @@ Resources:
 
                   cfnresponse.send(event, context, response_status, r, '')
 
-              except ClientError as exception:
+              except (Exception, ClientError) as exception:
                   print(exception)
                   cfnresponse.send(event, context, cfnresponse.FAILED, {}, physicalResourceId=event.get('PhysicalResourceId'), reason=str(exception))
 
