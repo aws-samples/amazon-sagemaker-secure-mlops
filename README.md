@@ -233,7 +233,7 @@ see [Security](documentation/security.md)
 ## MLOps
 see [MLOps](documentation/mlops.md)
 
-## Deployment
+## Deployment
 see [Deployment guide](documentation/deployment.md)
 
 ## Clean up
