@@ -9,7 +9,7 @@ Parameters:
     Type: String
     Description: Name of the project
     MinLength: 1
-    MaxLength: 15
+    MaxLength: 32
     AllowedPattern: ^[a-zA-Z](-*[a-zA-Z0-9])*
 
   SageMakerProjectId:

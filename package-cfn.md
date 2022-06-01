@@ -18,13 +18,19 @@ S3_BUCKET_NAME=<your new S3 bucket name>
 aws s3 mb s3://${S3_BUCKET_NAME} --region $AWS_DEFAULT_REGION
 ```
 
-3. Upload the source code zip file from the cloned repository [`sagemaker-secure-mlops.zip`](https://github.com/aws-samples/amazon-sagemaker-secure-mlops/blob/master/sagemaker-secure-mlops.zip) to the S3 bucket:
+3. Create a zip file with solution's source code:
+```sh
+rm -f sagemaker-secure-mlops.zip
+zip -r sagemaker-secure-mlops.zip . -x "*.pdf" -x "*.git*" -x "*.DS_Store*" -x "*.vscode*" -x "/build/*" -x "internal-documents*"
+```
+
+4. Upload the zip file to the S3 bucket:
 ```sh
 S3_BUCKET_NAME=<your existing or just created S3 bucket name>
 aws s3 cp sagemaker-secure-mlops.zip s3://${S3_BUCKET_NAME}/sagemaker-mlops/
 ```
 
-4. Deploy the CloudFormation template:
+5. Deploy the CloudFormation template:
 ```sh
 STACK_NAME=sagemaker-mlops-package-cfn
 aws cloudformation deploy \
@@ -35,7 +41,7 @@ aws cloudformation deploy \
         S3BucketName=$S3_BUCKET_NAME 
 ```
 
-5. Wait until deployment has finished and print the stack outputs with the following command (you may wait couple of minutes before the templates appear in the S3 bucket):
+6. Wait until deployment has finished and print the stack outputs with the following command (you may wait couple of minutes before the templates appear in the S3 bucket):
 ```sh
 aws cloudformation describe-stacks \
     --stack-name $STACK_NAME \
@@ -45,7 +51,7 @@ aws cloudformation describe-stacks \
 
 📜 **Save the output to your scratch pad for later use.**
 
-6. Check that the deployment templates are uploaded into the S3 bucket:
+7. Check that the deployment templates are uploaded into the S3 bucket:
 ```sh
 aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/ --recursive
 ```

@@ -7,7 +7,7 @@ PY_VERSION := 3.8
 export PYTHONUNBUFFERED := 1
 
 # CloudFormation deployment variables
-CFN_BUCKET_NAME ?= 
+CFN_BUCKET_NAME ?= $(S3_BUCKET_NAME)
 CFN_TEMPLATE_DIR := cfn_templates
 CFN_OUTPUT_DIR := build/$(AWS_DEFAULT_REGION)
 CFN_STACK_NAME ?= 
@@ -15,6 +15,10 @@ CFN_STACK_NAME ?=
 PYTHON := $(shell /usr/bin/which python$(PY_VERSION))
 
 .DEFAULT_GOAL := package
+
+ifndef CFN_BUCKET_NAME
+$(error CFN_BUCKET_NAME is not set)
+endif
 
 clean:
 	rm -fr $(CFN_OUTPUT_DIR)

@@ -137,6 +137,12 @@ Resources:
                 Resource:
                   - '*'
                 Effect: Allow
+              - 
+                Action:
+                  - codepipeline:PutApprovalResult
+                Resource:
+                  - !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:sagemaker*
+                Effect: Allow
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AWSServiceCatalogAdminFullAccess'
         - 'arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser'
@@ -236,6 +242,13 @@ Resources:
               -
                 Effect: Allow
                 Action:
+                  - codepipeline:List*
+                  - codepipeline:Get*
+                Resource:
+                  - !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:*'
+              -
+                Effect: Allow
+                Action:
                   - 'codecommit:List*'
                 Resource:
                  - '*'
@@ -246,7 +259,7 @@ Resources:
                   - '*'
                 Effect: Allow
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AWSServiceCatalogEndUserFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSServiceCatalogEndUserReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess'
