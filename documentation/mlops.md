@@ -66,6 +66,28 @@ This solution delivers two custom project templates:
 
 These projects are fully functional examples which are integrated with existing multi-layer security controls such as VPC, subnets, security groups, AWS account boundaries, and the dedicated IAM execution roles. 
 
+## How to provision a new project
+Sign in to the console with the data scientist account. On the [SageMaker console](https://console.aws.amazon.com/sagemaker/home?region=us-east-1#/dashboard), open Studio with your user profile (default name is `<environment name>-<environment type>-<region>-user-profile`). 
+
+![studio-control-panel](../img/studio-control-panel.png)
+
+In the Studio:
+1. Choose the **SageMaker resources**
+2. On the drop-down menu, choose **Projects**
+3. Choose **Create project**
+4. Choose **Organization templates**
+5. Choose a project template from the list
+
+![sm-mlops-create-project](../img/sm-mlops-create-project.png)
+
+## CodeCommit seed code
+Each of the delivered projects contains a seed code which is deployed as project's CodeCommit repository.  
+
+The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating, or for multi-project model deployment. Refer to `README.md` for each of the provided projects.
+
+To work with the seed repository source code you must clone the repository into your Studio environment.
+If you would like to amend the seed code and update the project templates with new version of the code, refer to the [Appendix G](appendix.md#appendix-g).
+
 ## Custom project template to build, train, validate the model
 The solution is based on the [SageMaker project template](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) for model building, training, and deployment. You can find in-depth review of this project in [Building, automating, managing, and scaling ML workflows using Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/building-automating-managing-and-scaling-ml-workflows-using-amazon-sagemaker-pipelines/) on the [AWS Machine Learning Blog](https://aws.amazon.com/blogs/machine-learning/).
 
@@ -75,15 +97,28 @@ The following diagram shows the functional components of the project.
 
 This project provisions the following resources as part of a MLOps pipeline:
 1. The template is made available through SageMaker projects and is provided via an AWS Service Catalog portfolio 
-2. CodePipeline pipeline with two stages - `Source` to get the source code and `Build` to build and execute the SageMaker pipeline
-3. SageMaker pipeline implements a repeatable workflow which processes the data, trains, validates, and register the model
+2. A CodePipeline pipeline with two stages - `Source` to get the source code and `Build` to build and execute the SageMaker pipeline
+3. A SageMaker pipeline implements a repeatable workflow which processes the data, trains, validates, and register the model
 4. Seed code repository in CodeCommit:
   - This repository provides seed code to create a multi-step model building pipeline including the following steps: data processing, model training, model evaluation, and conditional model registration based on model accuracy. As you can see in the `pipeline.py` file, this pipeline trains a linear regression model using the [XGBoost algorithm](https://docs.aws.amazon.com/sagemaker/latest/dg/xgboost.html) on the well-known [UCI Abalone dataset](https://archive.ics.uci.edu/ml/datasets/abalone). This repository also includes a [build specification file](https://docs.aws.amazon.com/codebuild/latest/userguide/build-spec-ref.html), used by CodePipeline and CodeBuild to run the pipeline automatically
 
 ### Work with Model build, train, and validate project
-You can find a step-by-step instruction, implementation details, and usage patterns of the model building pipeline project in the provided notebook [`sagemaker-pipeline.ipynb`](../mlops-seed-code/model-build-train/sagemaker-pipeline.ipynb) and [`sagemaker-pipelines-project.ipynb`](../mlops-seed-code/model-build-train/sagemaker-pipelines-project.ipynb) files, delivered as part of the seed code.
+Select **MLOps Model Build Train** project template from **Organization templates** list as described in [How to provision a new project](#how-to-provision-a-new-project) section.
 
-To deploy the notebooks into your local environment, you must clone the CodeCommit repository with the seed code after you have deployed the SageMaker project into the Studio. Go to the project overview page, select the `Repositories` tab and click the `clone repo...` link:
+The only project parameter you need to provide is a project name:
+
+![](../img/mlops-create-project.png)
+
+Wait until **Creating project...** banner:
+
+![](../img/mlops-creating-project-banner.png) 
+
+turns into **Successfully created project**:
+
+![](../img/mlops-created-project-banner.png)
+
+
+To deploy the notebooks into your local environment, you must clone the CodeCommit repository with the seed code after you have provisioned a SageMaker project in Studio. Go to the project overview page, select the `Repositories` tab and click the `clone repo...` link:
 
 ![clone-seed-code-repo](../img/clone-seed-code-repo.png)
 
@@ -91,7 +126,9 @@ After the clone operation finished, you can browse the repository files in Studi
 
 ![cloned-repo](../img/cloned-repo.png)
 
-You can open the notebook and start experimenting with SageMaker Pipelines.
+You find step-by-step instructions, implementation details, and usage patterns of the model building pipeline project in the seed code notebooks [`sagemaker-pipeline.ipynb`](../mlops-seed-code/model-build-train/sagemaker-pipeline.ipynb) and [`sagemaker-pipelines-project.ipynb`](../mlops-seed-code/model-build-train/sagemaker-pipelines-project.ipynb).
+
+You can open a notebook and start experimenting with SageMaker Pipelines.
 
 ## Custom project template for multi-account model deployment
 The following diagram shows the functional components of the project.
@@ -178,37 +215,23 @@ _Alternatively_ you can choose to use single-account deployment. In this case th
 ![multi-account-deployment-flag](../img/multi-account-deployment-flag.png)
 
 ### Model deployment prerequisites
-The following prerequisites are common for both single- and multi-account deployment. **These prerequisites are automatically provisioned if you use provided CLoudFormation templates.**
+The following prerequisites are common for both single- and multi-account deployment. **These prerequisites are automatically provisioned if you use provided the CloudFormation templates.**
 
-+ SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment fails as it requires at least two AZs to deploy an endpoint
++ SageMaker must be configured with **at least two subnets in two AZs**, otherwise the SageMaker endpoint deployment fails as it requires at least two AZs to deploy an inference endpoint
 + CI/CD pipeline with model deployment uses [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-getting-started.html). It requires two IAM service roles created or provided (in case of the BYO IAM role option):
   - `StackSetAdministrationRole`: This role must exist in the **data science account** and used to perform administration stack set operations in the data science account. The `AmazonSageMakerServiceCatalogProductsUseRole` must have `iam:PassRole` permission for this role
   - `StackSetExecutionRole`: This role must exist in the data science account and **each of the target accounts** in staging and production environments. This role is assumed by `StackSetAdministrationRole` to perform stack set operations in the target accounts. This role must have `iam:PassRole` permission for the model execution role `SageMakerModelExecutionRole`
 
 ### Work with Model deployment project
-You can find step-by-step instructions, implementation details, and usage patterns of multi-account model deployment in the provided [notebook](../mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb).
+Select **MLOps Model Deploy** project template from **Organization templates** list as described in [How to provision a new project](#how-to-provision-a-new-project) section:
 
-## Provision a new project
-Sign in to the console with the data scientist account. On the [SageMaker console](https://console.aws.amazon.com/sagemaker/home?region=us-east-1#/dashboard), open Studio with your user profile (default name is `<environment name>-<environment type>-<region>-user-profile`). 
+![](../img/mlops-model-deploy-project.png)
 
-![studio-control-panel](../img/studio-control-panel.png)
+To deploy the notebooks into your local environment, you must clone the CodeCommit repository with the seed code after you have provisioned a SageMaker project in Studio:
 
-In the Studio:
-1. Choose the **Components and registries**
-2. On the drop-down menu, choose **Projects**
-3. Choose **Create project**
-4. Choose **Organization templates**
-5. Choose a project template from the list
+![clone-seed-code-repo](../img/clone-seed-code-repo.png)
 
-![sm-mlops-create-project](../img/sm-mlops-create-project.png)
-
-## CodeCommit seed code
-Each of the delivered projects contains a seed code which is deployed as project's CodeCommit repository.  
-
-The seed repository contains fully functional source code used by the CI/CD pipeline for model building, training, and validating, or for multi-project model deployment. Refer to `README.md` for each of the provided projects.
-
-To work with the seed repository source code you must clone the repository into your Studio environment.
-If you would like to develop the seed code and update the project templates with new version of the code, refer to the [Appendix G](appendix.md#appendix-g)
+You find step-by-step instructions, implementation details, and usage patterns of multi-account model deployment in the provided [notebook](../mlops-seed-code/model-deploy/sagemaker-model-deploy.ipynb).
 
 ## Clean up after working with project templates
 After you have finished working and experimenting with projects you should perform clean up of the provisioned SageMaker resources to avoid charges.

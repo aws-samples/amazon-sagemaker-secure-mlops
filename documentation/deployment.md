@@ -66,7 +66,7 @@ The solution uses `SELF_MANAGED` stack set permission model and needs to bootstr
 - `AdministratorRole` in the development account (main account)
 - `SetupStackSetExecutionRole` in each of the target accounts
 
-You must provision these roles **before** starting the solution deployment. The `AdministratorRole` is automatically created during the solution deployment. For the `SetupStackSetExecutionRole` you can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stacksest-role.yaml) or your own process of provisioning of an IAM role.
+You must provision these roles **before** starting the solution deployment. The `AdministratorRole` is automatically created during the solution deployment. For the `SetupStackSetExecutionRole` you can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) or your own process of provisioning of an IAM role.
 
 ```bash
 # STEP 1:
@@ -77,9 +77,11 @@ You must provision these roles **before** starting the solution deployment. The 
 # !!!!!!!!!!!! RUN THIS COMMAND IN EACH OF THE TARGET ACCOUNTS !!!!!!!!!!!!
 ENV_NAME=# use your own unique environment names like "sm-mlops-$DEPARTMENT_NAME"
 ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
-STACK_NAME=$ENV_NAME-setup-stackset-role
 ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
+
+# Change or leave on default
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
+STACK_NAME=$ENV_NAME-setup-stackset-role
 
 # Delete stack if it exists
 aws cloudformation delete-stack --stack-name $STACK_NAME
@@ -100,7 +102,7 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
-The name of the provisioned IAM role `StackSetExecutionRoleName` must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
+Take a note of `StackSetExecutionRoleName` in the stack output. This name of the provisioned IAM role must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
 
 ### Step 2
 **This step is only needed if you use AWS Organizations setup.**<br/>
@@ -287,14 +289,17 @@ aws cloudformation create-stack \
 ```
 
 #### Multi-account setup
-If you would like to use **multi-account model deployment**, you must provide the valid values for OU IDs **or** account lists and the name for the `SetupStackSetExecutionRole`:
+If you would like to use **multi-account model deployment**, you must provide the valid values for OU IDs **or** account lists and the name for the `SetupStackSetExecutionRole` from [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) stack output:
 ```sh 
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
+# Provide OU IDs _or_ account ids
 STAGING_OU_ID=<OU id>
 PROD_OU_ID=<OU id>
 STAGING_ACCOUNTS=<comma-delimited account list>
 PROD_ACCOUNTS=<comma-delimited account list>
+
+# provide the actual name of the role if you don't use the default name
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
 
 aws cloudformation create-stack \
@@ -378,7 +383,7 @@ Refer to [two step deployment via CloudFormation and AWS Service Catalog clean u
 After you successfully deploy all CloudFormation stacks and created the needed infrastructure, you can start Studio and start working with the delivered notebooks.
 
 ### Start Studio
-To launch Studio you must go to [SageMaker console](https://console.aws.amazon.com/sagemaker/home?#/dashboard), click **Open SageMaker Domain** and click on the **Studio** in **Launch app** button on the SageMaker Studio Control panel:
+To launch Studio you must go to [SageMaker console](https://console.aws.amazon.com/sagemaker/home?#/dashboard), click **Control panel** and click on the **Studio** in **Launch app** button on the **Users** panel:
 
 ![](../img/open-studio.png)
 
@@ -398,7 +403,7 @@ Now go to the file browser and open [`00-setup` notebook](../sm-notebooks/00-set
 
 ![](../img/file-browser-setup.png)
 
-The first start of the notebook kernel on a new KernelGateway app takes about 5 minutes. Continue with further setup instructions in the notebook after Kernel is ready.
+The first start of the notebook kernel on a new KernelGateway app takes about 5 minutes. Continue with the setup instructions in the notebook after Kernel is ready.
 
 ❗ You have to run the whole notebook to setup your SageMaker environment.
 

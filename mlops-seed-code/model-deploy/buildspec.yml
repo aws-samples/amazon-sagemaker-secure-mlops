@@ -36,7 +36,7 @@ phases:
           --env-type-prod-name "$ENV_TYPE_PROD_NAME" \
           --multi-account-deployment "$MULTI_ACCOUNT_DEPLOYMENT"
 
-      # Package the CloudFormation template defined in cfn-sm-endpoint-template.yml in the source code repository.
+      # Package the CloudFormation template defined in cfn-sm-endpoint-template.yml in the seed source code repository.
       - aws cloudformation package --template ${CFN_TEMPLATE_NAME}-template.yaml --s3-bucket $ARTIFACT_BUCKET --output-template ${CFN_TEMPLATE_NAME}.yaml
 
       # Print the files to verify contents

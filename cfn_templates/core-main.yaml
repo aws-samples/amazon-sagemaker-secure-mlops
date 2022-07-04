@@ -95,7 +95,7 @@ Outputs:
       - ''
 
   GetEnvironmentConfigurationLambdaArn:
-    Description: Lambda function to retrieve the data science enviroment configuration 
+    Description: Lambda function to retrieve the data science environment configuration 
     Value: !GetAtt GetEnvironmentConfigurationLambda.Arn
     Export:
       Name: 'ds-get-environment-configuration-lambda-arn'

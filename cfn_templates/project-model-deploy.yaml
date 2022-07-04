@@ -169,7 +169,7 @@ Resources:
             !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${ModelDeployPipeline}'
           RoleArn:
             !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AmazonSageMakerServiceCatalogProductsUseRole'
-          Id: !Sub codecommit-${SageMakerProjectName}-modelbuild
+          Id: !Sub codecommit-${SageMakerProjectName}-modeldeploy
 
   ModelDeployCodeCommitRepository:
     Type: AWS::CodeCommit::Repository
