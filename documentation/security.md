@@ -38,6 +38,12 @@ The main design principles and decisions are:
 + You can block access to public libraries and frameworks
 + Code and model artifacts are securely persisted in CodeCommit repositories
 
+There are following common options to run a private installation/mirror of python packages:
+- private PyPi server running on EC2 instances: [example](https://aws.amazon.com/blogs/machine-learning/hosting-a-private-pypi-server-for-amazon-sagemaker-studio-notebooks-in-a-vpc/)
+- private PyPi mirror running on ECS or Fargate: [example](https://github.com/aws-samples/secure-data-science-reference-architecture#private-network-per-data-science-environment) and [workshop](https://sagemaker-workshop.com/security_for_sysops/best_practice/best_practice_lab.html)
+- use [AWS CodeArtifact](https://aws.amazon.com/codeartifact/) to host PyPi: [example](https://aws.amazon.com/blogs/machine-learning/private-package-installation-in-amazon-sagemaker-running-in-internet-free-mode/)
+- use S3 to host custom channels for Conda repository: [example](https://aws.amazon.com/blogs/machine-learning/private-package-installation-in-amazon-sagemaker-running-in-internet-free-mode/)
+
 ## Auditability
 + The solution can provide end-to-end auditability with [AWS CloudTrail](https://aws.amazon.com/cloudtrail/), [AWS Config](https://aws.amazon.com/config/), and [Amazon CloudWatch](https://aws.amazon.com/cloudwatch/)
 + Network traffic can be captured at individual network interface level
@@ -99,9 +105,17 @@ S3 VPC endpoint policy allows access only to the specified S3 project buckets wi
 
 ### Detective
 _Not implemented in this version_
+Logging and monitoring. You can use the following AWS services:
+- AWS CloudWatch
+- AWS CloudTrail
+- VPC Flow Logs
+- AWS Security Hub
+- Amazon GuardDuty
+- Amazon Macie
 
-### Responsive
+### Corrective
 _Not implemented in this version_
+Re-active correction of user actions. For example, you can stop ML instances if the instance type is not approved for use by the data scientist.
 
 ## Test secure S3 access
 To verify the access to the Amazon S3 buckets for the data science environment, you can run the following commands in the Studio terminal:

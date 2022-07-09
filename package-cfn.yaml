@@ -66,7 +66,6 @@ Resources:
   StartBuildLambda:
     Type: AWS::Lambda::Function
     Properties:
-      ReservedConcurrentExecutions: 2
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.

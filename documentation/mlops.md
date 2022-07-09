@@ -167,7 +167,7 @@ All access to the model artifacts happens via the S3 VPC endpoint **(1)**. This 
 }
 ```
 
-We apply the same setup for the data encryption key **(3)**, whose policy **(4)** grant access to the principals in the target accounts. 
+We apply the same setup for the data encryption key **(3)**, whose policy **(4)** grants access to the principals in the target accounts. 
 SageMaker model-hosting endpoints are placed in a VPC **(6)** in each of the target accounts. Any access to S3 buckets and KMS keys happens via the corresponding VPC endpoints. The IDs of these VPC endpoints are added to the Condition statement of the S3 bucket and KMS keys resource policies.
 
 ```json

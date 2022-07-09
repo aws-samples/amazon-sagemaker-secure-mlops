@@ -164,7 +164,6 @@ Resources:
   GetEnvironmentConfigurationLambda:
     Type: AWS::Lambda::Function
     Properties:
-      ReservedConcurrentExecutions: 2
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -266,7 +265,6 @@ Resources:
     Type: AWS::Lambda::Function
     Condition: IAMRolesCondition
     Properties:
-      ReservedConcurrentExecutions: 2
       Code:
         ZipFile: |
           import json

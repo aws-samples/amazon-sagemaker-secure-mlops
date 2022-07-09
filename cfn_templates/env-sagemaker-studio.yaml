@@ -337,7 +337,6 @@ Resources:
   DeleteKernelGatewayAppsLambda:
     Type: AWS::Lambda::Function
     Properties:
-      ReservedConcurrentExecutions: 2
       Code:
         ZipFile: |
           # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -410,7 +409,6 @@ Resources:
     Type: AWS::Lambda::Function
     DependsOn: SageMakerStudioDomain
     Properties:
-      ReservedConcurrentExecutions: 2
       Code:
         ZipFile: |
           # Function: EnableSagemakerProjects

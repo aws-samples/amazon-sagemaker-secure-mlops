@@ -75,7 +75,7 @@ You must provision these roles **before** starting the solution deployment. The 
 # This stack set execution role is used to deploy the target accounts stack sets in env-main.yaml
 # ENV_NAME needs to be unique to be able to create s3 buckets for the environment and consistent with service catalog
 # !!!!!!!!!!!! RUN THIS COMMAND IN EACH OF THE TARGET ACCOUNTS !!!!!!!!!!!!
-ENV_NAME=# use your own unique environment names like "sm-mlops-$DEPARTMENT_NAME"
+ENV_NAME="sm-mlops" # Or use your own unique environment names like "sm-mlops-$DEPARTMENT_NAME"
 ENV_TYPE=# use your own consistent environment stage names like "staging" and "prod"
 ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
 
@@ -155,7 +155,7 @@ Initiate the stack deployment with the following command. Use the S3 bucket name
 
 ```bash
 STACK_NAME="ds-quickstart"
-ENV_NAME="sagemaker-mlops"
+ENV_NAME="sm-mlops"
 
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/data-science-environment-quickstart.yaml \
@@ -186,11 +186,13 @@ With this option you provision a data science environment in two steps, each wit
 You can use the provided [shell script](../test/cfn-test-e2e.sh) to run this deployment type or follow the commands below.
 
 #### Step 1: Deploy the core infrastructure
+❗ Make sure you package the CloudFormation templates as described in [these instructions]((../package-cfn.md)).
+
 In this step you deploy the _shared core infrastructure_ into your AWS Account. The stack (`core-main.yaml`) provisions:
 1. Shared IAM roles for data science personas and services (optional if you bring your own IAM roles)
 2. A shared services VPC and related networking resources (optional if you bring your own network configuration)
-3. An ECS Fargate cluster to run a private PyPi mirror (_not implemented at this stage_)
-4. An AWS Service Catalog portfolio to provide a self-service deployment for the **data science administrator** user role
+3. An AWS Service Catalog portfolio to provide a self-service deployment for the **data science administrator** user role
+4. An ECS Fargate cluster to run a private PyPi mirror (_not implemented at this stage_)
 5. Security guardrails for your data science environment (_detective controls are not implemented at this stage_)
 
 The deployment options you can use are:
@@ -271,6 +273,7 @@ You can change any deployment options via CloudFormation parameters for [`core-m
 #### Single-account setup
 Run command providing the deployment options for your environment. The following command uses the minimal set of the options:
 ```sh
+# Use default or provide your own names
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 
@@ -292,10 +295,11 @@ aws cloudformation create-stack \
 If you would like to use **multi-account model deployment**, you must provide the valid values for OU IDs **or** account lists and the name for the `SetupStackSetExecutionRole` from [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) stack output:
 ```sh 
 STACK_NAME="sm-mlops-env"
-ENV_NAME="sm-mlops"
+ENV_NAME="sm-mlops" # must be the same environment name you used for multi-account bootstrapping for the stack set execution role
 # Provide OU IDs _or_ account ids
 STAGING_OU_ID=<OU id>
 PROD_OU_ID=<OU id>
+
 STAGING_ACCOUNTS=<comma-delimited account list>
 PROD_ACCOUNTS=<comma-delimited account list>
 
