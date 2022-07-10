@@ -14,6 +14,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -101,16 +102,22 @@ if __name__ == "__main__":
         ]
     )
 
-    logger.info("Applying transforms.")
-    y = df.pop("rings")
-    X_pre = preprocess.fit_transform(df)
-    y_pre = y.to_numpy().reshape(len(y), 1)
-
-    X = np.concatenate((y_pre, X_pre), axis=1)
+    y = df["rings"]
+    y = y.to_numpy().reshape(len(y), 1)
+    X = df.drop(columns=["rings"])
 
     logger.info("Splitting %d rows of data into train, validation, test datasets.", len(X))
-    np.random.shuffle(X)
-    train, validation, test = np.split(X, [int(0.7 * len(X)), int(0.85 * len(X))])
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15)
+    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.18) 
+
+    logger.info("Applying transforms.")
+    X_train_pre = preprocess.fit_transform(X_train)
+    X_val_pre = preprocess.transform(X_val)
+    X_test_pre = preprocess.transform(X_test)
+
+    train = np.concatenate((y_train, X_train_pre), axis=1)
+    validation = np.concatenate((y_val, X_val_pre), axis=1)
+    test = np.concatenate((y_test, X_test_pre), axis=1)
 
     logger.info("Writing out datasets to %s.", base_dir)
     pd.DataFrame(train).to_csv(f"{base_dir}/train/train.csv", header=False, index=False)
