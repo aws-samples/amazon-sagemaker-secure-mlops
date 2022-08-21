@@ -6,7 +6,7 @@ To deploy the solution, you must have **Administrator** (or **Power User**) perm
 
 You must also have [AWS CLI](https://aws.amazon.com/cli/). If you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
 
-### Check if a SageMaker domain exists in the deployment region
+### Check if a SageMaker domain exists in the deployment region
 ❗ At the time of writing there is a limit of **one SageMaker domain per region per account**. You cannot deploy this solution if you have already a domain in the deployment region in your AWS account. Chose a different region or delete the existing domain in the deployment region.
 
 To check if you have a domain in the deployment region, run the following CLI command:
@@ -70,10 +70,10 @@ You have a choice of different independent deployment options using the delivere
 + _Most advanced option_
 [**Two-step deployment via CloudFormation and AWS Service Catalog**](#two-step-deployment-via-cloudformation-and-aws-service-catalog): deploy the core infrastructure in the first step via `aws cloudformation create-stack` and then provision a data science environment via [AWS Service Catalog](https://aws.amazon.com/servicecatalog/). _You can change any deployment option_
 
-The following sections give step-by-step deployment instructions for each of the options.<br/>
+The following sections give step-by-step deployment instructions for each of the options.
 You can also find all CLI commands in the delivered shell scripts in the project folder `test`.
-
 The following diagram visualizes the deployment options:
+
 ![](../design/ml-ops-deployment-steps.drawio.svg)
 
 ### Special deployment options
