@@ -74,3 +74,12 @@ Run the `ls` on the S3 bucket to check that all templates are uploaded:
 ```sh
 aws s3 ls s3://${S3_BUCKET_NAME}/sagemaker-mlops/ --recursive
 ```
+
+---
+
+[Back to deployment instructions](./documentation/deployment.md)
+
+---
+
+Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+SPDX-License-Identifier: MIT-0

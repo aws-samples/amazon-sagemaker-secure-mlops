@@ -6,10 +6,50 @@ To deploy the solution, you must have **Administrator** (or **Power User**) perm
 
 You must also have [AWS CLI](https://aws.amazon.com/cli/). If you do not have it, see [Installing, updating, and uninstalling the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html). If you would like to use the multi-account model deployment option, you need access to minimum two AWS accounts, recommended three accounts for development, staging and production environments.
 
-## Package CloudFormation templates
+### Check if a SageMaker domain exists in the deployment region
+❗ At the time of writing there is a limit of **one SageMaker domain per region per account**. You cannot deploy this solution if you have already a domain in the deployment region in your AWS account. Chose a different region or delete the existing domain in the deployment region.
+
+To check if you have a domain in the deployment region, run the following CLI command:
+```sh
+aws sagemaker list-domains
+```
+If any of domains in the returned list is in the status `InService`, you cannot deploy a new domain in this region.
+
+### Check how many VPCs you have in the deployment region
+❗ By default you have a limit of five [Amazon Virtual Private Cloud (Amazon VPC)](https://docs.aws.amazon.com/vpc/?id=docs_gateway) VPCs per region per account. Check how many VPCs you have in the deployment region of your AWS account. You must have not more than four VPCs to be able to deploy the solution.
+
+You can run the following CLI command to see all VPCs in your account in the deployment region:
+```sh
+aws ec2 describe-vpcs
+```
+
+The solution deploys a VPC in your AWS account. This VPC is not deleted if you remove solution's CloudFormation stack or if the deployment fails. Subsequent failures of the deployment or re-deployments might reach the limit of five VPCs in the deployment region and **any new deployment of the solution will fail**. Always check how many VPCs you have in the deployment region in the main and target accounts before launching the solution.
+
+### Check if SageMaker Service Catalog Products roles exists
+SageMaker uses two execution **global** roles [`AmazonSageMakerServiceCatalogProductsLaunchRole`](https://console.aws.amazon.com/iam/home?#/roles/AmazonSageMakerServiceCatalogProductsLaunchRole) and [`AmazonSageMakerServiceCatalogProductsUseRole`](https://console.aws.amazon.com/iam/home?#/roles/AmazonSageMakerServiceCatalogProductsUseRole) to launch SageMaker portfolio of products and operate a CI/CD model deployment pipeline. Refer to SageMaker [documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/security-iam-awsmanpol-sc.html) to understand these roles.
+
+❗ If you have already deployed a SageMaker domain in your AWS account in any region, you might already have these roles. In this case you **must delete these two roles before you start solution deployment**. The solution will create two IAM roles with the same names but different IAM policies attached.
+
+Please check if these roles exist in your account before deployment.
+
+To check if `AmazonSageMakerServiceCatalogProductsLaunchRole` role exist, run the following CLI command in the deployment account:
+```sh
+aws iam get-role --role-name AmazonSageMakerServiceCatalogProductsLaunchRole
+```
+
+If role doesn't exist, you get a `NoSuchEntity` error, otherwise you get information about the role.
+
+To check if `AmazonSageMakerServiceCatalogProductsUseRole` role exist, run the following CLI command:
+```sh
+aws iam get-role --role-name AmazonSageMakerServiceCatalogProductsUseRole
+```
+
+If any of the roles exists in your AWS account, delete the existing role or roles, otherwise the deployment of the solution might fail or MLOps projects will not operate properly.
+
+### Package CloudFormation templates
 Please go through these [step-by-step instructions](../package-cfn.md) to package and upload the solution templates into a S3 bucket for the deployment.
 
-### Optional - run security scan on the CloudFormation templates
+#### Optional - run security scan on the CloudFormation templates
 If you would like to run a security scan on the CloudFormation templates using [`cfn_nag`](https://github.com/stelligent/cfn_nag) (recommended), you have to install `cfn_nag`:
 ```sh
 brew install ruby brew-gem
@@ -23,12 +63,18 @@ make cfn_nag_scan
 
 ## Deployment options
 You have a choice of different independent deployment options using the delivered CloudFormation templates:
-+ [**Data science environment quickstart**](#data-science-environment-quickstart): deploy an end-to-end data science environment with the majority of options set to default values. This deployment type supports **single-account model deployment workflow** only. _You can change only a few deployment options_
-+ [**Two-step deployment via CloudFormation**](#two-step-deployment-via-cloudformation): deploy the core infrastructure in the first step and then deploy a data science environment, both as CloudFormation templates. CLI `aws cloudformation create-stack` is used for deployment. _You can change any deployment option_
-+ [**Two-step deployment via CloudFormation and AWS Service Catalog**](#two-step-deployment-via-cloudformation-and-aws-service-catalog): deploy the core infrastructure in the first step via `aws cloudformation create-stack` and then provision a data science environment via [AWS Service Catalog](https://aws.amazon.com/servicecatalog/). _You can change any deployment option_
++ _Easiest option_
+[**Data science environment quickstart**](#data-science-environment-quickstart): deploy an end-to-end data science environment with the majority of options set to default values. This deployment type supports **single-account model deployment workflow** only. _You can change only a few deployment options_
++ _Most common and flexible option_
+[**Two-step deployment via CloudFormation**](#two-step-deployment-via-cloudformation): deploy the core infrastructure in the first step and then deploy a data science environment, both as CloudFormation templates. CLI `aws cloudformation create-stack` is used for deployment. _You can change any deployment option_
++ _Most advanced option_
+[**Two-step deployment via CloudFormation and AWS Service Catalog**](#two-step-deployment-via-cloudformation-and-aws-service-catalog): deploy the core infrastructure in the first step via `aws cloudformation create-stack` and then provision a data science environment via [AWS Service Catalog](https://aws.amazon.com/servicecatalog/). _You can change any deployment option_
 
 The following sections give step-by-step deployment instructions for each of the options.<br/>
 You can also find all CLI commands in the delivered shell scripts in the project folder `test`.
+
+The following diagram visualizes the deployment options:
+![](../design/ml-ops-deployment-steps.drawio.svg)
 
 ### Special deployment options
 This special type of deployment is designed for an environment, where all `iam:` API calls, such as role and policy creation, are separated from the main deployment. All IAM roles for users and services and related IAM permission policies should be created as part of a separate process following the **separation of duties** principle.
@@ -63,11 +109,12 @@ Two stack sets - one for the VPC infrastructure and another for the roles - are 
 ### Step 1
 The provisioning of a data science environment uses CloudFormation stack set to deploy the required IAM roles and VPC infrastructure into the target accounts.
 The solution uses `SELF_MANAGED` stack set permission model and needs to bootstrap two IAM roles:
-- `AdministratorRole` in the development account (main account)
+- `AdministratorRole` in the development account where you are going to deploy the SageMaker domain
 - `SetupStackSetExecutionRole` in each of the target accounts
 
-You must provision these roles **before** starting the solution deployment. The `AdministratorRole` is automatically created during the solution deployment. For the `SetupStackSetExecutionRole` you can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) or your own process of provisioning of an IAM role.
+These roles must exist **before** you launch the solution deployment. The `AdministratorRole` is automatically created during the solution deployment. For the `SetupStackSetExecutionRole` you can use the delivered CloudFormation template [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) or your own process of provisioning of an IAM role.
 
+To provision `SetupStackSetExecutionRole` launch the following CloudFormation template in **each of the target accounts**, but not in the main account:
 ```bash
 # STEP 1:
 # SELF_MANAGED stack set permission model:
@@ -102,20 +149,45 @@ aws cloudformation describe-stacks \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
-Take a note of `StackSetExecutionRoleName` in the stack output. This name of the provisioned IAM role must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
+Take a note of `StackSetExecutionRoleName` in the stack output. The **name**, not ARN, of the provisioned IAM role must be passed to the `env-main.yaml` template or used in Service Catalog-based deployment as `SetupStackSetExecutionRoleName` parameter.
 
 ### Step 2
 **This step is only needed if you use AWS Organizations setup.**<br/>
-A delegated administrator account must be registered in order to enable `ListAccountsForParent` AWS Organization API call. If the data science account is already the management account in the AWS Organizations, this step must be skipped.
 
-```bash
+#### Enable AWS CloudFormation StackSets service for your AWS Organizations
+You must enable [AWS CloudFormation StackSets](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html) service integration with your AWS Organizations. 
+When you enable integration, you allow the specified service to create a [service-linked role](https://docs.aws.amazon.com/IAM/latest/UserGuide/using-service-linked-roles.html) in all the accounts in your organization. This allows the service to perform operations on your behalf in your organization and its accounts.
+
+You can check the integration status and enable it in the [AWS Organizations Services](https://console.aws.amazon.com/organizations/v2/home/services) console or run the following CLI commands in **the management account** of your AWS Organizations.
+
+1. Check if AWS CloudFormation StackSet service is enabled:
+```sh
+aws organizations list-aws-service-access-for-organization \
+    --query 'EnabledServicePrincipals[?ServicePrincipal==`member.org.stacksets.cloudformation.amazonaws.com`]'
+```
+If the command returns an empty array `[]`, you must enable StackSets. If you get `AccessDeniedException`, make sure you run the command in the management account of the AWS Organizations and you have the corresponding permissions.
+
+2. If stack sets are not enabled, run the following command:
+```sh
+aws organizations enable-aws-service-access \
+    --service-principal=member.org.stacksets.cloudformation.amazonaws.com
+```
+
+#### Register a delegated administrator account
+A delegated administrator account must be registered in order to enable `ListAccountsForParent` AWS Organization API call. If the data science account is already **the management account** in the AWS Organizations, this step must be skipped.
+Run the following CLI command under **administrator credentials in the AWS Organization management account**:
+```sh
 # STEP 2:
 # Register a delegated administrator to enable AWS Organizations API permission for non-management account
 # Must be run under administrator in the AWS Organizations _management account_
+ADMIN_ACCOUNT_ID=<DATA SCIENCE DEVELOPMENT ACCOUNT ID>
 aws organizations register-delegated-administrator \
     --service-principal=member.org.stacksets.cloudformation.amazonaws.com \
     --account-id=$ADMIN_ACCOUNT_ID
+```
 
+Check that the development account is listed as a delegated administrator account:
+```sh
 aws organizations list-delegated-administrators  \
     --service-principal=member.org.stacksets.cloudformation.amazonaws.com
 ```
@@ -125,9 +197,9 @@ The solution is designed for multi-region deployment. You can deploy end-to-end 
 
 + The **shared IAM roles** (`DSAdministratorRole`, `SageMakerDetectiveControlExecutionRole`, `SCLaunchRole`) are created each time you deploy a new core infrastructure (`core-main`) or "quickstart" (`data-science-environment-quickstart`) stack. They created with `<StackName>-<RegionName>` prefix and designed to be unique within your end-to-end data science environment. For example, if you deploy one stack set (including core infrastructure and team data science environment) in one region and another stack in another region, these two stacks do not share any IAM roles and any users assuming any persona roles have an independent set of permissions per stack set and per region.
 + The **environment IAM roles** (`DSTeamAdministratorRole`, `DataScientistRole`, `SageMakerExecutionRole`, `SageMakerPipelineExecutionRole`, `SCProjectLaunchRole`, `SageMakerModelExecutionRole`) are created with unique names. Each deployment of a new data science environment (via CloudFormation or via AWS Service Catalog) creates a set of unique roles.
-+ SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are global for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles. These roles are **global** for the AWS account.
++ SageMaker Studio uses two pre-defined roles `AmazonSageMakerServiceCatalogProductsLaunchRole` and `AmazonSageMakerServiceCatalogProductsUseRole`. These roles are **global** for the AWS account and created by the first deployment of core infrastructure. These two roles have `Retain` deletion policy and _are not deleted_ when you delete the stack which has created these roles. These roles are **global** for the AWS account.
 
-## Deployment types
+## Deployment instructions
 The following three sections describes each deployment type and deployment use case in detail.
 
 ### Data science environment quickstart
@@ -154,6 +226,8 @@ Make sure you specify the CIDR blocks which do not conflict with your existing n
 Initiate the stack deployment with the following command. Use the S3 bucket name you used to upload CloudFormation templates in **Package CloudFormation templates** section.
 
 ```bash
+[[ unset"${S3_BUCKET_NAME}" == "unset" ]] && echo "\e[1;31mERROR: S3_BUCKET_NAME is not set" || echo "\e[1;32mS3_BUCKET_NAME is set to ${S3_BUCKET_NAME}"
+
 STACK_NAME="ds-quickstart"
 ENV_NAME="sm-mlops"
 
@@ -207,6 +281,8 @@ The following command uses the default values for the deployment options. You ca
 ```sh
 STACK_NAME="sm-mlops-core"
 
+[[ unset"${S3_BUCKET_NAME}" == "unset" ]] && echo "\e[1;31mERROR: S3_BUCKET_NAME is not set" || echo "\e[1;32mS3_BUCKET_NAME is set to ${S3_BUCKET_NAME}"
+
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/core-main.yaml \
     --region $AWS_DEFAULT_REGION \
@@ -217,10 +293,17 @@ aws cloudformation create-stack \
         ParameterKey=StackSetName,ParameterValue=$STACK_NAME
 ```
 
-After a successful stack deployment, you can see the stack output:
+The previous command launches the stack deployment and returns the `StackId`. You can track the stack deployment status in [AWS CloudFormation console](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks?filteringStatus=active&filteringText=&viewNested=true&hideStacks=false) or in your terminal with the following command:
 ```sh
 aws cloudformation describe-stacks \
-    --stack-name sm-mlops-core  \
+    --stack-name $STACK_NAME \
+    --query "Stacks[0].StackStatus"
+```
+
+After a successful stack deployment, the status turns to from `CREATE_IN_PROGRESS` to `CREATE_COMPLETE`. You can print the stack output:
+```sh
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
@@ -277,6 +360,8 @@ Run command providing the deployment options for your environment. The following
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops"
 
+[[ unset"${S3_BUCKET_NAME}" == "unset" ]] && echo "\e[1;31mERROR: S3_BUCKET_NAME is not set" || echo "\e[1;32mS3_BUCKET_NAME is set to ${S3_BUCKET_NAME}"
+
 aws cloudformation create-stack \
     --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
     --region $AWS_DEFAULT_REGION \
@@ -292,16 +377,19 @@ aws cloudformation create-stack \
 ```
 
 #### Multi-account setup
-If you would like to use **multi-account model deployment**, you must provide the valid values for OU IDs **or** account lists and the name for the `SetupStackSetExecutionRole` from [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) stack output:
+If you would like to use **multi-account model deployment**, you must provide the valid values for AWS Organizations OU IDs **or** account lists and the name for the `SetupStackSetExecutionRole` from [`env-iam-setup-stacksest-role.yaml`](../cfn_templates/env-iam-setup-stackset-role.yaml) stack output.
+
+##### Run if you use AWS Organization OU IDs:
 ```sh 
 STACK_NAME="sm-mlops-env"
 ENV_NAME="sm-mlops" # must be the same environment name you used for multi-account bootstrapping for the stack set execution role
-# Provide OU IDs _or_ account ids
+
 STAGING_OU_ID=<OU id>
 PROD_OU_ID=<OU id>
 
-STAGING_ACCOUNTS=<comma-delimited account list>
-PROD_ACCOUNTS=<comma-delimited account list>
+[[ unset"${S3_BUCKET_NAME}" == "unset" ]] && echo "\e[1;31mERROR: S3_BUCKET_NAME is not set" || echo "\e[1;32mS3_BUCKET_NAME is set to ${S3_BUCKET_NAME}"
+[[ unset"${STAGING_OU_ID}" == "unset" ]] && echo "\e[1;31mERROR: STAGING_OU_ID is not set" || echo "\e[1;32mSTAGING_OU_ID is set to ${STAGING_OU_ID}"
+[[ unset"${PROD_OU_ID}" == "unset" ]] && echo "\e[1;31mERROR: PROD_OU_ID is not set" || echo "\e[1;32mPROD_OU_ID is set to ${PROD_OU_ID}"
 
 # provide the actual name of the role if you don't use the default name
 SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
@@ -317,13 +405,57 @@ aws cloudformation create-stack \
         ParameterKey=EnvType,ParameterValue=dev \
         ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
         ParameterKey=NumberOfAZs,ParameterValue=2 \
-        ParameterKey=StartKernelGatewayApps,ParameterValue=NO \
         ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME \
         ParameterKey=OrganizationalUnitStagingId,ParameterValue=$STAGING_OU_ID \
         ParameterKey=OrganizationalUnitProdId,ParameterValue=$PROD_OU_ID \
+        ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
+```
+
+##### Run if you use account ids:
+```sh 
+STACK_NAME="sm-mlops-env"
+ENV_NAME="sm-mlops" # must be the same environment name you used for multi-account bootstrapping for the stack set execution role
+
+STAGING_ACCOUNTS=<comma-delimited account list>
+PROD_ACCOUNTS=<comma-delimited account list>
+
+[[ unset"${S3_BUCKET_NAME}" == "unset" ]] && echo "\e[1;31mERROR: S3_BUCKET_NAME is not set" || echo "\e[1;32mS3_BUCKET_NAME is set to ${S3_BUCKET_NAME}"
+[[ unset"${STAGING_ACCOUNTS}" == "unset" ]] && echo "\e[1;31mERROR: STAGING_ACCOUNTS is not set" || echo "\e[1;32mSTAGING_ACCOUNTS is set to ${STAGING_ACCOUNTS}"
+[[ unset"${PROD_ACCOUNTS}" == "unset" ]] && echo "\e[1;31mERROR: PROD_ACCOUNTS is not set" || echo "\e[1;32mPROD_ACCOUNTS is set to ${PROD_ACCOUNTS}"
+
+# provide the actual name of the role if you don't use the default name
+SETUP_STACKSET_ROLE_NAME=$ENV_NAME-setup-stackset-execution-role
+
+aws cloudformation create-stack \
+    --template-url https://s3.$AWS_DEFAULT_REGION.amazonaws.com/$S3_BUCKET_NAME/sagemaker-mlops/env-main.yaml \
+    --region $AWS_DEFAULT_REGION \
+    --stack-name $STACK_NAME \
+    --disable-rollback \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameters \
+        ParameterKey=EnvName,ParameterValue=$ENV_NAME \
+        ParameterKey=EnvType,ParameterValue=dev \
+        ParameterKey=AvailabilityZones,ParameterValue=${AWS_DEFAULT_REGION}a\\,${AWS_DEFAULT_REGION}b \
+        ParameterKey=NumberOfAZs,ParameterValue=2 \
+        ParameterKey=SeedCodeS3BucketName,ParameterValue=$S3_BUCKET_NAME \
         ParameterKey=StagingAccountList,ParameterValue=$STAGING_ACCOUNTS \
         ParameterKey=ProductionAccountList,ParameterValue=$PROD_ACCOUNTS \
         ParameterKey=SetupStackSetExecutionRoleName,ParameterValue=$SETUP_STACKSET_ROLE_NAME
+```
+
+The previous command launches the stack deployment and returns the `StackId`. You can track the stack deployment status in [AWS CloudFormation console](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks?filteringStatus=active&filteringText=&viewNested=true&hideStacks=false) or in your terminal with the following command:
+```sh
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME \
+    --query "Stacks[0].StackStatus"
+```
+
+After a successful stack deployment, the status turns to from `CREATE_IN_PROGRESS` to `CREATE_COMPLETE`. You can print the stack output:
+```sh
+aws cloudformation describe-stacks \
+    --stack-name $STACK_NAME  \
+    --output table \
+    --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```
 
 ### CloudFormation clean up
@@ -337,7 +469,7 @@ This deployment option first deploys the core infrastructure including the AWS S
 ❗ You can select your existing VPC and network resources (subnets, NAT gateways, route tables) and existing IAM resources to be used for stack set deployment. Set the corresponding CloudFormation and AWS Service Catalog product parameters to names and ARNs or your existing resources.
 
 #### Step 1: Deploy the base infrastructure
-Same as Step 1 from **Two-step deployment via CloudFormation**
+Same as Step 1 from [**Two-step deployment via CloudFormation**](#step-1-deploy-the-core-infrastructure).
 
 #### Step 2: Deploy a data science environment via AWS Service Catalog
 After the base infrastructure is provisioned, data scientists and other users must assume the DS Administrator IAM role (`AssumeDSAdministratorRole`) via link in the CloudFormation output. In this role, the users can browse the AWS Service Catalog and then provision a secure Studio environment.
@@ -345,7 +477,7 @@ After the base infrastructure is provisioned, data scientists and other users mu
 First, print the output from the stack deployment in Step 1:
 ```bash
 aws cloudformation describe-stacks \
-    --stack-name sm-mlops-core  \
+    --stack-name $STACK_NAME  \
     --output table \
     --query "Stacks[0].Outputs[*].[OutputKey, OutputValue]"
 ```

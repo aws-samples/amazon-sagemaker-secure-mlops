@@ -36,9 +36,9 @@ The main design principles and decisions are:
 
 ## Artifact management
 + You can block access to public libraries and frameworks
-+ Code and model artifacts are securely persisted in CodeCommit repositories
++ Code and model artifacts are securely persisted in AWS CodeCommit repositories
 
-There are following common options to run a private installation/mirror of python packages:
+There are following common options to run a private installation or a mirror of Python packages:
 - private PyPi server running on EC2 instances: [example](https://aws.amazon.com/blogs/machine-learning/hosting-a-private-pypi-server-for-amazon-sagemaker-studio-notebooks-in-a-vpc/)
 - private PyPi mirror running on ECS or Fargate: [example](https://github.com/aws-samples/secure-data-science-reference-architecture#private-network-per-data-science-environment) and [workshop](https://sagemaker-workshop.com/security_for_sysops/best_practice/best_practice_lab.html)
 - use [AWS CodeArtifact](https://aws.amazon.com/codeartifact/) to host PyPi: [example](https://aws.amazon.com/blogs/machine-learning/private-package-installation-in-amazon-sagemaker-running-in-internet-free-mode/)

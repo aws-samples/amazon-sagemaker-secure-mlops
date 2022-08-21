@@ -39,6 +39,7 @@ Parameters:
 Conditions:
   VPCFlowLogsRoleCondition: !Equals [!Ref CreateVPCFlowLogsRole, 'YES']
   IAMUserRolesCondition: !Equals [!Ref CreateIAMUserRoles, 'YES']
+  SCProjectLaunchRoleCondition: !Equals ['YES', 'NO']
 
 Outputs:
   AssumeTeamAdminRole:
@@ -79,7 +80,10 @@ Outputs:
 
   SCProjectLaunchRoleArn:
     Description: The ARN of the ServiceCatalog product launch role
-    Value: !GetAtt SCProjectLaunchRole.Arn
+    Value: !If
+      - SCProjectLaunchRoleCondition
+      - !GetAtt SCProjectLaunchRole.Arn
+      - ''
   
   SetupLambdaExecutionRoleArn:
     Description: Lambda execution role for Data Science environment setup function
@@ -530,6 +534,7 @@ Resources:
 
   SCProjectLaunchRole:
       Type: 'AWS::IAM::Role'
+      Condition: SCProjectLaunchRoleCondition
       Properties:
         AssumeRolePolicyDocument:
           Version: 2012-10-17

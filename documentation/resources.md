@@ -53,6 +53,7 @@ This is a list of SageMaker-related resources.
 - [R47]: [MLOps Platforms by Thoughtworks: github repo](https://github.com/thoughtworks/mlops-platforms)
 - [R48]: [MLOps: Continuous Delivery for Machine Learning on AWS](https://d1.awsstatic.com/whitepapers/mlops-continuous-delivery-machine-learning-on-aws.pdf)
 - [R49]: [Blog post series: How NatWest Group built a scalable, secure, and sustainable MLOps platform](https://aws.amazon.com/blogs/machine-learning/part-1-how-natwest-group-built-a-scalable-secure-and-sustainable-mlops-platform/)
+- [R41]: [Organize your machine learning journey with Amazon SageMaker Experiments and Amazon SageMaker Pipelines](https://aws.amazon.com/blogs/machine-learning/organize-your-machine-learning-journey-with-amazon-sagemaker-experiments-and-amazon-sagemaker-pipelines/)
 
 ## AWS Solutions
 - [SOL1]: [AWS MLOps Framework](https://aws.amazon.com/solutions/implementations/aws-mlops-framework/)

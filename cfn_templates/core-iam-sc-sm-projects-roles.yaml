@@ -259,6 +259,7 @@ Resources:
                   - 'lambda:InvokeFunction'
                   - 'lambda:RemovePermission'
                   - 'lambda:PutFunctionConcurrency'
+                  - 'lambda:TagResource'
                 Resource:
                   - !Sub 'arn:aws:lambda:*:${AWS::AccountId}:function:*'
               - Effect: Allow

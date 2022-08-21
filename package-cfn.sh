@@ -44,7 +44,7 @@ then
     echo Creating Amazon S3 bucket ${CFN_BUCKET_NAME}
     aws s3 mb s3://${CFN_BUCKET_NAME} --region $DEPLOYMENT_REGION
 fi
-echo "Preparing content for publication to Amazon S3 s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}"
+echo "\e[1;33mPreparing content for publication to Amazon S3 s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}"
 
 ## clean away any previous builds of the CFN
 rm -fr ${CFN_OUTPUT_DIR}
@@ -55,29 +55,29 @@ rm -f build/*-${DEPLOYMENT_REGION}.zip
 cp ${CFN_TEMPLATE_DIR}/*.yaml ${CFN_OUTPUT_DIR}
 
 # Zip the source code
-echo "Zipping the source code"
+echo "\e[1;33mZipping the source code"
 rm -f sagemaker-secure-mlops.zip
 zip -r sagemaker-secure-mlops.zip . -x "*.pdf" -x "*.git*" -x "*.DS_Store*" -x "*.vscode*" -x "/build/*" -x "internal-documents*"
 
 ## Zip the templates
-echo "Zipping CloudFormation templates in ${CFN_OUTPUT_DIR}"
+echo "\e[1;33mZipping CloudFormation templates in ${CFN_OUTPUT_DIR}"
 zip -r build/cfn-templates-${DEPLOYMENT_REGION}.zip ${CFN_OUTPUT_DIR}/*.yaml
 
 ## Zip the MLOps project seed code for
-echo "Zipping MLOps project seed code"
+echo "\e[1;33mZipping MLOps project seed code"
 (cd ${SEED_CODE_DIR}/model-deploy/ && zip -r ../../${SEED_CODE_OUTPUT_DIR}/mlops-model-deploy-v1.0.zip .)
 (cd ${SEED_CODE_DIR}/model-build-train/ && zip -r ../../${SEED_CODE_OUTPUT_DIR}/mlops-model-build-train-v1.0.zip .)
 
 ## publish materials to target AWS regions
-echo "Publishing CloudFormation to ${DEPLOYMENT_REGION}"
-echo "Clearing the project directory for ${PROJECT_NAME} in ${CFN_BUCKET_NAME}..."
+echo "\e[1;33mPublishing CloudFormation to ${DEPLOYMENT_REGION}"
+echo "\e[1;33mClearing the project directory for ${PROJECT_NAME} in ${CFN_BUCKET_NAME}..."
 
 aws s3 rm \
     s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/ \
     --recursive \
     --region ${DEPLOYMENT_REGION}
 
-echo "Self-packaging the Cloudformation templates: ${SELF_PACKAGE_LIST}"
+echo "\e[1;33mSelf-packaging the Cloudformation templates: ${SELF_PACKAGE_LIST}"
 for fname in ${SELF_PACKAGE_LIST};
 do
     sed -ie "s/< S3_CFN_STAGING_PATH >/${PROJECT_NAME}/" ${CFN_OUTPUT_DIR}/${fname}
@@ -85,7 +85,7 @@ do
     sed -ie "s/< S3_CFN_STAGING_BUCKET_PATH >/${CFN_BUCKET_NAME}\/${PROJECT_NAME}/" ${CFN_OUTPUT_DIR}/${fname}
 done
 
-echo "Packaging Cloudformation templates: ${AWS_PACKAGE_LIST}"
+echo "\e[1;33mPackaging Cloudformation templates: ${AWS_PACKAGE_LIST}"
 for fname in ${AWS_PACKAGE_LIST};
 do
     pushd ${CFN_OUTPUT_DIR}
@@ -107,7 +107,7 @@ aws s3 cp ${SEED_CODE_OUTPUT_DIR} s3://${CFN_BUCKET_NAME}/${PROJECT_NAME}/seed-c
 # put an object tag servicecatalog:provisioning=true for AmazonSageMakerServiceCatalogProductsLaunchRole access
 for fname in ${SEED_CODE_OUTPUT_DIR}/*
 do
-    echo "Set servicecatalog:provisioning=true tag to object: ${fname}"
+    echo "\e[1;33mSet servicecatalog:provisioning=true tag to object: ${fname}"
     aws s3api put-object-tagging \
         --bucket ${CFN_BUCKET_NAME} \
         --key ${PROJECT_NAME}/seed-code/$(basename $fname) \
@@ -115,7 +115,7 @@ do
 done
 
 # push files to S3, note this does not 'package' the templates
-echo "Copying cloudformation templates and files to S3: ${UPLOAD_LIST}"
+echo "\e[1;33mCopying cloudformation templates and files to S3: ${UPLOAD_LIST}"
 for fname in ${UPLOAD_LIST};
 do
     if [ -f ${CFN_OUTPUT_DIR}/${fname}-packaged ]; then
@@ -133,4 +133,4 @@ do
 done
 
 echo ==================================================
-echo "Publication complete"
+echo "\e[1;32mPublication complete"
