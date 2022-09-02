@@ -232,6 +232,7 @@ Resources:
                   - 'servicecatalog:Scan*'
                   - 'servicecatalog:Terminate*'
                   - 'servicecatalog:Update*'
+                  - 'servicecatalog:TagResource'
                 Resource: 
                   - !Sub 'arn:aws:servicecatalog:*:${AWS::AccountId}:*'
                   - !Sub 'arn:aws:catalog:*:${AWS::AccountId}:*'

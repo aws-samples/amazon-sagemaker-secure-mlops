@@ -45,7 +45,7 @@ This is a list of SageMaker-related resources.
 - [R39]: [Patterns for multi-account, hub-and-spoke Amazon SageMaker model registry](https://aws.amazon.com/blogs/machine-learning/patterns-for-multi-account-hub-and-spoke-amazon-sagemaker-model-registry/)
 - [R40]: [Managing your machine learning lifecycle with MLflow and Amazon SageMaker](https://aws.amazon.com/blogs/machine-learning/managing-your-machine-learning-lifecycle-with-mlflow-and-amazon-sagemaker/)
 - [R41]: [Scheduling Jupyter notebooks on SageMaker ephemeral instances](https://aws.amazon.com/blogs/machine-learning/scheduling-jupyter-notebooks-on-sagemaker-ephemeral-instances/)
-- [R42]: [Building machine learning workflows with Amazon SageMaker Processing jobs and AWS Step Functions](https://aws.amazon.com/blogs/machine-learning/building-machine-learning-workflows-with-amazon-sagemaker-processing-jobs-and-aws-step-functions/) 
+- [R42]: [Building machine learning workflows with Amazon SageMaker Processing jobs and AWS Step Functions](https://aws.amazon.com/blogs/machine-learning/building-machine-learning-workflows-with-amazon-sagemaker-processing-jobs-and-aws-step-functions/)
 - [R43]: [How Slalom and WordStream Used MLOps to Unify Machine Learning and DevOps on AWS](https://aws.amazon.com/blogs/apn/how-slalom-and-wordstream-used-mlops-to-unify-machine-learning-and-devops-on-aws/)
 - [R44]: [Create a cross-account machine learning training and deployment environment with AWS Code Pipeline](https://aws.amazon.com/blogs/machine-learning/create-a-cross-account-machine-learning-training-and-deployment-environment-with-aws-code-pipeline/)
 - [R45]: [Amazon SageMaker now supports cross-account lineage tracking and multi-hop lineage querying](https://aws.amazon.com/about-aws/whats-new/2021/12/amazon-sagemaker-cross-account-lineage-tracking-query/)
@@ -98,6 +98,7 @@ This is a list of SageMaker-related resources.
 - [W14]: [End to end Machine Learning with Amazon SageMaker](https://github.com/aws-samples/amazon-sagemaker-build-train-deploy)
 
 ## MLOps and ML production related resources
+- [Hidden Technical Debt in Machine Learning Systems](https://papers.nips.cc/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html)
 - [MLOps for Enterprises](https://github.com/aws-samples/sagemaker-custom-project-templates/tree/main/mlops-multi-account-cdk)
 - [Awesome MLOps](https://github.com/visenger/awesome-mlops)
 - [Awesome production machine learning](https://github.com/EthicalML/awesome-production-machine-learning)
@@ -112,6 +113,7 @@ This is a list of SageMaker-related resources.
 - [Seldon Core](https://docs.seldon.io/projects/seldon-core/en/latest/)
 - [MLflow and PyTorch — Where Cutting Edge AI meets MLOps](https://medium.com/pytorch/mlflow-and-pytorch-where-cutting-edge-ai-meets-mlops-1985cf8aa789)
 - [5 Lessons Learned Building an Open Source MLOps Platform](https://towardsdatascience.com/5-lessons-learned-building-an-open-source-mlops-platform-624574a44c09)
+- [Who Needs MLOps: What Data Scientists Seek to Accomplish and How Can MLOps Help?](https://arxiv.org/abs/2103.08942)
 
 ---
 
